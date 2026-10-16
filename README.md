@@ -2,7 +2,7 @@
 
 Ứng dụng web tiếng Việt để quản lý nhiều kho, số lượng và giá trị hàng hóa. Django 5.2 LTS, PostgreSQL cho môi trường online; giao diện dùng HTML, CSS và JavaScript nội bộ, không phụ thuộc CDN.
 
-**Nhánh này là bản cải tiến chưa phát hành.** Website đang dùng vẫn ở nhánh `main`. Không cập nhật production cho tới khi chủ dự án yêu cầu phát hành.
+**Bản cải tiến được chủ dự án yêu cầu phát hành ngày 16/10/2026.** Website chính triển khai từ nhánh `main`; phát triển tiếp ở nhánh riêng và chỉ phát hành khi chủ dự án yêu cầu.
 
 ![Tổng quan mới — dữ liệu minh họa](docs/preview/tong-quan-desktop.png)
 
