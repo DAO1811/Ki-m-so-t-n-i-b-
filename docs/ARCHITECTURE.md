@@ -30,3 +30,7 @@ Những báo cáo nên bổ sung tiếp: nhập–xuất–tồn đầu/cuối k
 Phiếu liên kho: DRAFT → TRANSIT (trừ tồn khả dụng hoặc giảm tồn mượn tạm khi trả) → POSTED (nhận vào tồn thường, riêng LOAN nhận vào LoanHolding bị khóa). Giá trị đi đường cố định tại lúc duyệt xuất. Các xác nhận chạy trong transaction; khóa Document, phiếu mượn gốc khi cần và Warehouse theo thứ tự ID để serialize biến động.
 
 Excel nhập phiếu IN dùng openpyxl + defusedxml, giới hạn kích thước nén/giải nén, không chạy công thức, kiểm tra toàn file trước khi tạo nháp. Xem trước lưu server session; `Document.import_key` unique chống tạo trùng khi gửi lại xác nhận.
+
+## Workspace cải tiến (chưa phát hành)
+
+`inventory/workspace.py` quản lý kho đang xem và context điều hướng. `approval_documents_for` và `can_approve` dùng chung giữa hàng chờ và thao tác ghi sổ. Kiểm tra dòng dùng chung cho tạo/sửa; kiểm tra tồn ban đầu hỗ trợ người lập, còn `post_document` giữ kiểm tra có khóa để chống race. `submission_key` dùng cột import_key hiện có để xử lý gửi lại form, không thêm schema. Biểu đồ tổng hợp số liệu theo ngày trong DB, không nạp toàn bộ ledger vào bộ nhớ. Quy tắc mật khẩu tự do của chủ dự án được thể hiện bằng AUTH_PASSWORD_VALIDATORS rỗng; băm mật khẩu, kiểm tra mật khẩu hiện tại, xác nhận mật khẩu và quyền quản trị vẫn giữ.

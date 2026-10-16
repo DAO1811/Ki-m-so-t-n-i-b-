@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'settings' %}Trường bổ sung cho hàng hóa</h1>
+      <p>Thêm thông tin như thương hiệu, xuất xứ hoặc vị trí sử dụng.</p>
+    </div>
+  </div>
+  <div class="lower-grid">
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Các trường đã khai báo</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mã trường</th>
+            <th>Tên hiển thị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for field in fields %}
+            <tr>
+              <td>{{ field.key }}</td>
+              <td>{{ field.label }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="empty">Chưa có trường bổ sung.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    <form method="post" class="panel form-panel">
+      {% csrf_token %}
+      <div class="panel-title">
+        <h2>Thêm trường</h2>
+      </div>
+      <div class="fields-body">
+        {{ form.as_p }}
+        <p class="hint">
+          Mã viết không dấu, dùng chữ, số và dấu gạch dưới. Ví dụ: <b>thuong_hieu</b>. Giá trị nhập là văn bản.
+        </p>
+        <button class="button" type="submit">{% icon 'plus' %}Thêm trường</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

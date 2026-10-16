@@ -1,1 +1,159 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">TỔNG QUAN HOẠT ĐỘNG</div><h1>Nắm bắt kho hàng của bạn</h1><p>Theo dõi tồn kho, kiểm soát luân chuyển và đối chiếu mọi giao dịch.</p></div>{% if perms.inventory.add_document %}<a class="button" href="/documents/new/">＋ Tạo chứng từ</a>{% endif %}</div><div class="stats"><div class="stat"><span>Kho được truy cập</span><strong>{{ warehouse_count }}</strong><small>Kho trong phạm vi phân quyền</small></div><div class="stat"><span>Mã hàng hóa</span><strong>{{ product_count }}</strong><small>Danh mục dùng chung</small></div><div class="stat"><span>Chứng từ nháp</span><strong>{{ pending }}</strong><small>Chưa làm thay đổi tồn kho</small></div><div class="stat warning"><span>Dòng tồn dưới định mức</span><strong>{{ low_count }}</strong><small>Cần xem xét bổ sung hàng</small></div></div><div class="value-summary">{{ transit_count }} phiếu đang đi đường · Giá trị tồn tại các kho <b>{{ total_value|floatformat:"0g" }} VNĐ</b></div><div class="banner"><div><span class="eyebrow">QUY TRÌNH RÕ RÀNG</span><h2>Từ nhập kho đến kiểm kê, trên một sổ thống nhất.</h2><p>Lập phiếu → Kiểm tra → Ghi sổ → Theo dõi thẻ kho.</p></div><a href="/documents/new/" class="button light">Bắt đầu lập phiếu ↗</a></div><div class="panel"><div class="panel-title"><h2>Chứng từ gần đây</h2><a href="/documents/">Xem tất cả →</a></div>{% include 'document_table.html' with documents=recent %}</div><div class="panel"><div class="panel-title"><h2>Hàng dưới mức tồn tối thiểu</h2><a href="/stock/?low=1">Xem báo cáo →</a></div><table><thead><tr><th>Hàng hóa</th><th>Kho</th><th>Tồn hiện tại</th><th>Tối thiểu</th></tr></thead><tbody>{% for b in low %}<tr><td>{{ b.product }}</td><td>{{ b.warehouse }}</td><td class="negative">{{ b.quantity }}</td><td>{{ b.product.minimum }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Chưa có dòng tồn dưới định mức. Nhập hàng để bắt đầu theo dõi.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui static %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'chart' %}Tổng quan tình hình kho hàng</h1>
+      <p>Theo dõi nhập, xuất, tồn và những công việc cần xử lý.</p>
+    </div>
+    <div class="heading-actions">
+      {% if perms.inventory.add_document %}
+        <a class="button" href="{% url 'operation_new' 'in' %}">{% icon 'in' %}Nhập kho</a><a class="button danger" href="{% url 'operation_new' 'out' %}">{% icon 'out' %}Xuất kho</a><a class="button orange" href="{% url 'operation_new' 'transfer' %}">{% icon 'transfer' %}Chuyển kho</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if not has_warehouses or not has_products %}
+    <div class="onboarding panel">
+      <span class="step-number">1</span>
+      <div>
+        <strong>Bắt đầu với danh mục của bạn</strong>
+        <p>
+          {% if not has_warehouses %}
+            Tạo kho và phân công người duyệt, sau đó thêm hàng hóa để lập phiếu nhập đầu tiên.
+          {% else %}
+            Kho đã sẵn sàng. Thêm hàng hóa rồi lập phiếu nhập để bắt đầu theo dõi tồn.
+          {% endif %}
+        </p>
+      </div>
+      <div class="heading-actions">
+        {% if perms.inventory.add_warehouse and not has_warehouses %}
+          <a class="button" href="{% url 'warehouse_new' %}">Tạo kho đầu tiên</a>
+        {% elif perms.inventory.add_product %}
+          <a class="button" href="{% url 'product_new' %}">Thêm hàng hóa</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+  <form class="period-filter panel">
+    <label>
+      Từ ngày
+      <input type="date" name="from" value="{{ date_from }}" required>
+    </label>
+    <label>
+      Đến ngày
+      <input type="date" name="to" value="{{ date_to }}" required>
+    </label>
+    <button class="button secondary" type="submit">Áp dụng</button>
+    <a href="{% url 'dashboard' %}" class="button ghost">{% icon 'refresh' %}Tháng này</a><span class="filter-note">
+      {% if active_warehouse %}
+        {{ active_warehouse.name }}
+      {% else %}
+        Trong phạm vi kho được cấp quyền
+      {% endif %}
+    </span>
+  </form>
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-icon purple">{% icon 'box' %}</span>
+      <div>
+        <span class="stat-label">HÀNG HÓA & KHO HÀNG</span><strong>{{ product_count|number }} <small>mã hàng</small></strong><small>{% icon 'warehouse' %} {{ warehouse_count }} kho được truy cập</small>
+      </div>
+    </div>
+    <div class="stat green-border">
+      <span class="stat-icon green">{% icon 'in' %}</span>
+      <div>
+        <span class="stat-label">NHẬP KHO TRONG KỲ</span><strong>{{ inbound_value|money }}</strong><small>Giá trị phiếu nhập đã xác nhận</small>
+      </div>
+    </div>
+    <div class="stat red-border">
+      <span class="stat-icon red">{% icon 'out' %}</span>
+      <div>
+        <span class="stat-label">XUẤT KHO TRONG KỲ</span><strong>{{ outbound_value|money }}</strong><small>Giá vốn phiếu xuất đã xác nhận</small>
+      </div>
+    </div>
+    <div class="stat">
+      <span class="stat-icon green">{% icon 'money' %}</span>
+      <div>
+        <span class="stat-label">TỒN KHẢ DỤNG HIỆN TẠI</span><strong>{{ total_value|money }}</strong><small>{{ stock_rows }} dòng hàng còn tồn · Không gồm hàng mượn</small>
+      </div>
+    </div>
+  </div>
+  <div class="signal-grid">
+  <a class="signal" href="{% url 'stock' %}?low=1"><span class="signal-icon amber">{% icon 'alert' %}</span>
+  <div>
+    <b>Hàng dưới định mức</b><small>Cần xem xét bổ sung</small>
+  </div>
+  <strong class="amber-text">{{ low_count }}</strong></a>
+<a class="signal" href="{% url 'approvals' %}"><span class="signal-icon blue">{% icon 'shield' %}</span>
+<div>
+  <b>Đang chờ bạn duyệt</b><small>Đúng quyền và đúng kho</small>
+</div>
+<strong class="blue-text">{{ approval_count }}</strong></a>
+<a class="signal" href="{% url 'documents' %}?status=TRANSIT"><span class="signal-icon amber">{% icon 'transfer' %}</span>
+<div>
+  <b>Hàng đang chuyển</b><small>Chưa xác nhận nhận</small>
+</div>
+<strong class="amber-text">{{ transit_count }}</strong></a>
+<a class="signal" href="{% url 'documents' %}?status=DRAFT"><span class="signal-icon purple">{% icon 'file' %}</span>
+<div>
+  <b>Phiếu chờ xử lý</b><small>Chưa cập nhật tồn</small>
+</div>
+<strong>{{ pending }}</strong></a>
+<div class="signal">
+  <span class="signal-icon green">{% icon 'check' %}</span>
+  <div>
+    <b>Giao dịch hôm nay</b><small>Đã duyệt hoặc nhận</small>
+  </div>
+  <strong class="green-text">{{ today_count }}</strong>
+</div>
+</div>
+<div class="chart-grid">
+  <section class="panel chart-panel">
+    <div class="panel-title">
+      <h2>{% icon 'chart' %}Xu hướng nhập – xuất trong kỳ</h2>
+      <span class="caption">Theo giá trị VNĐ</span>
+    </div>
+    <div class="chart-legend">
+      <span><i class="legend-dot green-dot"></i>Nhập kho</span><span><i class="legend-dot red-dot"></i>Xuất kho</span>
+    </div>
+    <div id="activity-chart"
+         class="chart"
+         aria-label="Biểu đồ giá trị nhập xuất trong kỳ"></div>
+  </section>
+  <section class="panel chart-panel">
+    <div class="panel-title">
+      <h2>{% icon 'warehouse' %}Giá trị tồn theo kho</h2>
+      <span class="badge posted">Hiện tại</span>
+    </div>
+    <div id="warehouse-chart"
+         class="chart"
+         aria-label="Biểu đồ giá trị tồn khả dụng theo kho"></div>
+    <div class="chart-footnote">Tồn khả dụng, tách riêng hàng đang chuyển và hàng mượn tạm.</div>
+  </section>
+</div>
+<div class="lower-grid">
+  <section class="panel">
+    <div class="panel-title">
+      <h2>{% icon 'history' %}Phiếu gần đây</h2>
+      <a href="{% url 'documents' %}">Xem tất cả {% icon 'arrow' %}</a>
+    </div>
+    {% include 'document_table.html' with documents=recent %}
+  </section>
+  <section class="panel quick-panel">
+    <div class="panel-title">
+      <h2>{% icon 'grid' %}Công việc thường dùng</h2>
+    </div>
+    <a href="{% url 'loans' %}"><span class="signal-icon blue">{% icon 'loan' %}</span><span><b>Theo dõi mượn & trả</b><small>Giá trị đang cho mượn: {{ loan_value|money }}</small></span>{% icon 'chevron' %}</a><a href="{% url 'ledger' %}"><span class="signal-icon purple">{% icon 'history' %}</span><span><b>Tra cứu thẻ kho</b><small>Đối chiếu theo mã hàng và từng kho</small></span>{% icon 'chevron' %}</a>
+    {% if perms.inventory.add_document %}
+      <a href="{% url 'receipt_import' %}"><span class="signal-icon green">{% icon 'upload' %}</span><span><b>Nhập phiếu từ Excel</b><small>Tải mẫu · Xem trước · Tạo phiếu</small></span>{% icon 'chevron' %}</a>
+    {% endif %}
+    <div class="safety-note">
+      {% icon 'lock' %}<span>Người lập và người duyệt là hai tài khoản riêng. Chỉ phiếu đã duyệt mới thay đổi tồn.</span>
+    </div>
+  </section>
+</div>
+{{ chart_activity|json_script:'activity-data' }}{{ chart_warehouses|json_script:'warehouse-data' }}
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'dashboard.js' %}" defer></script>
+{% endblock %}

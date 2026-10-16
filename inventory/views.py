@@ -3,13 +3,31 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, F, Sum
-from django.http import HttpResponse
+from django.db.models import Q, F, Sum, Count
+from django.db.models.functions import TruncDate
+from django.http import HttpResponse, JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 from .models import Document, Line, Product, Balance, Movement, LoanHolding
-from .forms import DocumentForm, LineFormSet, ProductForm
-from .services import warehouses_for, documents_for, post_document
+from .forms import DocumentForm, LineFormSet, ProductForm, WarehouseForm, EmployeeForm
+from .services import (
+    warehouses_for,
+    documents_for,
+    post_document,
+    can_approve,
+    approval_documents_for,
+)
+from .workspace import selected_warehouse, scoped_documents
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.utils.http import url_has_allowed_host_and_scheme
+from datetime import date
+from decimal import Decimal
+from uuid import uuid4
+from django.core.exceptions import PermissionDenied
+from .models import CustomField
 
 
 def balances(user):
@@ -19,152 +37,363 @@ def balances(user):
 
 
 def export_csv(name, headers, rows):
-    response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-    response["Content-Disposition"] = f'attachment; filename="{name}.csv"'
-    response.write("\ufeff")
-    writer = csv.writer(response)
+    from io import StringIO
+
+    buffer = StringIO(newline="")
+    writer = csv.writer(buffer)
     writer.writerow(headers)
     for row in rows:
         writer.writerow(
             [
-                ("'" + str(v))
+                ("'" + v)
                 if isinstance(v, str) and v.startswith(("=", "+", "-", "@", "\t", "\r"))
+                else format(v, "f")
+                if isinstance(v, Decimal)
                 else v
                 for v in row
             ]
         )
+    # Encode once. Encoding each response.write with utf-8-sig adds a BOM to every row.
+    response = HttpResponse(
+        buffer.getvalue().encode("utf-8-sig"),
+        content_type="text/csv; charset=utf-8-sig",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{name}.csv"'
     return response
+
+
+def request_balances(request):
+    qs = balances(request.user)
+    warehouse = selected_warehouse(request)
+    return qs.filter(warehouse=warehouse) if warehouse else qs
+
+
+def date_range(request):
+    today = timezone.localdate()
+    try:
+        start = date.fromisoformat(request.GET.get("from", str(today.replace(day=1))))
+        end = date.fromisoformat(request.GET.get("to", str(today)))
+        if start > end or (end - start).days > 366:
+            raise ValueError
+    except (ValueError, TypeError):
+        start, end = today.replace(day=1), today
+        messages.error(
+            request,
+            "Khoảng ngày không hợp lệ. Đang hiển thị tháng hiện tại; tối đa 366 ngày mỗi lần.",
+        )
+    return start, end
 
 
 @login_required
 def dashboard(request):
-    b = balances(request.user)
-    return render(
-        request,
-        "dashboard.html",
-        {
-            "warehouse_count": warehouses_for(request.user).count(),
-            "product_count": Product.objects.count(),
-            "pending": documents_for(request.user).filter(status="DRAFT").count(),
-            "total_value": b.aggregate(n=Sum("value"))["n"] or 0,
-            "transit_count": documents_for(request.user)
-            .filter(status="TRANSIT")
-            .count(),
-            "low_count": b.filter(quantity__lt=F("product__minimum")).count(),
-            "recent": documents_for(request.user).select_related(
-                "source", "destination", "created_by"
-            )[:6],
-            "low": b.filter(quantity__lt=F("product__minimum"))[:6],
-        },
+    b = request_balances(request)
+    docs = scoped_documents(request)
+    start, end = date_range(request)
+    movement = Movement.objects.filter(
+        warehouse__in=warehouses_for(request.user),
+        created_at__date__gte=start,
+        created_at__date__lte=end,
     )
+    warehouse = selected_warehouse(request)
+    if warehouse:
+        movement = movement.filter(warehouse=warehouse)
+    inbound = (
+        movement.filter(document__kind="IN").aggregate(n=Sum("value_delta"))["n"] or 0
+    )
+    outbound = -(
+        movement.filter(document__kind="OUT").aggregate(n=Sum("value_delta"))["n"] or 0
+    )
+    # Quantities with different units are deliberately not added together.
+    groups = {}
+    activity_rows = (
+        movement.filter(document__kind__in=["IN", "OUT"])
+        .annotate(day=TruncDate("created_at"))
+        .values("day", "document__kind")
+        .annotate(amount=Sum("value_delta"))
+        .order_by("day")
+    )
+    for row in activity_rows:
+        day = row["day"]
+        key = (
+            day.strftime("%d/%m") if (end - start).days <= 31 else day.strftime("%m/%Y")
+        )
+        groups.setdefault(key, {"label": key, "inbound": 0, "outbound": 0})
+        groups[key]["inbound" if row["document__kind"] == "IN" else "outbound"] += (
+            float(abs(row["amount"]))
+        )
+    warehouse_values = list(
+        b.values("warehouse__name", "warehouse__code")
+        .annotate(total=Sum("value"))
+        .order_by("-total")
+    )
+    approval = approval_documents_for(request.user)
+    if warehouse:
+        approval = approval.filter(Q(source=warehouse) | Q(destination=warehouse))
+    owned_holdings = LoanHolding.objects.filter(
+        loan_line__document__source__in=warehouses_for(request.user)
+    )
+    if warehouse:
+        owned_holdings = owned_holdings.filter(loan_line__document__source=warehouse)
+    context = {
+        "warehouse_count": 1 if warehouse else warehouses_for(request.user).count(),
+        "product_count": Product.objects.count(),
+        "pending": docs.filter(status="DRAFT").count(),
+        "approval_count": approval.count(),
+        "total_value": b.aggregate(n=Sum("value"))["n"] or 0,
+        "inbound_value": inbound,
+        "outbound_value": outbound,
+        "stock_rows": b.filter(quantity__gt=0).count(),
+        "transit_count": docs.filter(status="TRANSIT").count(),
+        "low_count": b.filter(quantity__lt=F("product__minimum")).count(),
+        "today_count": docs.filter(
+            Q(posted_at__date=timezone.localdate())
+            | Q(dispatched_at__date=timezone.localdate())
+        ).count(),
+        "loan_value": owned_holdings.aggregate(n=Sum("value"))["n"] or 0,
+        "recent": docs.select_related("source", "destination", "created_by")[:6],
+        "low": b.filter(quantity__lt=F("product__minimum"))[:5],
+        "chart_activity": list(groups.values()),
+        "chart_warehouses": [
+            {
+                "label": v["warehouse__code"],
+                "name": v["warehouse__name"],
+                "value": float(v["total"]),
+            }
+            for v in warehouse_values
+        ],
+        "date_from": start.isoformat(),
+        "date_to": end.isoformat(),
+        "has_warehouses": warehouses_for(request.user).exists(),
+        "has_products": Product.objects.exists(),
+    }
+    return render(request, "dashboard.html", context)
 
 
 @login_required
 def documents(request):
-    qs = documents_for(request.user).select_related(
-        "source", "destination", "created_by"
-    )
-    if request.GET.get("kind"):
-        qs = qs.filter(kind=request.GET["kind"])
-    if request.GET.get("status"):
-        qs = qs.filter(status=request.GET["status"])
+    qs = scoped_documents(request).select_related("source", "destination", "created_by")
+    kind = request.GET.get("kind", "")
+    status = request.GET.get("status", "")
+    if kind:
+        qs = qs.filter(kind=kind)
+    if status:
+        qs = qs.filter(status=status)
+    if request.GET.get("mine"):
+        qs = qs.filter(created_by=request.user)
+    if request.GET.get("q"):
+        q = request.GET["q"].strip()
+        number = q.upper().removeprefix("PK-")
+        qs = (
+            qs.filter(Q(pk=int(number)) | Q(note__icontains=q))
+            if number.isdigit()
+            else qs.filter(Q(note__icontains=q) | Q(created_by__username__icontains=q))
+        )
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(
-        request, "documents.html", {"documents": qs[:200], "kinds": Document.TYPES}
+        request,
+        "documents.html",
+        {"documents": page, "page_obj": page, "kinds": Document.TYPES},
     )
 
 
-@login_required
-@permission_required("inventory.add_document", raise_exception=True)
-def document_new(request):
-    form = DocumentForm(request.POST or None, user=request.user)
-    formset = LineFormSet(request.POST or None)
-    if request.method == "POST" and form.is_valid() and formset.is_valid():
-        items = [f.cleaned_data for f in formset if f.cleaned_data]
-        if len({i["product"].pk for i in items}) != len(items):
-            form.add_error(None, "Mỗi hàng hóa chỉ xuất hiện một lần trên phiếu.")
-        elif (
-            any(
-                (
-                    i["quantity"] < 0
-                    if form.cleaned_data["kind"] == "COUNT"
-                    else i["quantity"] <= 0
-                )
-                for i in items
-            )
-            and form.cleaned_data["kind"] != "ADJUST"
-        ):
-            form.add_error(None, "Số lượng phải dương; kiểm kê cho phép 0.")
-        else:
-            with transaction.atomic():
-                doc = form.save(commit=False)
-                doc.created_by = request.user
-                doc.save()
-                Line.objects.bulk_create([Line(document=doc, **i) for i in items])
-            messages.success(
-                request, "Đã lưu phiếu nháp. Kiểm tra rồi bấm Ghi sổ để cập nhật tồn."
-            )
-            return redirect("document_detail", pk=doc.pk)
+def document_form_response(request, form, formset, operation, editing=False):
+    instructions = {
+        "IN": "Chọn kho nhận → thêm hàng và đơn giá → gửi quản lý kho duyệt.",
+        "OUT": "Chọn kho xuất → thêm hàng đang có tồn → gửi người có quyền duyệt xuất.",
+        "TRANSFER": "Chọn hai kho → duyệt chuyển đi → kho nhận xác nhận hàng đến.",
+        "LOAN": "Chọn kho cho mượn và kho mượn. Hàng mượn được khóa ở sổ trung gian, không được xuất dùng.",
+        "RETURN": "Chọn lệnh mượn gốc → kiểm tra hàng còn mượn → nhập số lượng trả.",
+        "COUNT": "Nhập số thực đếm của tồn thường, không cộng hàng mượn tạm. Ghi lý do chênh lệch.",
+        "ADJUST": "Nhập số tăng hoặc giảm, ghi rõ lý do. Hệ thống không cho phép âm tồn.",
+    }
     return render(
         request,
         "document_form.html",
         {
             "form": form,
             "formset": formset,
+            "form_kind": operation,
+            "operation_name": dict(Document.TYPES).get(operation, "Lập phiếu"),
+            "operation_help": instructions.get(operation, ""),
+            "editing": editing,
             "loans_data": list(
                 form.fields["loan"].queryset.values("id", "source_id", "destination_id")
             ),
+            "has_products": Product.objects.exists(),
+            "has_warehouses": warehouses_for(request.user).exists(),
         },
     )
+
+
+def validate_available_lines(form, formset):
+    """Catch an obvious shortage before sending a draft; posting rechecks under locks."""
+    kind = form.cleaned_data["kind"]
+    if kind not in ["OUT", "TRANSFER", "LOAN", "RETURN"]:
+        return True
+    if kind == "RETURN":
+        available = {
+            h.loan_line.product_id: h.quantity
+            for h in LoanHolding.objects.filter(
+                loan_line__document=form.cleaned_data["loan"]
+            ).select_related("loan_line")
+        }
+    else:
+        available = {
+            b.product_id: b.quantity
+            for b in Balance.objects.filter(warehouse=form.cleaned_data["source"])
+        }
+    valid = True
+    for row in formset:
+        data = row.cleaned_data
+        if not data or data.get("DELETE"):
+            continue
+        current = available.get(data["product"].pk, Decimal(0))
+        if data["quantity"] > current:
+            row.add_error(
+                "quantity",
+                f"Chỉ còn {current:f} {data['product'].unit} có thể {'trả' if kind == 'RETURN' else 'xuất / cho mượn'}.",
+            )
+            valid = False
+    return valid
+
+
+@login_required
+@permission_required("inventory.add_document", raise_exception=True)
+def document_new(request, kind=None):
+    fixed = kind.upper() if kind else None
+    if fixed and fixed not in dict(Document.TYPES):
+        raise Http404
+    operation = fixed or request.POST.get("kind") or request.GET.get("kind", "IN")
+    if operation not in dict(Document.TYPES):
+        operation = "IN"
+    accessible = warehouses_for(request.user)
+    warehouse = selected_warehouse(request) or (
+        accessible.first() if accessible.count() == 1 else None
+    )
+    initial = {"kind": operation, "submission_key": uuid4()}
+    if warehouse:
+        initial[
+            "source"
+            if operation in ["OUT", "TRANSFER", "LOAN", "RETURN"]
+            else "destination"
+        ] = warehouse
+    line_initial = []
+    loan_id = request.GET.get("loan")
+    if operation == "RETURN" and loan_id:
+        loan = get_object_or_404(
+            documents_for(request.user), pk=loan_id, kind="LOAN", status="POSTED"
+        )
+        initial.update(loan=loan, source=loan.destination, destination=loan.source)
+        line_initial = [
+            {"product": h.loan_line.product_id, "quantity": h.quantity}
+            for h in LoanHolding.objects.filter(
+                loan_line__document=loan, quantity__gt=0
+            ).select_related("loan_line")
+        ]
+    form = DocumentForm(
+        request.POST or None, user=request.user, fixed_kind=fixed, initial=initial
+    )
+    formset = LineFormSet(request.POST or None, initial=line_initial, kind=operation)
+    if (
+        request.method == "POST"
+        and form.is_valid()
+        and formset.is_valid()
+        and validate_available_lines(form, formset)
+    ):
+        with transaction.atomic():
+            key = form.cleaned_data.get("submission_key") or uuid4()
+            values = {k: form.cleaned_data.get(k) for k in DocumentForm.Meta.fields}
+            doc, created = Document.objects.get_or_create(
+                import_key=key, defaults={**values, "created_by": request.user}
+            )
+            if not created and doc.created_by_id != request.user.pk:
+                raise PermissionDenied(
+                    "Không được sử dụng mã phiên tạo phiếu của người khác."
+                )
+            if created:
+                Line.objects.bulk_create(
+                    [
+                        Line(
+                            document=doc,
+                            **{
+                                k: v for k, v in f.cleaned_data.items() if k != "DELETE"
+                            },
+                        )
+                        for f in formset
+                        if f.cleaned_data and not f.cleaned_data.get("DELETE")
+                    ]
+                )
+        messages.success(
+            request, "Đã lưu phiếu nháp. Kiểm tra rồi bấm Ghi sổ để cập nhật tồn."
+        )
+        return redirect("document_detail", pk=doc.pk)
+    return document_form_response(request, form, formset, operation)
 
 
 @login_required
 @permission_required("inventory.add_document", raise_exception=True)
 def document_edit(request, pk):
     doc = get_object_or_404(Document, pk=pk, created_by=request.user, status="DRAFT")
-    form = DocumentForm(request.POST or None, user=request.user, instance=doc)
-    initial = list(doc.lines.values("product", "quantity", "unit_price"))
-    formset = LineFormSet(request.POST or None, initial=initial)
-    if request.method == "POST" and form.is_valid() and formset.is_valid():
-        items = [f.cleaned_data for f in formset if f.cleaned_data]
-        if len({i["product"].pk for i in items}) != len(items):
-            form.add_error(None, "Mỗi hàng hóa chỉ xuất hiện một lần trên phiếu.")
-        else:
-            with transaction.atomic():
-                locked = Document.objects.select_for_update().get(pk=pk)
-                if locked.status != "DRAFT":
-                    messages.error(request, "Phiếu đã được xử lý, không thể sửa.")
-                    return redirect("document_detail", pk=pk)
-                form.save()
-                doc.lines.all().delete()
-                Line.objects.bulk_create([Line(document=doc, **i) for i in items])
-            messages.success(request, "Đã cập nhật phiếu nháp.")
-            return redirect("document_detail", pk=pk)
-    return render(
-        request,
-        "document_form.html",
-        {
-            "form": form,
-            "formset": formset,
-            "loans_data": list(
-                form.fields["loan"].queryset.values("id", "source_id", "destination_id")
-            ),
-        },
+    form = DocumentForm(
+        request.POST or None, user=request.user, instance=doc, fixed_kind=doc.kind
     )
+    formset = LineFormSet(
+        request.POST or None,
+        initial=list(doc.lines.values("product", "quantity", "unit_price")),
+        kind=doc.kind,
+    )
+    if (
+        request.method == "POST"
+        and form.is_valid()
+        and formset.is_valid()
+        and validate_available_lines(form, formset)
+    ):
+        with transaction.atomic():
+            locked = Document.objects.select_for_update().get(pk=pk)
+            if locked.status != "DRAFT":
+                messages.error(request, "Phiếu đã được xử lý, không thể sửa.")
+                return redirect("document_detail", pk=pk)
+            form.save()
+            doc.lines.all().delete()
+            Line.objects.bulk_create(
+                [
+                    Line(
+                        document=doc,
+                        **{k: v for k, v in f.cleaned_data.items() if k != "DELETE"},
+                    )
+                    for f in formset
+                    if f.cleaned_data and not f.cleaned_data.get("DELETE")
+                ]
+            )
+        messages.success(request, "Đã cập nhật phiếu nháp.")
+        return redirect("document_detail", pk=pk)
+    return document_form_response(request, form, formset, doc.kind, editing=True)
 
 
 @login_required
 def document_detail(request, pk):
     doc = get_object_or_404(documents_for(request.user), pk=pk)
+    can_post = can_approve(doc, request.user)
     receiving = doc.status == "TRANSIT" or not doc.source_id
-    people = doc.destination.managers if receiving else doc.source.issue_approvers
-    can_post = request.user.is_superuser or people.filter(pk=request.user.pk).exists()
+    approvers = (
+        doc.destination.managers if receiving else doc.source.issue_approvers
+    ).all()
     return render(
         request,
         "document_detail.html",
         {
             "doc": doc,
             "lines": doc.lines.select_related("product"),
-            "can_post": can_post and doc.created_by_id != request.user.pk,
+            "can_post": can_post,
+            "approvers": approvers,
+            "total_amount": sum(
+                (
+                    l.quantity * l.unit_price
+                    for l in doc.lines.all()
+                    if l.unit_price is not None
+                ),
+                Decimal(0),
+            ),
         },
     )
 
@@ -188,9 +417,10 @@ def document_post(request, pk):
 
 @login_required
 def stock(request):
-    qs = balances(request.user).order_by("warehouse__code", "product__sku")
-    if request.GET.get("warehouse"):
-        qs = qs.filter(warehouse_id=request.GET["warehouse"])
+    qs = request_balances(request).order_by("warehouse__code", "product__sku")
+    warehouse = selected_warehouse(request)
+    if warehouse:
+        qs = qs.filter(warehouse=warehouse)
     if request.GET.get("q"):
         qs = qs.filter(
             Q(product__name__icontains=request.GET["q"])
@@ -237,10 +467,13 @@ def ledger(request):
     qs = Movement.objects.filter(
         warehouse__in=warehouses_for(request.user)
     ).select_related("document", "product", "warehouse")
-    if request.GET.get("warehouse"):
-        qs = qs.filter(warehouse_id=request.GET["warehouse"])
+    warehouse = selected_warehouse(request)
+    if warehouse:
+        qs = qs.filter(warehouse=warehouse)
     if request.GET.get("product"):
-        qs = qs.filter(product_id=request.GET["product"])
+        raw = request.GET["product"]
+        product = get_object_or_404(Product, pk=raw if raw.isdigit() else 0)
+        qs = qs.filter(product=product)
     # Balance after is persisted per movement, so filtered history retains true running balance.
     if request.GET.get("export"):
         return export_csv(
@@ -283,8 +516,9 @@ def ledger(request):
 @login_required
 def loans(request):
     rows = []
+    warehouse_ids = set(warehouses_for(request.user).values_list("id", flat=True))
     for doc in (
-        documents_for(request.user)
+        scoped_documents(request)
         .filter(kind="LOAN", status="POSTED")
         .select_related("source", "destination")
         .prefetch_related("lines__product")
@@ -313,6 +547,7 @@ def loans(request):
                     "holding": holding.quantity if holding else 0,
                     "value": holding.value if holding else 0,
                     "pending": pending,
+                    "can_return": doc.destination_id in warehouse_ids,
                 }
             )
     return render(
@@ -320,7 +555,7 @@ def loans(request):
         "loans.html",
         {
             "rows": rows,
-            "transit_loans": documents_for(request.user)
+            "transit_loans": scoped_documents(request)
             .filter(kind="LOAN", status="TRANSIT")
             .select_related("source", "destination"),
         },
@@ -334,7 +569,8 @@ def products(request):
         qs = qs.filter(
             Q(name__icontains=request.GET["q"]) | Q(sku__icontains=request.GET["q"])
         )
-    return render(request, "products.html", {"products": qs[:500]})
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    return render(request, "products.html", {"products": page, "page_obj": page})
 
 
 @login_required
@@ -367,7 +603,6 @@ def receipt_import(request):
     from .forms import ReceiptImportForm
     from .excel import parse_receipt
     import uuid
-    from decimal import Decimal
 
     form = ReceiptImportForm(
         request.POST or None, request.FILES or None, user=request.user
@@ -433,3 +668,221 @@ def receipt_import(request):
         except ValidationError as exc:
             form.add_error("file", exc)
     return render(request, "receipt_import.html", {"form": form, "preview": preview})
+
+
+@login_required
+@require_POST
+def warehouse_scope(request):
+    raw = request.POST.get("warehouse", "")
+    if raw:
+        warehouse = get_object_or_404(
+            warehouses_for(request.user), pk=raw if raw.isdigit() else 0
+        )
+        request.session["warehouse_scope"] = str(warehouse.pk)
+    else:
+        request.session.pop("warehouse_scope", None)
+    target = request.POST.get("next", "/")
+    if not url_has_allowed_host_and_scheme(
+        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        target = "/"
+    return redirect(target)
+
+
+@login_required
+def availability(request):
+    raw = request.GET.get("warehouse", "")
+    warehouse = get_object_or_404(
+        warehouses_for(request.user), pk=raw if raw.isdigit() else 0
+    )
+    loan_id = request.GET.get("loan", "")
+    if loan_id:
+        loan = get_object_or_404(
+            documents_for(request.user),
+            pk=loan_id if loan_id.isdigit() else 0,
+            kind="LOAN",
+            status="POSTED",
+            destination=warehouse,
+        )
+        rows = LoanHolding.objects.filter(loan_line__document=loan).values(
+            "loan_line__product_id", "quantity"
+        )
+        data = {str(row["loan_line__product_id"]): str(row["quantity"]) for row in rows}
+    else:
+        data = {
+            str(b.product_id): str(b.quantity)
+            for b in Balance.objects.filter(warehouse=warehouse)
+        }
+    return JsonResponse({"quantities": data})
+
+
+@login_required
+def approvals(request):
+    qs = approval_documents_for(request.user).select_related(
+        "source", "destination", "created_by"
+    )
+    warehouse = selected_warehouse(request)
+    if warehouse:
+        qs = qs.filter(Q(source=warehouse) | Q(destination=warehouse))
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "approvals.html",
+        {"documents": page, "page_obj": page, "approval_total": qs.count()},
+    )
+
+
+@login_required
+@permission_required("inventory.change_product", raise_exception=True)
+def product_edit(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    form = ProductForm(request.POST or None, instance=product)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Đã cập nhật hàng hóa.")
+        return redirect("products")
+    return render(request, "product_form.html", {"form": form, "editing": True})
+
+
+@login_required
+def warehouse_list(request):
+    return render(
+        request,
+        "warehouses.html",
+        {
+            "warehouses": warehouses_for(request.user)
+            .prefetch_related("members", "managers", "issue_approvers")
+            .order_by("code")
+        },
+    )
+
+
+@login_required
+@permission_required("inventory.add_warehouse", raise_exception=True)
+def warehouse_new(request):
+    return warehouse_form(request)
+
+
+@login_required
+@permission_required("inventory.change_warehouse", raise_exception=True)
+def warehouse_edit(request, pk):
+    return warehouse_form(
+        request, get_object_or_404(warehouses_for(request.user), pk=pk)
+    )
+
+
+def warehouse_form(request, warehouse=None):
+    form = WarehouseForm(request.POST or None, instance=warehouse)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Đã lưu kho và phân công người duyệt.")
+        return redirect("warehouse_list")
+    return render(
+        request, "warehouse_form.html", {"form": form, "editing": bool(warehouse)}
+    )
+
+
+def require_admin(user):
+    from django.core.exceptions import PermissionDenied
+
+    if not user.is_superuser:
+        raise PermissionDenied(
+            "Chỉ quản trị viên được quản lý nhân viên và phân quyền."
+        )
+
+
+@login_required
+def team(request):
+    require_admin(request.user)
+    qs = (
+        get_user_model()
+        .objects.all()
+        .prefetch_related(
+            "groups", "warehouses", "managed_warehouses", "issue_warehouses"
+        )
+        .order_by("username")
+    )
+    if request.GET.get("q"):
+        qs = qs.filter(
+            Q(username__icontains=request.GET["q"])
+            | Q(first_name__icontains=request.GET["q"])
+            | Q(last_name__icontains=request.GET["q"])
+        )
+    return render(request, "team.html", {"employees": qs})
+
+
+@login_required
+def employee_form(request, pk=None):
+    require_admin(request.user)
+    employee = get_object_or_404(get_user_model(), pk=pk) if pk else None
+    form = EmployeeForm(request.POST or None, instance=employee)
+    if request.method == "POST" and form.is_valid():
+        if (
+            employee
+            and employee.pk == request.user.pk
+            and not form.cleaned_data["is_active"]
+        ):
+            form.add_error("is_active", "Bạn không thể khóa tài khoản đang sử dụng.")
+        else:
+            with transaction.atomic():
+                saved = form.save()
+            if saved.pk == request.user.pk:
+                update_session_auth_hash(request, saved)
+            messages.success(
+                request,
+                "Đã lưu nhân viên. Tên đăng nhập do quản trị viên quy định; người dùng tự đổi được mật khẩu.",
+            )
+            return redirect("team")
+    return render(
+        request, "employee_form.html", {"form": form, "editing": bool(employee)}
+    )
+
+
+@login_required
+def password_change(request):
+    form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        messages.success(request, "Đã đổi mật khẩu. Bạn vẫn đang đăng nhập.")
+        return redirect("password_change")
+    return render(request, "password_change.html", {"form": form})
+
+
+@login_required
+def reports(request):
+    b = request_balances(request)
+    warehouses = (
+        b.values("warehouse__code", "warehouse__name")
+        .annotate(total_value=Sum("value"), sku_count=Count("product", distinct=True))
+        .order_by("warehouse__code")
+    )
+    return render(
+        request,
+        "reports.html",
+        {
+            "warehouse_totals": warehouses,
+            "low": b.filter(quantity__lt=F("product__minimum")),
+            "total_value": b.aggregate(n=Sum("value"))["n"] or 0,
+        },
+    )
+
+
+@login_required
+@permission_required("inventory.add_customfield", raise_exception=True)
+def custom_fields(request):
+    from django.forms import modelform_factory
+
+    Form = modelform_factory(CustomField, fields=["key", "label"])
+    form = Form(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(
+            request, "Đã thêm trường. Trường mới sẽ hiện trên biểu mẫu hàng hóa."
+        )
+        return redirect("custom_fields")
+    return render(
+        request,
+        "custom_fields.html",
+        {"form": form, "fields": CustomField.objects.order_by("id")},
+    )

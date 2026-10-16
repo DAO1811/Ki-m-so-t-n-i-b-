@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'team' %}">← Nhân viên & quyền</a>
+      <h1>
+        {% icon 'users' %}
+        {% if editing %}
+          Sửa nhân viên
+        {% else %}
+          Thêm nhân viên
+        {% endif %}
+      </h1>
+      <p>Đặt tài khoản, chọn vai trò và kho làm việc trên cùng một màn hình.</p>
+    </div>
+  </div>
+  <form method="post">
+    {% csrf_token %}{{ form.non_field_errors }}
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2>Thông tin đăng nhập</h2>
+      </div>
+      <div class="form-grid">
+        {% for field in form %}
+          {% if field.name == 'username' or field.name == 'password' or field.name == 'first_name' or field.name == 'last_name' or field.name == 'email' %}
+            <div class="field">
+              {{ field.label_tag }}
+              {% if field.field.required %}<span class="required">*</span>{% endif %}
+              {{ field }}{{ field.errors }}
+              {% if field.name == 'password' %}
+                <small>Mật khẩu tự chọn.
+                  {% if editing %}Để trống nếu muốn giữ mật khẩu hiện tại.{% endif %}
+                </small>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+        <div class="field full-width">
+          <label class="checkbox-line">{{ form.is_active }} Cho phép tài khoản đăng nhập</label>
+          {{ form.is_active.errors }}
+        </div>
+      </div>
+    </section>
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2>Vai trò & phạm vi làm việc</h2>
+      </div>
+      <div class="permission-grid">
+        <div class="permission-field">
+          {{ form.groups.label_tag }}<span class="helptext">Nhân viên kho được lập phiếu. Chỉ xem báo cáo không được tạo phiếu.</span>{{ form.groups }}{{ form.groups.errors }}
+        </div>
+        <div class="permission-field">
+          {{ form.access_warehouses.label_tag }}<span class="helptext">Các kho nhân viên có thể xem và làm việc.</span>{{ form.access_warehouses }}{{ form.access_warehouses.errors }}
+        </div>
+        <div class="permission-field">
+          {{ form.managed_warehouses.label_tag }}<span class="helptext">Xác nhận nhập, kiểm kê, điều chỉnh và nhận hàng.</span>{{ form.managed_warehouses }}{{ form.managed_warehouses.errors }}
+          <hr>
+          {{ form.issue_warehouses.label_tag }}<span class="helptext">Được duyệt xuất, chuyển đi, cho mượn và trả hàng.</span>{{ form.issue_warehouses }}{{ form.issue_warehouses.errors }}
+        </div>
+      </div>
+    </section>
+    <div class="form-actions">
+      <button class="button" type="submit">{% icon 'check' %}Lưu nhân viên</button>
+      <a class="button secondary" href="{% url 'team' %}">Quay lại</a>
+    </div>
+  </form>
+{% endblock %}

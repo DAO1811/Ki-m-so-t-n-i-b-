@@ -1,1 +1,148 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">{{ doc.get_kind_display }}</div><h1>PK-{{ doc.pk|stringformat:'06d' }}</h1><p>{{ doc.source|default:'—' }} → {{ doc.destination|default:'—' }}</p></div><span class="badge {% if doc.status == 'POSTED' %}posted{% endif %}">{{ doc.get_status_display }}</span></div>{% if doc.status == 'TRANSIT' %}<div class='notice'>Kho xuất đã duyệt bởi {{ doc.dispatched_by }}. Hàng đã trừ tại kho xuất; đang đi đường, chưa cộng vào kho nhận. Kho nhận kiểm tra thực tế rồi xác nhận toàn bộ phiếu. Với lệnh mượn, hàng chỉ vào tồn mượn tạm bị khóa, không vào tồn khả dụng.</div>{% endif %}<div class="panel form-panel"><p><b>Người lập:</b> {{ doc.created_by }} · {{ doc.created_at|date:'d/m/Y H:i' }}</p><p><b>Diễn giải:</b> {{ doc.note|default:'—' }}</p>{% if doc.loan %}<p><b>Phiếu mượn:</b> {{ doc.loan }}</p>{% endif %}<table><thead><tr><th>Hàng hóa</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá nhập (VNĐ)</th></tr></thead><tbody>{% for l in lines %}<tr><td>{{ l.product }}</td><td>{{ l.product.unit }}</td><td>{{ l.quantity }}</td><td>{{ l.unit_price|default_if_none:"Tự tính theo bình quân" }}</td></tr>{% endfor %}</tbody></table>{% if doc.status != 'POSTED' %}{% if doc.status == 'DRAFT' and doc.created_by_id == user.pk %}<p><a class='button secondary' href='{% url 'document_edit' doc.pk %}'>Sửa phiếu nháp</a></p>{% endif %}{% if can_post %}<form action="{% url 'document_post' doc.pk %}" method="post" class="actions">{% csrf_token %}<button class="button" onclick="return confirm('Ghi sổ phiếu này? Tồn kho sẽ thay đổi và phiếu được giữ nguyên lịch sử.');">{% if doc.status == 'TRANSIT' %}✓ Xác nhận đã nhận hàng{% elif doc.source_id %}✓ Duyệt xuất kho{% else %}✓ Xác nhận nhập / kiểm kê{% endif %}</button></form>{% else %}<p class="notice">Phiếu đang chờ người duyệt đúng kho. Người lập không được tự duyệt phiếu.</p>{% endif %}{% else %}<p class="notice">Đã ghi sổ bởi {{ doc.posted_by }} lúc {{ doc.posted_at|date:'d/m/Y H:i' }}. Sai lệch cần lập phiếu điều chỉnh có lý do.</p>{% endif %}</div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'documents' %}">← Quản lý phiếu</a>
+      <h1>
+        {% icon 'file' %}PK-{{ doc.pk|stringformat:'06d' }} <span class="badge {{ doc.status|lower }}">{{ doc.status|status_label }}</span>
+      </h1>
+      <p>{{ doc.get_kind_display }} · Tạo ngày {{ doc.created_at|date:'d/m/Y H:i' }}</p>
+    </div>
+    <div class="heading-actions">
+      {% if doc.status == 'DRAFT' and doc.created_by_id == user.pk %}
+        <a class="button secondary" href="{% url 'document_edit' doc.pk %}">{% icon 'edit' %}Sửa phiếu</a>
+      {% endif %}
+      {% if can_post %}
+        <form method="post"
+              action="{% url 'document_post' doc.pk %}"
+              data-confirm="{{ doc.action_label }} cho phiếu PK-{{ doc.pk|stringformat:'06d' }}? Số tồn sẽ được cập nhật.">
+          {% csrf_token %}
+          <button class="button">{% icon 'check' %}{{ doc.action_label }}</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="workflow">
+    <span class="complete"><b>{% icon 'check' %}</b>Đã lập phiếu</span><i></i><span class="{% if doc.status == 'DRAFT' %}current{% else %}complete{% endif %}"><b>2</b>
+    {% if doc.status == 'DRAFT' %}
+      Chờ duyệt
+    {% else %}
+      Đã duyệt
+    {% endif %}
+    </span><i></i><span class="{% if doc.status == 'TRANSIT' %}current{% elif doc.status == 'POSTED' %}complete{% endif %}"><b>3</b>
+    {% if doc.status == 'TRANSIT' %}
+      Chờ nhận hàng
+    {% elif doc.status == 'POSTED' %}
+      Hoàn tất
+    {% else %}
+      Cập nhật sổ kho
+    {% endif %}
+  </span>
+</div>
+{% if doc.status == 'DRAFT' %}
+  <div class="notice">
+    {% icon 'shield' %}<span>
+    {% if doc.created_by_id == user.pk %}
+      Bạn đã lập phiếu. Phiếu cần một người khác đủ quyền duyệt.
+    {% else %}
+      Phiếu chưa làm thay đổi tồn kho.
+    {% endif %}
+    <b>Người được phân công:</b>
+    {% for person in approvers %}
+      {{ person.get_full_name|default:person.username }}
+      {% if not forloop.last %},{% endif %}
+    {% empty %}chưa được phân công; quản trị viên cần thiết lập tại Kho hàng
+    {% endfor %}
+  . Quản trị viên khác cũng có thể hỗ trợ duyệt.</span>
+</div>
+{% elif doc.status == 'TRANSIT' %}
+<div class="notice warning">
+  {% icon 'transfer' %}<span>Đã được {{ doc.dispatched_by }} duyệt chuyển đi. Kho nhận kiểm tra đủ hàng rồi xác nhận.
+  {% if doc.kind == 'LOAN' %}Hàng chỉ được ghi vào <b>tồn mượn tạm bị khóa</b>, không cộng vào tồn khả dụng.{% endif %}
+</span>
+</div>
+{% else %}
+<div class="notice">
+  {% icon 'check' %}<span>Đã ghi sổ bởi <b>{{ doc.posted_by }}</b> lúc {{ doc.posted_at|date:'d/m/Y H:i' }}. Lịch sử được giữ nguyên; sai lệch cần phiếu điều chỉnh có lý do.</span>
+</div>
+{% endif %}
+<section class="panel">
+  <div class="panel-title">
+    <h2>Thông tin chứng từ</h2>
+  </div>
+  <div class="detail-grid">
+    <div>
+      <small>Nghiệp vụ</small><strong>{{ doc.get_kind_display }}</strong>
+    </div>
+    <div>
+      <small>Kho xuất</small><strong>{{ doc.source|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Kho nhận / kiểm kê</small><strong>{{ doc.destination|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Người lập</small><strong>{{ doc.created_by.get_full_name|default:doc.created_by.username }}</strong>
+    </div>
+    <div class="full-width">
+      <small>Diễn giải / lý do</small><span>{{ doc.note|default:'Chưa có diễn giải'|linebreaksbr }}</span>
+    </div>
+    {% if doc.loan %}
+      <div class="full-width">
+        <small>Lệnh mượn gốc</small><a href="{% url 'document_detail' doc.loan.pk %}">{{ doc.loan }}</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+<section class="panel">
+  <div class="panel-title">
+    <h2>Chi tiết hàng hóa</h2>
+    <span class="caption">{{ lines|length }} dòng hàng</span>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Mã hàng / tên hàng</th>
+          <th>Đơn vị</th>
+          <th>Số lượng</th>
+          <th>Đơn giá nhập</th>
+          <th>Giá trị đã xuất</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lines %}
+          <tr>
+            <td>
+              <b>{{ l.product.sku }}</b><small>{{ l.product.name }}</small>
+            </td>
+            <td>{{ l.product.unit }}</td>
+            <td>
+              <b>{{ l.quantity|number }}</b>
+            </td>
+            <td>
+              {% if l.unit_price is not None %}
+                {{ l.unit_price|money }}
+              {% else %}
+                <span class="muted">Theo giá vốn</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if doc.source_id and doc.status != 'DRAFT' %}
+                {{ l.book_value|money }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if doc.kind == 'IN' %}
+    <div class="table-total">
+      Tổng tiền nhập <strong>{{ total_amount|money }}</strong>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

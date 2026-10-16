@@ -1,0 +1,23 @@
+{% load ui %}
+<div class="line-row" data-line>
+  <div class="field product-field">
+    <label class="mobile-label" for="{{ row.product.id_for_label }}">Hàng hóa</label>
+    {{ row.product }}{{ row.product.errors }}
+  </div>
+  <div class="field quantity-field">
+    <label class="mobile-label" for="{{ row.quantity.id_for_label }}">Số lượng</label>
+    {{ row.quantity }}{{ row.quantity.errors }}<small class="available" data-available aria-live="polite"></small>
+  </div>
+  <div class="field price-field">
+    <label class="mobile-label" for="{{ row.unit_price.id_for_label }}">Đơn giá</label>
+    {{ row.unit_price }}{{ row.unit_price.errors }}
+  </div>
+  <div class="line-amount" data-line-amount>—</div>
+  <div class="line-delete">
+    {{ row.DELETE.as_hidden }}
+    <button type="button"
+            class="icon-button remove-line"
+            aria-label="Xóa dòng hàng">{% icon 'trash' %}</button>
+  </div>
+  {{ row.non_field_errors }}
+</div>

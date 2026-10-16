@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, localcontext
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
 from django.db.models import Sum, Q
@@ -56,17 +56,41 @@ def validate_document(doc):
         raise ValidationError("Chỉ phiếu trả mới được chọn phiếu mượn gốc.")
 
 
+def approval_documents_for(user):
+    qs = documents_for(user).exclude(created_by=user)
+    if user.is_superuser:
+        return qs.filter(status__in=["DRAFT", "TRANSIT"])
+    source_ids = user.issue_warehouses.values_list("id", flat=True)
+    dest_ids = user.managed_warehouses.values_list("id", flat=True)
+    return qs.filter(
+        Q(status="TRANSIT", destination_id__in=dest_ids)
+        | Q(status="DRAFT", source_id__in=source_ids)
+        | Q(status="DRAFT", source__isnull=True, destination_id__in=dest_ids)
+    ).distinct()
+
+
+def can_approve(doc, user):
+    if doc.status not in ["DRAFT", "TRANSIT"] or doc.created_by_id == user.pk:
+        return False
+    if user.is_superuser:
+        return True
+    receiving = doc.status == "TRANSIT" or not doc.source_id
+    warehouse = doc.destination if receiving else doc.source
+    return bool(
+        warehouse
+        and (warehouse.managers if receiving else warehouse.issue_approvers)
+        .filter(pk=user.pk)
+        .exists()
+    )
+
+
 def require_approver(doc, user, receiving):
     if doc.created_by_id == user.pk:
         raise PermissionDenied(
             "Người lập phiếu không được tự xác nhận. Hãy nhờ người được chỉ định duyệt."
         )
-    if user.is_superuser:
-        return
-    warehouse = doc.destination if receiving else doc.source
-    people = warehouse.managers if receiving else warehouse.issue_approvers
-    if not people.filter(pk=user.pk).exists():
-        raise PermissionDenied("Bạn chưa được chỉ định duyệt nhập / xuất tại kho này.")
+    if not can_approve(doc, user):
+        raise PermissionDenied("Bạn chưa được chỉ định duyệt tại kho này.")
 
 
 def record(doc, line, wid, delta, value_delta):
@@ -76,6 +100,10 @@ def record(doc, line, wid, delta, value_delta):
         raise ValidationError(
             f"{line.product}: không đủ tồn kho (còn {balance.quantity})."
         )
+    if balance.quantity + delta >= Decimal("1e13"):
+        raise ValidationError(f"{line.product}: số tồn vượt giới hạn lưu trữ.")
+    if abs(balance.value + value_delta) >= Decimal("1e20"):
+        raise ValidationError(f"{line.product}: giá trị tồn vượt giới hạn lưu trữ.")
     balance.quantity += delta
     balance.value += value_delta
     balance.save(update_fields=["quantity", "value"])
@@ -123,7 +151,16 @@ def post_document(pk, user):
         .filter(pk__in=sorted(filter(None, [doc.source_id, doc.destination_id])))
         .order_by("pk")
     )
-    money = lambda v: v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    def money(v):
+        with localcontext() as context:
+            context.prec = 50
+            if abs(v) >= Decimal("1e20"):
+                raise ValidationError(
+                    "Giá trị phiếu vượt giới hạn lưu trữ. Hãy kiểm tra số lượng và đơn giá."
+                )
+            return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
     for line in lines:
         q = line.quantity
         if (doc.kind not in ["COUNT", "ADJUST"] and q <= 0) or (

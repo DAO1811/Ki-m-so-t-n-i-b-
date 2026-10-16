@@ -166,6 +166,20 @@ class Document(models.Model):
         verbose_name_plural = "Chứng từ"
         ordering = ["-id"]
 
+    @property
+    def action_label(self):
+        if self.status == "TRANSIT":
+            return "Xác nhận nhận hàng"
+        return {
+            "IN": "Duyệt nhập kho",
+            "OUT": "Duyệt xuất kho",
+            "TRANSFER": "Duyệt chuyển đi",
+            "LOAN": "Duyệt cho mượn",
+            "RETURN": "Duyệt trả hàng",
+            "COUNT": "Duyệt kiểm kê",
+            "ADJUST": "Duyệt điều chỉnh",
+        }.get(self.kind, "Duyệt phiếu")
+
     def __str__(self):
         return f"PK-{self.pk:06d} · {self.get_kind_display()}"
 

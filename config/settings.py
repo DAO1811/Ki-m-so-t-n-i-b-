@@ -59,6 +59,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "inventory.workspace.workspace_context",
             ]
         },
     }
@@ -69,14 +70,9 @@ DATABASES = {
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", conn_max_age=60
     )
 }
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
+# The owner permits freely chosen passwords; storage still uses Django password hashing.
+AUTH_PASSWORD_VALIDATORS = []
+
 LANGUAGE_CODE = "vi"
 TIME_ZONE = "Asia/Ho_Chi_Minh"
 USE_I18N = True

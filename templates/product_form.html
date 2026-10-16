@@ -1,1 +1,54 @@
-{% extends 'base.html' %}{% block content %}<h1>Thêm hàng hóa</h1><p class="hint">Trường bổ sung được khai báo tại Cấu hình hệ thống → Trường bổ sung.</p><form method="post" class="panel form-panel">{% csrf_token %}{{ form.as_p }}<button class="button">Lưu hàng hóa</button></form>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'products' %}">← Hàng hóa</a>
+      <h1>
+        {% icon 'box' %}
+        {% if editing %}
+          Sửa hàng hóa
+        {% else %}
+          Thêm hàng hóa
+        {% endif %}
+      </h1>
+      <p>Điền mã, tên và đơn vị tính. Các thông tin khác có thể bổ sung sau.</p>
+    </div>
+  </div>
+  <form method="post" class="standard-form">
+    {% csrf_token %}{{ form.non_field_errors }}
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2>Thông tin hàng hóa</h2>
+      </div>
+      <div class="form-grid">
+        {% for field in form %}
+          {% if field.name == 'sku' or field.name == 'name' or field.name == 'unit' %}
+            <div class="field">
+              {{ field.label_tag }}<span class="required">*</span>{{ field }}{{ field.errors }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <details class="advanced-fields" {% if form.errors %}open{% endif %}>
+        <summary>
+          Định mức & thông tin bổ sung <span class="caption">Không bắt buộc</span>
+        </summary>
+        <div class="form-grid">
+          {% for field in form %}
+            {% if field.name != 'sku' and field.name != 'name' and field.name != 'unit' %}
+              <div class="field">
+                {{ field.label_tag }}{{ field }}{{ field.errors }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+    <div class="form-actions">
+      <button class="button" type="submit">{% icon 'check' %}Lưu hàng hóa</button>
+      <a class="button secondary" href="{% url 'products' %}">Quay lại</a>
+    </div>
+  </form>
+{% endblock %}

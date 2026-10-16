@@ -1,1 +1,80 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">ĐỐI CHIẾU GIỮA CÁC KHO</div><h1>Hàng mượn & trả</h1><p>Hàng mượn nằm ở sổ trung gian riêng: không được xuất, nhập hay điều chỉnh như tồn thông thường. Trả từng phần theo lệnh mượn gốc.</p></div><a class="button" href="/documents/new/">＋ Lập phiếu mượn / trả</a></div><div class="panel table-scroll"><table><thead><tr><th>Phiếu mượn</th><th>Kho cho → kho mượn</th><th>Hàng hóa</th><th>Đã mượn</th><th>Đã trả</th><th>Còn phải trả</th><th>Tồn mượn tạm (khóa)</th><th>Đang trả</th><th>Giá trị trung gian (VNĐ)</th></tr></thead><tbody>{% for row in rows %}<tr><td><a href="{% url 'document_detail' row.doc.pk %}">{{ row.doc }}</a></td><td>{{ row.doc.source.code }} → {{ row.doc.destination.code }}</td><td>{{ row.product }}</td><td>{{ row.quantity }}</td><td>{{ row.returned }}</td><td><span class="badge {% if row.outstanding == 0 %}posted{% endif %}">{{ row.outstanding }}</span></td><td>{{ row.holding }}</td><td>{{ row.pending }}</td><td>{{ row.value|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="9" class="empty">Chưa có phiếu mượn đã ghi sổ.</td></tr>{% endfor %}</tbody></table></div><div class='panel'><div class='panel-title'><h2>Lệnh mượn đang chờ bên mượn nhận</h2></div>{% include 'document_table.html' with documents=transit_loans %}</div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'loan' %}Mượn & trả giữa các kho</h1>
+      <p>Hàng mượn tách khỏi tồn khả dụng. Chỉ được trả theo lệnh mượn gốc.</p>
+    </div>
+    {% if perms.inventory.add_document %}
+      <a class="button" href="{% url 'operation_new' 'loan' %}">{% icon 'plus' %}Lập lệnh cho mượn</a>
+    {% endif %}
+  </div>
+  <div class="notice">
+    {% icon 'lock' %}<span><b>Tồn mượn tạm bị khóa:</b> không được xuất dùng, luân chuyển hoặc cho mượn tiếp. Bấm <b>Trả hàng</b> ngay tại lệnh cần trả; hệ thống tự điền kho và các hàng còn mượn.</span>
+  </div>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Lệnh đã nhận & đối chiếu trả hàng</h2>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Lệnh mượn</th>
+            <th>Kho cho → kho mượn</th>
+            <th>Hàng hóa</th>
+            <th>Đã mượn</th>
+            <th>Đã trả</th>
+            <th>Tồn mượn tạm</th>
+            <th>Đang trả</th>
+            <th>Giá trị trung gian</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <a class="document-code" href="{% url 'document_detail' row.doc.pk %}">PK-{{ row.doc.pk|stringformat:'06d' }}</a>
+              </td>
+              <td>{{ row.doc.source.code }} → {{ row.doc.destination.code }}</td>
+              <td>
+                <b>{{ row.product.sku }}</b><small>{{ row.product.name }}</small>
+              </td>
+              <td>{{ row.quantity|number }}</td>
+              <td>{{ row.returned|number }}</td>
+              <td>
+                <span class="badge {% if row.holding == 0 %}posted{% endif %}">{{ row.holding|number }} {{ row.product.unit }}</span>
+              </td>
+              <td>{{ row.pending|number }}</td>
+              <td>{{ row.value|money }}</td>
+              <td>
+                {% if row.holding > 0 and row.can_return and perms.inventory.add_document %}
+                  <a class="button secondary small"
+                     href="{% url 'operation_new' 'return' %}?loan={{ row.doc.pk }}">{% icon 'loan' %}Trả hàng</a>
+                {% elif row.outstanding == 0 %}
+                  <span class="badge posted">Đã trả hết</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="9">
+                <div class="empty-state">
+                  {% icon 'loan' %}<strong>Chưa có lệnh mượn đã nhận</strong><span>Lập lệnh cho mượn, duyệt chuyển đi và xác nhận nhận hàng để theo dõi tại đây.</span>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Đang chờ bên mượn nhận hàng</h2>
+    </div>
+    {% include 'document_table.html' with documents=transit_loans %}
+  </section>
+{% endblock %}

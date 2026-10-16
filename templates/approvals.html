@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'shield' %}Phiếu đang chờ bạn duyệt</h1>
+      <p>Chỉ hiển thị phiếu bạn có quyền xử lý tại kho được phân công.</p>
+    </div>
+    <span class="count-chip">{{ approval_total }} phiếu cần xử lý</span>
+  </div>
+  <div class="notice">
+    {% icon 'shield' %}<span>Nhập / kiểm kê / điều chỉnh do quản lý kho xác nhận. Xuất và chuyển đi do người được admin chỉ định. Người lập không tự duyệt phiếu của mình.</span>
+  </div>
+  <section class="panel">
+    {% include 'document_table.html' %}
+    {% include 'pagination.html' %}
+  </section>
+  <div class="hint">
+    Nếu bạn là người lập, xem trạng thái tại <a href="{% url 'documents' %}?mine=1">Phiếu tôi lập</a>. Quản trị viên phân công người duyệt tại <a href="{% url 'warehouse_list' %}">Kho hàng</a>.
+  </div>
+{% endblock %}

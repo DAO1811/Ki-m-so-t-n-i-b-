@@ -1,1 +1,84 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">NHẬP DỮ LIỆU HÀNG LOẠT</div><h1>Nhập phiếu từ Excel</h1><p>Tải file → Kiểm tra → Xem trước → Tạo phiếu nháp → Quản lý kho xác nhận.</p></div><a class="button secondary" href="{% url 'receipt_template' %}">↓ Tải file Excel mẫu</a></div><div class="notice">File .xlsx tối đa 5 MB, 50 mã hàng / phiếu. Dòng đầu: <b>ma_hang · so_luong · don_gia</b>. Dùng mã hàng đã có trong danh mục; số lượng và đơn giá là ô số, không dùng công thức. Đơn giá tính bằng VNĐ. File không được tự động ghi sổ hoặc thay đổi tồn.</div>{% if preview %}<div class="panel form-panel"><h2>Xem trước: {{ preview.warehouse_name }}</h2><p>{{ preview.note }}</p><table><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền VNĐ</th></tr></thead><tbody>{% for row in preview.rows %}<tr><td>{{ row.sku }}</td><td>{{ row.name }}</td><td>{{ row.quantity }}</td><td>{{ row.unit_price }}</td><td>{{ row.amount }}</td></tr>{% endfor %}</tbody></table><form method="post" class="actions">{% csrf_token %}<input type="hidden" name="import_key" value="{{ preview.key }}"><button name="confirm" value="1" class="button">Xác nhận tạo phiếu nháp</button><a href="{% url 'receipt_import' %}">Chọn file khác</a></form></div>{% else %}<form method="post" enctype="multipart/form-data" class="panel form-panel">{% csrf_token %}{{ form.as_p }}<button class="button">Kiểm tra & xem trước</button></form>{% endif %}{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'operation_new' 'in' %}">← Nhập kho</a>
+      <h1>{% icon 'upload' %}Nhập phiếu từ Excel</h1>
+      <p>Tải mẫu, điền hàng hóa rồi kiểm tra trước khi tạo phiếu chờ duyệt.</p>
+    </div>
+    <a class="button secondary" href="{% url 'receipt_template' %}">{% icon 'download' %}Tải mẫu Excel</a>
+  </div>
+  <div class="workflow">
+    <span class="{% if preview %}complete{% else %}current{% endif %}"><b>1</b>Chọn file & kho</span><i></i><span class="{% if preview %}current{% endif %}"><b>2</b>Kiểm tra dữ liệu</span><i></i><span><b>3</b>Tạo phiếu chờ duyệt</span>
+  </div>
+  {% if preview %}
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Xem trước: {{ preview.warehouse_name }}</h2>
+        <span class="badge posted">{{ preview.rows|length }} dòng hợp lệ</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã hàng</th>
+              <th>Tên hàng</th>
+              <th>Số lượng</th>
+              <th>Đơn giá</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in preview.rows %}
+              <tr>
+                <td>
+                  <b>{{ row.sku }}</b>
+                </td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.quantity|number }}</td>
+                <td>{{ row.unit_price|money }}</td>
+                <td>{{ row.amount|money }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form method="post" class="form-actions import-actions">
+        {% csrf_token %}
+        <input type="hidden" name="import_key" value="{{ preview.key }}">
+        <button name="confirm" value="1" class="button" type="submit">{% icon 'check' %}Xác nhận tạo phiếu nháp</button>
+        <a class="button secondary" href="{% url 'receipt_import' %}">Chọn file khác</a>
+      </form>
+    </section>
+  {% else %}
+    <form method="post" enctype="multipart/form-data" class="standard-form">
+      {% csrf_token %}
+      <section class="panel form-panel">
+        <div class="panel-title">
+          <h2>Thông tin nhập Excel</h2>
+        </div>
+        <div class="form-grid">
+          {% for field in form %}
+            <div class="field {% if field.name == 'note' %}full-width{% endif %}">
+              {{ field.label_tag }}{{ field }}{{ field.errors }}
+            </div>
+          {% endfor %}
+        </div>
+        <details class="advanced-fields">
+          <summary>Quy định file mẫu</summary>
+          <div class="fields-body">
+            <p>
+              File <b>.xlsx</b>, tối đa <b>5 MB / 50 mã hàng</b>. Dòng đầu gồm <b>ma_hang, so_luong, don_gia</b>.
+            </p>
+            <p>Mã hàng phải có trong danh mục. Số lượng dương, đơn giá không âm. Dùng ô số, không dùng công thức hoặc lặp mã.</p>
+          </div>
+        </details>
+      </section>
+      <div class="form-actions">
+        <button class="button" type="submit">{% icon 'check' %}Kiểm tra & xem trước</button>
+      </div>
+    </form>
+  {% endif %}
+  <div class="hint">File Excel chỉ tạo phiếu chờ duyệt. Quản lý kho cần xác nhận trước khi cộng tồn.</div>
+{% endblock %}

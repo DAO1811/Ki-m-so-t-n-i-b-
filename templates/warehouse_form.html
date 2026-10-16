@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'warehouse_list' %}">← Kho hàng</a>
+      <h1>
+        {% icon 'warehouse' %}
+        {% if editing %}
+          Sửa kho & phân công
+        {% else %}
+          Thêm kho
+        {% endif %}
+      </h1>
+      <p>Quản lý người truy cập, duyệt nhập và duyệt xuất ngay tại từng kho.</p>
+    </div>
+  </div>
+  <form method="post">
+    {% csrf_token %}{{ form.non_field_errors }}
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2>Thông tin kho</h2>
+      </div>
+      <div class="form-grid">
+        {% for field in form %}
+          {% if field.name == 'code' or field.name == 'name' or field.name == 'address' %}
+            <div class="field">
+              {{ field.label_tag }}
+              {% if field.field.required %}<span class="required">*</span>{% endif %}
+              {{ field }}{{ field.errors }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    <section class="panel form-panel">
+      <div class="panel-title">
+        <h2>{% icon 'users' %}Phân công tại kho này</h2>
+        {% if user.is_superuser %}
+          <a href="{% url 'employee_new' %}" target="_blank" rel="noopener">{% icon 'plus' %}Thêm nhân viên</a>
+        {% endif %}
+      </div>
+      <div class="permission-grid">
+        {% for field in form %}
+          {% if field.name != 'code' and field.name != 'name' and field.name != 'address' %}
+            <div class="permission-field">
+              {{ field.label_tag }}<span class="helptext">{{ field.help_text }}</span>{{ field }}{{ field.errors }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    <div class="form-actions">
+      <button class="button" type="submit">{% icon 'check' %}Lưu kho</button>
+      <a class="button secondary" href="{% url 'warehouse_list' %}">Quay lại</a>
+    </div>
+  </form>
+{% endblock %}

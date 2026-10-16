@@ -1,1 +1,132 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Kho Việt · Kiểm soát nội bộ{% endblock %}</title><link rel="stylesheet" href="{% static 'app.css' %}"></head><body><aside><a class="brand" href="/">▦ <span>KHO VIỆT<small>KIỂM SOÁT NỘI BỘ</small></span></a><div class="nav-label">KHÔNG GIAN LÀM VIỆC</div><nav><a href="/" class="{% if request.path == '/' %}active{% endif %}">◈ Tổng quan</a><a href="/stock/" class="{% if request.path == '/stock/' %}active{% endif %}">▦ Tồn kho & báo cáo</a><a href="/documents/" class="{% if '/documents/' in request.path %}active{% endif %}">▤ Chứng từ kho</a>{% if perms.inventory.add_document %}<a href='/import/receipt/' class='{% if '/import/' in request.path %}active{% endif %}'>↑ Nhập Excel</a>{% endif %}<a href="/loans/" class="{% if request.path == '/loans/' %}active{% endif %}">⇄ Mượn & trả giữa kho</a><a href="/ledger/" class="{% if request.path == '/ledger/' %}active{% endif %}">◷ Thẻ kho</a><a href="/products/" class="{% if '/products/' in request.path %}active{% endif %}">◇ Danh mục hàng hóa</a>{% if user.is_staff %}<div class="nav-label">CẤU HÌNH HỆ THỐNG</div><a href="/admin/inventory/warehouse/">⌂ Quản lý kho</a><a href="/admin/auth/user/">♙ Nhân viên & quyền</a><a href="/admin/inventory/customfield/">⊞ Trường bổ sung</a>{% endif %}</nav><div class="aside-footer"><span class="dot"></span> Quản lý tập trung · Truy vết rõ ràng</div></aside><main><header><span>Không gian quản lý <b>/ Kho hàng</b></span><div class="account"><span class="avatar">{{ user.username|first|upper }}</span>{{ user.get_full_name|default:user.username }}<form action="/logout/" method="post">{% csrf_token %}<button class="text-button">Đăng xuất</button></form></div></header><div class="content">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}<footer>Kho Việt · Hệ thống kiểm soát nội bộ <span>Bản đầu tiên • Mã hàng · Số lượng · Giá trị tồn</span></footer></div></main></body></html>
+{% load static ui %}
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>
+      {% block title %}{{ page_name|default:'Quản lý kho' }} · DHD KSNB{% endblock %}
+    </title>
+    <link rel="stylesheet" href="{% static 'app.css' %}">
+    <script src="{% static 'workspace.js' %}" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="{% url 'dashboard' %}"><span class="brand-symbol">{% icon 'warehouse' %}</span><span>Quản lý kho<small>DHD · KIỂM SOÁT NỘI BỘ</small></span></a>
+      <nav aria-label="Điều hướng chính">
+        <div class="nav-label">I. TỔNG QUAN</div>
+        <a class="nav-link {% if route_name == 'dashboard' %}active{% endif %}"
+           href="{% url 'dashboard' %}">{% icon 'chart' %}<span>Tổng quan</span></a>
+        <div class="nav-label">II. KHAI BÁO</div>
+        <a class="nav-link {% if 'product' in route_name %}active{% endif %}"
+           href="{% url 'products' %}">{% icon 'box' %}<span>Hàng hóa</span></a>
+        <a class="nav-link {% if 'warehouse' in route_name %}active{% endif %}"
+           href="{% url 'warehouse_list' %}">{% icon 'warehouse' %}<span>Kho hàng</span></a>
+        {% if user.is_superuser %}
+          <a class="nav-link {% if route_name == 'team' or 'employee' in route_name %}active{% endif %}"
+             href="{% url 'team' %}">{% icon 'users' %}<span>Nhân viên & quyền</span></a>
+        {% endif %}
+        <div class="nav-label">III. NGHIỆP VỤ</div>
+        {% if perms.inventory.add_document %}
+          <a class="nav-link {% if operation_kind == 'IN' %}active{% endif %}"
+             href="{% url 'operation_new' 'in' %}">{% icon 'in' %}<span>Nhập kho</span></a>
+          <a class="nav-link {% if operation_kind == 'OUT' %}active{% endif %}"
+             href="{% url 'operation_new' 'out' %}">{% icon 'out' %}<span>Xuất kho</span></a>
+          <a class="nav-link {% if operation_kind == 'TRANSFER' %}active{% endif %}"
+             href="{% url 'operation_new' 'transfer' %}">{% icon 'transfer' %}<span>Chuyển kho</span></a>
+        {% endif %}
+        <a class="nav-link {% if route_name == 'loans' or operation_kind == 'LOAN' or operation_kind == 'RETURN' %}active{% endif %}"
+           href="{% url 'loans' %}">{% icon 'loan' %}<span>Mượn & trả</span></a>
+        {% if perms.inventory.add_document %}
+          <a class="nav-link {% if operation_kind == 'COUNT' %}active{% endif %}"
+             href="{% url 'operation_new' 'count' %}">{% icon 'count' %}<span>Kiểm kê</span></a>
+        {% endif %}
+        <a class="nav-link {% if route_name == 'approvals' %}active{% endif %}"
+           href="{% url 'approvals' %}">{% icon 'shield' %}<span>Duyệt phiếu</span></a>
+        <a class="nav-link {% if route_name == 'documents' or route_name == 'document_detail' or route_name == 'document_edit' %}active{% endif %}"
+           href="{% url 'documents' %}">{% icon 'file' %}<span>Quản lý phiếu</span></a>
+        <a class="nav-link {% if route_name == 'stock' %}active{% endif %}"
+           href="{% url 'stock' %}">{% icon 'grid' %}<span>Tồn kho</span></a>
+        <div class="nav-label">IV. BÁO CÁO</div>
+        <a class="nav-link {% if route_name == 'reports' %}active{% endif %}"
+           href="{% url 'reports' %}">{% icon 'chart' %}<span>Báo cáo</span></a>
+        <a class="nav-link {% if route_name == 'ledger' %}active{% endif %}"
+           href="{% url 'ledger' %}">{% icon 'history' %}<span>Thẻ kho & lịch sử</span></a>
+        <div class="nav-label">V. TIỆN ÍCH</div>
+        {% if perms.inventory.add_document %}
+          <a class="nav-link {% if route_name == 'receipt_import' %}active{% endif %}"
+             href="{% url 'receipt_import' %}">{% icon 'upload' %}<span>Nhập từ Excel</span></a>
+        {% endif %}
+        {% if perms.inventory.add_customfield %}
+          <a class="nav-link {% if route_name == 'custom_fields' %}active{% endif %}"
+             href="{% url 'custom_fields' %}">{% icon 'settings' %}<span>Trường bổ sung</span></a>
+        {% endif %}
+        <a class="nav-link {% if route_name == 'password_change' %}active{% endif %}"
+           href="{% url 'password_change' %}">{% icon 'lock' %}<span>Đổi mật khẩu</span></a>
+      </nav>
+      <div class="sidebar-user">
+        <span class="avatar">{{ user.username|first|upper }}</span><span>{{ user.get_full_name|default:user.username }}<small>
+          {% if user.is_superuser %}
+            Quản trị viên
+          {% else %}
+            Không gian làm việc
+          {% endif %}
+        </small></span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="icon-button" aria-label="Đăng xuất">{% icon 'logout' %}</button>
+        </form>
+      </div>
+    </aside>
+    <button class="sidebar-backdrop" aria-label="Đóng menu" hidden></button>
+    <main>
+      <header class="topbar">
+        <div class="breadcrumb">
+          <button class="icon-button"
+                  id="sidebar-toggle"
+                  aria-label="Đóng mở menu"
+                  aria-expanded="true">{% icon 'menu' %}</button>
+          <a href="/">{% icon 'home' %}<span>Kho</span></a>{% icon 'chevron' %}<strong>{{ page_name|default:'Tổng quan' }}</strong>
+        </div>
+        <div class="topbar-actions">
+          <a class="icon-button"
+             href="{% url 'approvals' %}"
+             aria-label="Phiếu chờ duyệt">{% icon 'bell' %}</a>
+          <button class="icon-button" id="refresh-page" aria-label="Làm mới dữ liệu">{% icon 'refresh' %}</button>
+          <form method="post"
+                action="{% url 'warehouse_scope' %}"
+                class="warehouse-switcher">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            {% icon 'warehouse' %}
+            <label class="sr-only" for="global-warehouse">Kho đang xem</label>
+            <select name="warehouse" id="global-warehouse" aria-label="Kho đang xem">
+              <option value="">Toàn bộ kho được cấp quyền</option>
+              {% for w in workspace_warehouses %}
+                <option value="{{ w.pk }}"
+                        {% if active_warehouse.pk == w.pk %}selected{% endif %}>{{ w.code }} · {{ w.name }}</option>
+              {% endfor %}
+            </select>
+            <button class="sr-only" type="submit">Áp dụng kho</button>
+          </form>
+          <button class="icon-button"
+                  id="theme-toggle"
+                  aria-label="Đổi giao diện sáng tối">{% icon 'moon' %}</button>
+        </div>
+      </header>
+      <div class="content">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}" role="status">
+            {% icon 'check' %}<span>{{ message }}</span>
+            <button class="message-dismiss" aria-label="Đóng thông báo">×</button>
+          </div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+        <footer>
+          <span>DHD · Quản lý kho & kiểm soát nội bộ</span><span class="footer-safe">{% icon 'shield' %} Theo dõi rõ ràng · Không cho phép âm tồn</span>
+        </footer>
+      </div>
+    </main>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

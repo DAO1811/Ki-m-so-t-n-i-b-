@@ -1,1 +1,36 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đăng nhập · Kho Việt</title><link rel="stylesheet" href="{% static 'app.css' %}"></head><body class="login"><div class="login-intro"><div class="eyebrow">KHO VIỆT / KIỂM SOÁT NỘI BỘ</div><h1>Mọi kho hàng.<br>Một góc nhìn rõ ràng.</h1><p>Quản lý tập trung, kiểm soát luân chuyển<br>và theo dõi từng biến động hàng hóa.</p><div class="login-mark">▦</div></div><div class="login-form"><h1>Chào mừng trở lại</h1><p>Đăng nhập bằng tài khoản được quản trị viên cấp.</p><form method="post">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button class="button">Đăng nhập →</button></form><small>Nếu chưa có tài khoản, liên hệ quản trị viên của đơn vị.</small></div></body></html>
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Đăng nhập · DHD Quản lý kho</title>
+    <link rel="stylesheet" href="{% static 'app.css' %}">
+  </head>
+  <body class="login">
+    <div class="login-intro">
+      <div class="eyebrow">DHD / QUẢN LÝ KHO</div>
+      <h1>
+        Mọi kho hàng.
+        <br>
+        Một góc nhìn rõ ràng.
+      </h1>
+      <p>
+        Quản lý tập trung, kiểm soát luân chuyển
+        <br>
+        và theo dõi từng biến động hàng hóa.
+      </p>
+      <div class="login-mark">▦</div>
+    </div>
+    <div class="login-form">
+      <h1>Chào mừng trở lại</h1>
+      <p>Đăng nhập bằng tài khoản được quản trị viên cấp.</p>
+      <form method="post">
+        {% csrf_token %}{{ form.as_p }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button class="button">Đăng nhập →</button>
+      </form>
+      <small>Nếu chưa có tài khoản, liên hệ quản trị viên của đơn vị.</small>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{% load ui %}
+{% if page_obj.paginator.num_pages > 1 %}
+  <div class="pagination">
+    <span>{{ page_obj.start_index }}–{{ page_obj.end_index }} / {{ page_obj.paginator.count }} kết quả</span>
+    <div>
+      {% if page_obj.has_previous %}
+        <a class="button secondary small"
+           href="{% query_page page_obj.previous_page_number %}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a class="button secondary small"
+           href="{% query_page page_obj.next_page_number %}">Trang sau →</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

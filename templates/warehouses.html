@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'warehouse' %}Kho hàng</h1>
+      <p>Quản lý địa điểm kho và phân công người duyệt từng nghiệp vụ.</p>
+    </div>
+    {% if perms.inventory.add_warehouse %}
+      <a class="button" href="{% url 'warehouse_new' %}">{% icon 'plus' %}Thêm kho</a>
+    {% endif %}
+  </div>
+  <div class="warehouse-grid">
+    {% for w in warehouses %}
+      <section class="panel warehouse-card">
+        <div class="warehouse-card-head">
+          <span class="stat-icon blue">{% icon 'warehouse' %}</span>
+          <div>
+            <span class="warehouse-code">{{ w.code }}</span>
+            <h2>{{ w.name }}</h2>
+          </div>
+        </div>
+        <div class="warehouse-address">{{ w.address|default:'Chưa thêm địa chỉ' }}</div>
+        <div class="warehouse-people">
+          {% icon 'shield' %}
+          <div>
+            <b>Duyệt nhập:</b>
+            {% for person in w.managers.all %}
+              {{ person.get_full_name|default:person.username }}
+              {% if not forloop.last %},{% endif %}
+              {% empty %}<span class="muted">Chưa phân công</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="warehouse-people">
+          {% icon 'out' %}
+          <div>
+            <b>Duyệt xuất:</b>
+            {% for person in w.issue_approvers.all %}
+              {{ person.get_full_name|default:person.username }}
+              {% if not forloop.last %},{% endif %}
+              {% empty %}<span class="muted">Chưa phân công</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="heading-actions">
+          <a class="button secondary small"
+             href="{% url 'stock' %}?warehouse={{ w.pk }}">Xem tồn kho</a>
+          {% if perms.inventory.change_warehouse %}
+            <a class="button secondary small" href="{% url 'warehouse_edit' w.pk %}">{% icon 'edit' %}Sửa & phân quyền</a>
+          {% endif %}
+        </div>
+      </section>
+    {% empty %}
+      <section class="panel full-width">
+        <div class="empty-state">
+          {% icon 'warehouse' %}<strong>Chưa có kho được truy cập</strong><span>
+          {% if perms.inventory.add_warehouse %}
+            Tạo kho đầu tiên rồi phân công nhân viên và người duyệt.
+          {% else %}
+            Liên hệ quản trị viên để được gán kho làm việc.
+          {% endif %}
+        </span>
+      </div>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

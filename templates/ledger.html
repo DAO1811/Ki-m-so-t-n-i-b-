@@ -1,1 +1,78 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">TRUY VẾT GIAO DỊCH</div><h1>Thẻ kho</h1><p>Mỗi biến động gắn với chứng từ, thời điểm ghi sổ và số tồn sau giao dịch.</p></div></div><form class="filters"><select name="warehouse"><option value="">Tất cả kho được cấp quyền</option>{% for w in warehouses %}<option value="{{ w.pk }}" {% if request.GET.warehouse == w.pk|stringformat:'s' %}selected{% endif %}>{{ w }}</option>{% endfor %}</select><select name="product"><option value="">Tất cả hàng hóa</option>{% for p in products %}<option value="{{ p.pk }}" {% if request.GET.product == p.pk|stringformat:'s' %}selected{% endif %}>{{ p }}</option>{% endfor %}</select><button>Xem thẻ kho</button><button name="export" value="1" class="secondary">↓ Xuất CSV</button></form><div class="panel table-scroll"><table><thead><tr><th>Ngày ghi sổ</th><th>Chứng từ</th><th>Kho / Hàng</th><th>Biến động</th><th>Tồn sau</th><th>Giá trị biến động</th><th>Giá trị tồn (VNĐ)</th></tr></thead><tbody>{% for m in movements %}<tr><td>{{ m.created_at|date:'d/m/Y H:i' }}</td><td>{{ m.document }}</td><td>{{ m.warehouse.code }}<small>{{ m.product }}</small></td><td class="{% if m.delta < 0 %}negative{% else %}positive{% endif %}">{{ m.delta }}</td><td><b>{{ m.balance_after }}</b></td><td>{{ m.value_delta|floatformat:"0g" }}</td><td>{{ m.value_after|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="7" class="empty">Chưa có giao dịch phù hợp.</td></tr>{% endfor %}</tbody></table></div><p class="hint">Hiển thị tối đa 500 biến động mới nhất. Xuất CSV để xem toàn bộ.</p>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'history' %}Thẻ kho & lịch sử</h1>
+      <p>Tra cứu từng biến động, phiếu gốc và số tồn sau giao dịch.</p>
+    </div>
+  </div>
+  <form class="filters">
+    <select name="warehouse" aria-label="Kho xem thẻ">
+      <option value="">Toàn bộ kho được cấp quyền</option>
+      {% for w in warehouses %}
+        <option value="{{ w.pk }}"
+                {% if active_warehouse.pk == w.pk %}selected{% endif %}>{{ w.code }} · {{ w.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="product" aria-label="Hàng hóa xem thẻ">
+      <option value="">Tất cả hàng hóa</option>
+      {% for p in products %}
+        <option value="{{ p.pk }}"
+                {% if request.GET.product == p.pk|stringformat:'s' %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <button class="button">Tra cứu</button>
+    <button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>
+  </form>
+  <section class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày ghi sổ</th>
+            <th>Phiếu gốc</th>
+            <th>Kho / hàng hóa</th>
+            <th>Biến động SL</th>
+            <th>Tồn sau</th>
+            <th>Biến động giá trị</th>
+            <th>Giá trị tồn sau</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in movements %}
+            <tr>
+              <td>
+                {{ m.created_at|date:'d/m/Y' }}<small>{{ m.created_at|date:'H:i' }}</small>
+              </td>
+              <td>
+                <a href="{% url 'document_detail' m.document_id %}"
+                   class="document-code">PK-{{ m.document_id|stringformat:'06d' }}</a><small>{{ m.document.get_kind_display }}</small>
+              </td>
+              <td>
+                {{ m.warehouse.code }} · {{ m.product.sku }}<small>{{ m.product.name }}</small>
+              </td>
+              <td class="{% if m.delta < 0 %}negative{% else %}positive{% endif %}">
+                <b>
+                  {% if m.delta > 0 %}+{% endif %}
+                {{ m.delta|number }}</b>
+              </td>
+              <td>{{ m.balance_after|number }}</td>
+              <td>{{ m.value_delta|money }}</td>
+              <td>{{ m.value_after|money }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7">
+                <div class="empty-state">
+                  {% icon 'history' %}<strong>Chưa có biến động phù hợp</strong><span>Chọn kho và hàng hóa hoặc xác nhận phiếu nhập đầu tiên.</span>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p class="hint">Hiển thị 500 biến động mới nhất. Tồn mượn tạm theo dõi tại Mượn & trả, không trộn với tồn khả dụng.</p>
+{% endblock %}

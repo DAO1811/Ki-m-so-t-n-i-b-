@@ -1,1 +1,132 @@
-{% extends 'base.html' %}{% load static %}{% block content %}<div class="page-heading"><div><div class="eyebrow">CHỨNG TỪ MỚI</div><h1>Lập phiếu kho</h1><p>Lưu nháp để kiểm tra trước khi ghi sổ chính thức.</p></div></div><div class="notice">Nhập / kiểm kê / điều chỉnh: chọn kho nhập. Xuất: chọn kho xuất. Chuyển / mượn / trả: chọn cả hai kho. Kiểm kê nhập số đếm thực tế; điều chỉnh nhập số tăng (+) hoặc giảm (−), kèm lý do. Phiếu nhập cần đơn giá VNĐ. Xuất / chuyển lấy giá bình quân tại kho xuất. Lệnh mượn đưa hàng vào tồn trung gian bị khóa; trả hàng chỉ lấy từ tồn mượn tạm theo lệnh gốc, giữ nguyên giá trị đã mượn. Kiểm kê tăng / điều chỉnh tăng có thể dùng giá bình quân hiện tại hoặc nhập đơn giá; nếu kho chưa có tồn phải nhập đơn giá.</div><form method="post" class="panel form-panel">{% csrf_token %}{{ form.non_field_errors }}<div class="form-grid">{% for field in form %}<div class="field" data-doc-field="{{ field.name }}">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}</div><div id="kind-help" class="notice" aria-live="polite"></div><h2>Chi tiết hàng hóa</h2><p class="hint">Điền các dòng cần dùng; bỏ trống hoàn toàn dòng không dùng. Tối đa 50 dòng.</p>{{ formset.management_form }}{{ formset.non_form_errors }}<div id="lines">{% for row in formset %}<div class="line-row">{% for field in row %}<div class="field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}{{ row.non_field_errors }}</div>{% endfor %}</div><template id="empty-line"><div class="line-row">{% for field in formset.empty_form %}<div class="field">{{ field.label_tag }}{{ field }}</div>{% endfor %}</div></template><button type="button" class="secondary" id="add-line">＋ Thêm dòng</button><div class="actions"><button class="button">Lưu phiếu nháp</button><a href="/documents/">Quay lại</a></div></form><script>document.getElementById('add-line').addEventListener('click',()=>{const n=document.getElementById('id_form-TOTAL_FORMS');if(Number(n.value)>=50)return;document.getElementById('lines').insertAdjacentHTML('beforeend',document.getElementById('empty-line').innerHTML.replaceAll('__prefix__',n.value));n.value=Number(n.value)+1;});</script>{{ loans_data|json_script:'loan-data' }}<script src='{% static 'document-form.js' %}' defer></script>{% endblock %}
+{% extends 'base.html' %}
+{% load static ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'documents' %}">← Quản lý phiếu</a>
+      <h1>
+        {% icon 'file' %}
+        {% if editing %}
+          Sửa phiếu
+        {% else %}
+          Lập phiếu
+        {% endif %}
+        {{ operation_name|lower }}
+      </h1>
+      <p>{{ operation_help }}</p>
+    </div>
+    {% if form_kind == 'IN' %}
+      <a class="button secondary" href="{% url 'receipt_import' %}">{% icon 'upload' %}Nhập từ Excel</a>
+    {% endif %}
+  </div>
+  <div class="workflow">
+    <span class="current"><b>1</b>Lập phiếu</span><i></i><span><b>2</b>Người được phân công duyệt</span><i></i><span><b>3</b>
+    {% if form_kind == 'TRANSFER' or form_kind == 'LOAN' or form_kind == 'RETURN' %}
+      Kho nhận xác nhận
+    {% else %}
+      Cập nhật sổ kho
+    {% endif %}
+  </span>
+</div>
+{% if not has_products or not has_warehouses %}
+  <div class="notice warning">
+    {% icon 'alert' %}<span>
+    {% if not has_warehouses %}
+      Bạn chưa có kho để lập phiếu. <a href="{% url 'warehouse_list' %}">Thiết lập kho trước</a>.
+    {% else %}
+      Chưa có hàng hóa. <a href="{% url 'product_new' %}">Thêm mã hàng</a> trước khi lập phiếu.
+    {% endif %}
+  </span>
+</div>
+{% endif %}
+<form method="post"
+      id="document-form"
+      class="document-form"
+      data-kind="{{ form_kind }}">
+  {% csrf_token %}
+  {% if form.non_field_errors or formset.non_form_errors %}
+    <div class="message error" role="alert">
+      {% icon 'alert' %}
+      <div>{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>
+    </div>
+  {% endif %}
+  <section class="panel form-panel">
+    <div class="panel-title">
+      <h2>
+        <span class="section-number">01</span>Thông tin phiếu
+      </h2>
+      <span class="caption">Điền các ô có dấu *</span>
+    </div>
+    <div class="form-grid">
+      {% for field in form %}
+        {% if field.is_hidden %}
+          {{ field }}
+        {% else %}
+          <div class="field {% if field.name == 'note' or field.name == 'loan' %}full-width{% endif %}"
+               data-doc-field="{{ field.name }}">
+            {{ field.label_tag }}
+            {% if field.field.required %}<span class="required">*</span>{% endif %}
+            {{ field }}{{ field.errors }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div id="kind-help" class="inline-help" aria-live="polite">
+      {% icon 'shield' %}<span>{{ operation_help }}</span>
+    </div>
+  </section>
+  <section class="panel form-panel line-panel">
+    <div class="panel-title">
+      <h2>
+        <span class="section-number">02</span>Danh sách hàng hóa
+      </h2>
+      {% if perms.inventory.add_product %}
+        <a href="{% url 'product_new' %}" target="_blank" rel="noopener">{% icon 'plus' %}Thêm mã hàng</a>
+      {% endif %}
+    </div>
+    <div class="line-table-head">
+      <span>Hàng hóa</span><span>
+        {% if form_kind == 'COUNT' %}
+          Thực đếm
+        {% elif form_kind == 'ADJUST' %}
+          Tăng / giảm
+        {% else %}
+          Số lượng
+        {% endif %}
+        </span><span data-price-heading>Đơn giá (VNĐ)</span><span data-price-heading>Thành tiền</span><span></span>
+      </div>
+      {{ formset.management_form }}
+      <div id="lines">
+        {% for row in formset %}
+          {% include 'line_form.html' with row=row %}
+        {% endfor %}
+      </div>
+      <template id="empty-line">
+        {% include 'line_form.html' with row=formset.empty_form %}
+      </template>
+      <div class="line-bottom">
+        <button type="button" class="button secondary" id="add-line">{% icon 'plus' %}Thêm dòng hàng</button>
+        <span class="caption">Tối đa 50 dòng · Tồn mượn tạm được theo dõi riêng</span>
+        <div class="document-total" id="document-total">
+          Tạm tính <strong id="total-value">0 ₫</strong>
+        </div>
+      </div>
+    </section>
+    <div class="form-actions sticky-actions">
+      <a class="button secondary" href="{% url 'documents' %}">Quay lại</a><span class="action-note">{% icon 'lock' %}Lưu phiếu chưa làm thay đổi tồn kho</span>
+      <button class="button" type="submit">
+        {% icon 'check' %}
+        {% if editing %}
+          Lưu thay đổi
+        {% else %}
+          Lưu & chờ duyệt
+        {% endif %}
+      </button>
+    </div>
+  </form>
+  {{ loans_data|json_script:'loan-data' }}
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'document-form.js' %}" defer></script>
+{% endblock %}

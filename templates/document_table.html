@@ -1,1 +1,47 @@
-<div class="table-scroll"><table><thead><tr><th>Mã chứng từ</th><th>Nghiệp vụ</th><th>Kho xuất → Kho nhập</th><th>Người lập</th><th>Trạng thái</th></tr></thead><tbody>{% for d in documents %}<tr><td><a href="{% url 'document_detail' d.pk %}">PK-{{ d.pk|stringformat:'06d' }}</a><small>{{ d.created_at|date:'d/m/Y H:i' }}</small></td><td>{{ d.get_kind_display }}</td><td>{{ d.source.code|default:'—' }} → {{ d.destination.code|default:'—' }}</td><td>{{ d.created_by.username }}</td><td><span class="badge {% if d.status == 'POSTED' %}posted{% endif %}">{{ d.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="5" class="empty">Chưa có chứng từ. Tạo phiếu đầu tiên để bắt đầu.</td></tr>{% endfor %}</tbody></table></div>
+{% load ui %}
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Mã phiếu / thời gian</th>
+        <th>Nghiệp vụ</th>
+        <th>Kho xuất → Kho nhận</th>
+        <th>Người lập</th>
+        <th>Trạng thái</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in documents %}
+        <tr>
+          <td>
+            <a class="document-code" href="{% url 'document_detail' d.pk %}">PK-{{ d.pk|stringformat:'06d' }}</a><small>{{ d.created_at|date:'d/m/Y H:i' }}</small>
+          </td>
+          <td>
+            <span class="type-label">{{ d.get_kind_display }}</span>
+          </td>
+          <td>
+            {{ d.source.code|default:'—' }} <span class="muted">→</span> {{ d.destination.code|default:'—' }}
+          </td>
+          <td>{{ d.created_by.get_full_name|default:d.created_by.username }}</td>
+          <td>
+            <span class="badge {{ d.status|lower }}">{{ d.status|status_label }}</span>
+          </td>
+          <td>
+            <a class="table-action"
+               aria-label="Mở phiếu PK-{{ d.pk|stringformat:'06d' }}"
+               href="{% url 'document_detail' d.pk %}">{% icon 'chevron' %}</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              {% icon 'empty' %}<strong>Chưa có phiếu phù hợp</strong><span>Phiếu của bạn sẽ xuất hiện tại đây sau khi được tạo.</span>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

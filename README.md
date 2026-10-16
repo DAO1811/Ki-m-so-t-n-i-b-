@@ -1,25 +1,26 @@
-# Kho Việt — Phần mềm kiểm soát nội bộ nhiều kho
+# DHD — Quản lý kho & kiểm soát nội bộ
 
-Bản đầu của ứng dụng web tiếng Việt, quản lý theo mã hàng, số lượng và giá trị VNĐ. Dùng Django 5.2 LTS, PostgreSQL khi triển khai online; SQLite để thử cục bộ. Chưa có website công khai hoặc DB online được tạo.
+Ứng dụng web tiếng Việt để quản lý nhiều kho, số lượng và giá trị hàng hóa. Django 5.2 LTS, PostgreSQL cho môi trường online; giao diện dùng HTML, CSS và JavaScript nội bộ, không phụ thuộc CDN.
 
-![Giao diện tổng quan với dữ liệu minh họa](docs/images/tong-quan.png)
+**Nhánh này là bản cải tiến chưa phát hành.** Website đang dùng vẫn ở nhánh `main`. Không cập nhật production cho tới khi chủ dự án yêu cầu phát hành.
 
-## Chức năng đã xây dựng
+![Tổng quan mới — dữ liệu minh họa](docs/preview/tong-quan-desktop.png)
 
-- Quản lý nhiều kho, danh mục hàng hóa, đơn vị tính và mức tồn tối thiểu.
-- Nhập, xuất, luân chuyển, lệnh mượn, trả từng phần, kiểm kê và điều chỉnh có lý do.
-- Nhập phiếu nhập kho từ Excel `.xlsx`: tải mẫu, kiểm tra từng dòng, xem trước, xác nhận tạo phiếu nháp. Tối đa 50 mã hàng / file, 5 MB. Không tạo tự động mã hàng chưa có và không ghi sổ tự động.
-- Người lập không tự duyệt. Nhập / kiểm kê / điều chỉnh do quản lý kho nhận xác nhận. Xuất do người được admin chỉ định cho kho xuất duyệt. Superuser có thể hỗ trợ duyệt nhưng vẫn không được tự duyệt phiếu mình lập.
-- Chuyển chính thức: duyệt xuất trừ tồn, theo dõi đang chuyển, quản lý kho nhận xác nhận mới cộng tồn.
-- Hàng mượn dùng sổ trung gian riêng, không vào tồn khả dụng của kho mượn; không được xuất, chuyển, điều chỉnh hoặc cho mượn tiếp bằng số hàng mượn. Trả theo lệnh gốc và giữ nguyên giá trị đã mượn.
-- Chống âm tồn, trả vượt số đã mượn, xác nhận hai lần và xuất quá tồn khi có nhiều người thao tác đồng thời trên PostgreSQL.
-- Giá vốn bình quân liên hoàn theo từng kho; thẻ kho có biến động số lượng và giá trị, người lập / duyệt và thời điểm.
-- Báo cáo tồn, cảnh báo dưới mức tối thiểu, sổ mượn trả, xuất CSV tồn và thẻ kho.
-- Nhân viên, vai trò, phạm vi kho; trường văn bản bổ sung cho hàng hóa, không cần sửa mã nguồn.
+## Quy trình sử dụng
 
-## Chạy môi trường phát triển
+- Menu chia thành Tổng quan, Khai báo, Nghiệp vụ, Báo cáo và Tiện ích.
+- Nhập, xuất, chuyển, kiểm kê và điều chỉnh có biểu mẫu riêng; tự điền kho khi xác định được phạm vi làm việc.
+- Một dòng hàng ban đầu, tìm mã hoặc tên không dấu, thêm/xóa dòng, tính tạm tiền, hiển thị tồn khả dụng.
+- Nhập phiếu từ Excel: tải mẫu → kiểm tra → xem trước → tạo phiếu chờ duyệt.
+- Hàng chờ duyệt đúng kho, đúng người, đúng giai đoạn; người lập không tự duyệt. Trạng thái và người được phân công hiển thị trong chi tiết phiếu.
+- Luân chuyển chính thức có bước chuyển đi và xác nhận nhận hàng. Mượn dùng sổ trung gian bị khóa, trả từng phần theo lệnh gốc và giữ nguyên giá trị mượn.
+- Thiếu tồn được chặn khi tạo phiếu và được kiểm tra lại trong transaction khi duyệt. Khóa PostgreSQL chặn xuất quá tồn khi nhiều người thao tác.
+- Bộ lọc kho thống nhất giữa các màn hình. Tổng quan có khoảng ngày và biểu đồ dữ liệu thực; các đơn vị tính khác nhau không bị cộng chung.
+- Quản lý kho, nhân viên, vai trò và trường bổ sung trong giao diện chính. Danh mục/phiếu có tìm kiếm và phân trang.
+- Quản trị viên quy định tên đăng nhập. Mật khẩu do người dùng tự chọn theo yêu cầu chủ dự án, không bắt buộc độ dài hoặc tổ hợp ký tự; không cho mật khẩu rỗng. Người dùng tự đổi mật khẩu sau khi xác nhận mật khẩu hiện tại. Mật khẩu được băm bằng Django.
+- Hỗ trợ điện thoại, menu thu gọn và giao diện sáng/tối.
 
-Từ thư mục gốc của kho mã:
+## Phát triển cục bộ
 
 ```sh
 python3 -m venv .venv
@@ -27,15 +28,12 @@ python3 -m venv .venv
 .venv/bin/python manage.py migrate --noinput
 .venv/bin/python manage.py setup_roles
 .venv/bin/python manage.py createsuperuser
-.venv/bin/python manage.py collectstatic --noinput
 .venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 
-Tự nhập mật khẩu khi `createsuperuser` yêu cầu. Không có mật khẩu mặc định trong mã nguồn. Có thể dùng `demo_data` sau khi tạo superuser, chỉ trên DB chưa có kho/hàng/chứng từ; lệnh từ chối nếu đã có dữ liệu. Không dùng dữ liệu mẫu làm dữ liệu thật.
+Mỗi task cloud đã được tách biệt; dùng checkout hiện có, không tạo worktree nếu không được yêu cầu. Trong môi trường đang làm việc, Python environment là `/workspace/.venv-inventory`. Không dùng dữ liệu mẫu hoặc URL DB production để chạy thử. `demo_data` chỉ hỗ trợ DB trống sau khi tạo quản trị viên.
 
-Tại môi trường cloud hiện tại đã có Python environment `/workspace/.venv-inventory`. Dữ liệu và tài khoản thử cục bộ không nằm trong Git; các mật khẩu ngẫu nhiên của kiểm thử không phải tài khoản bàn giao để dùng thật.
-
-## Kiểm thử
+## Kiểm tra
 
 ```sh
 .venv/bin/python manage.py test -v 2
@@ -43,13 +41,22 @@ Tại môi trường cloud hiện tại đã có Python environment `/workspace/
 .venv/bin/python manage.py makemigrations --check --dry-run
 ```
 
-SQLite bỏ qua kiểm thử khóa đồng thời; cần chạy test với `DATABASE_URL` trỏ PostgreSQL thử nghiệm để xác minh. PostgreSQL user chạy test cần quyền tạo DB test; không trỏ vào DB sản xuất. Đã chạy thành công 37 bài kiểm thử trên PostgreSQL 17 trong quá trình xây dựng, gồm bài kiểm thử hai luồng cùng xuất. Đã kiểm tra trên Chromium quy trình Excel → xem trước → nhân viên tạo phiếu → quản lý kho khác tài khoản xác nhận, cùng giao diện desktop / điện thoại. Chi tiết mới nhất trong `docs/VALIDATION.md`.
+Đặt `DATABASE_URL` trỏ PostgreSQL **thử nghiệm** để chạy cả kiểm thử đồng thời; tài khoản DB test cần quyền tạo DB test. SQLite bỏ qua bài kiểm thử khóa dòng.
 
-## Hướng dẫn
+Bản cải tiến đã chạy **60 test PostgreSQL, 60 đạt, không bỏ qua**. Đã kiểm tra Chromium theo các luồng nhân viên/quản lý thật trên dữ liệu thử: nhập, xuất, chuyển hai bước, mượn, trả từng phần, kiểm kê, điều chỉnh, Excel và đổi mật khẩu. Chi tiết tại [bằng chứng kiểm tra](docs/WORKSPACE_VALIDATION.md).
 
-- [Cách sử dụng cho người mới](docs/HUONG_DAN.md)
-- [Lưu trữ miễn phí, Google Drive và các bước đăng ký](docs/FREE_HOSTING.md)
-- [Triển khai web và DB online](docs/DEPLOYMENT.md)
-- [Kiến trúc, định giá và mở rộng](docs/ARCHITECTURE.md)
+## Cấu trúc và tài liệu
 
-Bản đầu chưa có theo dõi lô / hạn sử dụng theo lựa chọn của chủ dự án. Chưa có giá FIFO, thuế / chi phí phân bổ, sổ mượn kiểm kê riêng, thông báo, quy trình tự cấu hình, phiếu nhận từng phần hoặc xử lý hủy hàng đang chuyển. Khi nhận chuyển/mượn/trả, chỉ xác nhận sau khi kiểm tra đủ toàn bộ phiếu; sai lệch phải đối chiếu trước khi xác nhận. Các mục này có thể phát triển tiếp, không tự ý chỉnh dữ liệu DB.
+- `inventory/services.py`: nghiệp vụ ghi sổ và kiểm soát quyền.
+- `inventory/forms.py`: biểu mẫu và kiểm tra đầu vào.
+- `inventory/workspace.py`: phạm vi kho dùng chung.
+- `inventory/views.py`: các màn hình và xuất dữ liệu.
+- `templates/`: giao diện Django; `static/app.css`: thiết kế; `static/document-form.js`: thao tác dòng hàng; `static/dashboard.js`: biểu đồ từ dữ liệu thật.
+- [Hướng dẫn công việc](docs/WORKSPACE_GUIDE.md)
+- [Giữ production ổn định và phát hành bản mới](docs/RELEASE_PROCESS.md)
+- [Triển khai Render / Neon](docs/FREE_HOSTING.md)
+- [Kiến trúc và định giá](docs/ARCHITECTURE.md)
+
+Production dùng PostgreSQL, `DEBUG=0`, `SECRET_KEY` bảo mật và hostname HTTPS hợp lệ. `render.yaml`, Dockerfile, `build.sh` và `start.sh` giữ cơ chế triển khai hiện có. Bí mật nhập trong hosting; không gửi vào chat hoặc ghi vào Git. Bản giao diện mới không có migration DB, không cần tạo lại tài khoản hoặc nhập lại dữ liệu cũ.
+
+Các giới hạn hiện tại: chưa theo dõi lô / hạn sử dụng theo lựa chọn chủ dự án; chưa có FIFO, nhận hàng từng phần, hủy hàng đang chuyển, kiểm kê riêng tồn mượn hoặc báo cáo tồn cuối kỳ hồi tố. Tổng quan nhập/xuất theo kỳ, còn số tồn hiển thị là tồn hiện tại. File nhập tối đa 50 mã hàng / 5 MB, dùng `.xlsx`; xuất báo cáo CSV mở được bằng Excel.

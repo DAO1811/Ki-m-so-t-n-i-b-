@@ -1,1 +1,81 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">DANH MỤC DÙNG CHUNG</div><h1>Hàng hóa</h1><p>Quản lý mã hàng, đơn vị tính, mức tồn và thông tin mở rộng.</p></div>{% if perms.inventory.add_product %}<a class="button" href="/products/new/">＋ Thêm hàng hóa</a>{% endif %}</div><form class="filters"><input name="q" value="{{ request.GET.q }}" placeholder="Tìm mã hoặc tên hàng…"><button>Tìm kiếm</button></form><div class="panel"><table><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Đơn vị</th><th>Tối thiểu / kho</th><th>Thông tin bổ sung</th></tr></thead><tbody>{% for p in products %}<tr><td><b>{{ p.sku }}</b></td><td>{{ p.name }}</td><td>{{ p.unit }}</td><td>{{ p.minimum }}</td><td>{% for key,value in p.extra.items %}<small>{{ key }}: {{ value }}</small>{% empty %}—{% endfor %}</td></tr>{% empty %}<tr><td colspan="5" class="empty">Chưa có hàng hóa. Thêm mã hàng để bắt đầu.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'box' %}Danh mục hàng hóa</h1>
+      <p>Một mã hàng dùng chung cho các kho. Số lượng và giá vốn được theo dõi riêng theo kho.</p>
+    </div>
+    <div class="heading-actions">
+      {% if perms.inventory.add_customfield %}
+        <a class="button secondary" href="{% url 'custom_fields' %}">{% icon 'settings' %}Trường bổ sung</a>
+      {% endif %}
+      {% if perms.inventory.add_product %}
+        <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
+      {% endif %}
+    </div>
+  </div>
+  <form class="filters">
+    <div class="search-box">
+      {% icon 'search' %}
+      <input name="q"
+             value="{{ request.GET.q }}"
+             placeholder="Tìm mã hoặc tên hàng…"
+             aria-label="Tìm hàng hóa">
+    </div>
+    <button class="button secondary">Tìm kiếm</button>
+    {% if request.GET.q %}
+      <a class="text-link" href="{% url 'products' %}">Xóa tìm kiếm</a>
+    {% endif %}
+  </form>
+  <section class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã hàng</th>
+            <th>Tên hàng</th>
+            <th>Đơn vị</th>
+            <th>Mức tồn tối thiểu</th>
+            <th>Thông tin bổ sung</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+            <tr>
+              <td>
+                <b>{{ p.sku }}</b>
+              </td>
+              <td>{{ p.name }}</td>
+              <td>{{ p.unit }}</td>
+              <td>{{ p.minimum|number }}</td>
+              <td>
+                {% for key,value in p.extra.items %}
+                  <small>{{ key }}: {{ value }}</small>{% empty %}<span class="muted">—</span>
+                {% endfor %}
+              </td>
+              <td>
+                {% if perms.inventory.change_product %}
+                  <a class="button secondary small" href="{% url 'product_edit' p.pk %}">{% icon 'edit' %}Sửa</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  {% icon 'box' %}<strong>Chưa có hàng hóa phù hợp</strong><span>Thêm mã hàng đầu tiên để bắt đầu nhập kho.</span>
+                  {% if perms.inventory.add_product %}
+                    <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include 'pagination.html' %}
+  </section>
+{% endblock %}

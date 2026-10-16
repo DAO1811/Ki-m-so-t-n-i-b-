@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'users' %}Nhân viên & phân quyền</h1>
+      <p>Bạn quy định tên đăng nhập. Nhân viên tự thay đổi mật khẩu sau khi đăng nhập.</p>
+    </div>
+    <a class="button" href="{% url 'employee_new' %}">{% icon 'plus' %}Thêm nhân viên</a>
+  </div>
+  <form class="filters">
+    <div class="search-box">
+      {% icon 'search' %}
+      <input name="q"
+             value="{{ request.GET.q }}"
+             placeholder="Tìm mã nhân viên hoặc họ tên…"
+             aria-label="Tìm nhân viên">
+    </div>
+    <button class="button secondary">Tìm kiếm</button>
+  </form>
+  <section class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Tên đăng nhập</th>
+            <th>Họ và tên</th>
+            <th>Vai trò</th>
+            <th>Duyệt nhập</th>
+            <th>Duyệt xuất</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in employees %}
+            <tr>
+              <td>
+                <b>{{ e.username }}</b>
+              </td>
+              <td>{{ e.get_full_name|default:'Chưa đặt tên' }}</td>
+              <td>
+                {% if e.is_superuser %}
+                  <span class="badge posted">Quản trị viên</span>
+                {% else %}
+                  {% for group in e.groups.all %}
+                    <span class="badge">{{ group.name }}</span>{% empty %}<span class="muted">Chưa gán vai trò</span>
+                  {% endfor %}
+                {% endif %}
+              </td>
+              <td>
+                {% for w in e.managed_warehouses.all %}
+                  {{ w.code }}
+                  {% if not forloop.last %},{% endif %}
+                {% empty %}—
+                {% endfor %}
+              </td>
+              <td>
+                {% for w in e.issue_warehouses.all %}
+                  {{ w.code }}
+                  {% if not forloop.last %},{% endif %}
+                {% empty %}—
+                {% endfor %}
+              </td>
+              <td>
+                <span class="badge {% if e.is_active %}posted{% endif %}">
+                  {% if e.is_active %}
+                    Đang hoạt động
+                  {% else %}
+                    Đã khóa
+                  {% endif %}
+                </span>
+              </td>
+              <td>
+                <a class="button secondary small" href="{% url 'employee_edit' e.pk %}">{% icon 'edit' %}Sửa</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="empty">Chưa có nhân viên phù hợp.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

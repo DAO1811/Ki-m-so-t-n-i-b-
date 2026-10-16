@@ -2,6 +2,20 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("workspace/warehouse/", views.warehouse_scope, name="warehouse_scope"),
+    path("api/availability/", views.availability, name="availability"),
+    path("operations/<str:kind>/", views.document_new, name="operation_new"),
+    path("approvals/", views.approvals, name="approvals"),
+    path("warehouses/", views.warehouse_list, name="warehouse_list"),
+    path("warehouses/new/", views.warehouse_new, name="warehouse_new"),
+    path("warehouses/<int:pk>/edit/", views.warehouse_edit, name="warehouse_edit"),
+    path("team/", views.team, name="team"),
+    path("team/new/", views.employee_form, name="employee_new"),
+    path("team/<int:pk>/edit/", views.employee_form, name="employee_edit"),
+    path("account/password/", views.password_change, name="password_change"),
+    path("reports/", views.reports, name="reports"),
+    path("custom-fields/", views.custom_fields, name="custom_fields"),
+    path("products/<int:pk>/edit/", views.product_edit, name="product_edit"),
     path("import/receipt/", views.receipt_import, name="receipt_import"),
     path("import/receipt/template/", views.receipt_template, name="receipt_template"),
     path("", views.dashboard, name="dashboard"),

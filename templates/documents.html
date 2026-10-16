@@ -1,1 +1,46 @@
-{% extends 'base.html' %}{% block content %}<div class="page-heading"><div><div class="eyebrow">NGHIỆP VỤ KHO</div><h1>Chứng từ kho</h1><p>Nhập, xuất, chuyển, mượn trả, kiểm kê và điều chỉnh tồn.</p></div>{% if perms.inventory.add_document %}<a href="/import/receipt/" class="button secondary">↑ Nhập Excel</a> <a href="/documents/new/" class="button">＋ Tạo chứng từ</a>{% endif %}</div><form class="filters"><select name="kind"><option value="">Tất cả nghiệp vụ</option>{% for value,label in kinds %}<option value="{{ value }}" {% if request.GET.kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><select name="status"><option value="">Mọi trạng thái</option><option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>Nháp</option><option value="TRANSIT" {% if request.GET.status == 'TRANSIT' %}selected{% endif %}>Đang chuyển / chờ nhận</option><option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>Đã ghi sổ</option></select><button>Lọc chứng từ</button></form><div class="panel">{% include 'document_table.html' %}</div><p class="hint">Hiển thị tối đa 200 phiếu gần nhất.</p>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'file' %}Quản lý phiếu</h1>
+      <p>Tra cứu, kiểm tra trạng thái và mở từng phiếu để xử lý.</p>
+    </div>
+    <div class="heading-actions">
+      {% if perms.inventory.add_document %}
+        <a class="button secondary" href="{% url 'receipt_import' %}">{% icon 'upload' %}Nhập Excel</a><a class="button" href="{% url 'operation_new' 'in' %}">{% icon 'plus' %}Lập phiếu nhập</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="tabs">
+    <a class="{% if not request.GET.status and not request.GET.mine %}active{% endif %}"
+       href="{% url 'documents' %}">Tất cả phiếu</a><a class="{% if request.GET.mine %}active{% endif %}" href="?mine=1">Phiếu tôi lập</a><a class="{% if request.GET.status == 'DRAFT' %}active{% endif %}"
+   href="?status=DRAFT">Chờ duyệt</a><a class="{% if request.GET.status == 'TRANSIT' %}active{% endif %}"
+   href="?status=TRANSIT">Chờ nhận hàng</a><a class="{% if request.GET.status == 'POSTED' %}active{% endif %}"
+   href="?status=POSTED">Hoàn tất</a>
+  </div>
+  <form class="filters">
+    <div class="search-box">
+      {% icon 'search' %}
+      <input name="q"
+             value="{{ request.GET.q }}"
+             placeholder="Mã phiếu, nội dung hoặc người lập…"
+             aria-label="Tìm phiếu">
+    </div>
+    <select name="kind" aria-label="Loại nghiệp vụ">
+      <option value="">Tất cả nghiệp vụ</option>
+      {% for value,label in kinds %}
+        <option value="{{ value }}"
+                {% if request.GET.kind == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="status" value="{{ request.GET.status }}">
+    {% if request.GET.mine %}<input type="hidden" name="mine" value="1">{% endif %}
+    <button class="button secondary">Lọc phiếu</button>
+    <a class="text-link" href="{% url 'documents' %}">Xóa bộ lọc</a>
+  </form>
+  <section class="panel">
+    {% include 'document_table.html' %}
+    {% include 'pagination.html' %}
+  </section>
+{% endblock %}
