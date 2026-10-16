@@ -7,4 +7,4 @@ COPY . .
 RUN python manage.py collectstatic --noinput && useradd --create-home app && chown -R app:app /app
 USER app
 EXPOSE 8000
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py setup_roles && python manage.py bootstrap_admin && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --access-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py setup_roles && python manage.py bootstrap_admin && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --access-logfile - --access-logformat '%(h)s %(t)s %(m)s %(U)s %(s)s %(L)s'"]

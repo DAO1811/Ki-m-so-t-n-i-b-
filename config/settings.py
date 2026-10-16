@@ -81,6 +81,22 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Development database-file cap; production files are stored on Google Drive.
+PRIVATE_MEDIA_LIMIT_BYTES = (
+    int(os.environ.get("PRIVATE_MEDIA_LIMIT_MB", "100")) * 1024 * 1024
+)
+PRIVATE_MEDIA_PROVIDER = os.environ.get(
+    "PRIVATE_MEDIA_PROVIDER", "database" if DEBUG else "drive"
+)
+GOOGLE_DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", "")
+GOOGLE_DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", "")
+GOOGLE_PICKER_API_KEY = os.environ.get("GOOGLE_PICKER_API_KEY", "")
+GOOGLE_CLOUD_PROJECT_NUMBER = os.environ.get("GOOGLE_CLOUD_PROJECT_NUMBER", "")
+GOOGLE_DRIVE_EXPECTED_FOLDER_ID = os.environ.get(
+    "GOOGLE_DRIVE_EXPECTED_FOLDER_ID", "1ZR6b7rB5KJOh9LjSkoVIcFqEKHp5o0Mp"
+)
+INVENTORY_COMPANY_NAME = os.environ.get("INVENTORY_COMPANY_NAME", "DHD")
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"

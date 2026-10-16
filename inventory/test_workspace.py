@@ -3,7 +3,7 @@ from io import StringIO
 from uuid import uuid4
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
 from .models import (
@@ -22,6 +22,12 @@ class WorkspaceTests(TestCase):
     def setUpTestData(cls):
         User = get_user_model()
         cls.admin = User.objects.create_superuser("admin", "admin@example.test", "a")
+        cls.admin.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="inventory",
+                codename="approve_inventory_adjustment",
+            )
+        )
         cls.worker = User.objects.create_user("worker", password="a")
         cls.manager = User.objects.create_user("manager", password="a")
         cls.other = User.objects.create_user("other", password="a")

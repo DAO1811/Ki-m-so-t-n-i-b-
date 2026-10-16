@@ -29,7 +29,7 @@ def capture_lines(doc, rows):
     return rows
 
 
-def audit_document(doc, actor, action):
+def audit_document(doc, actor, action, extra=None):
     fields = [
         "kind",
         "source_id",
@@ -71,6 +71,8 @@ def audit_document(doc, actor, action):
         }
         for line in doc.lines.all().order_by("product_id")
     ]
+    if extra:
+        snapshot.update(extra)
     DocumentEvent.objects.create(
         document=doc, actor=actor, action=action, snapshot=snapshot
     )
@@ -111,8 +113,22 @@ def documents_for(user):
         return Document.objects.all()
     ids = warehouses_for(user).values_list("id", flat=True)
     return Document.objects.filter(
-        Q(source_id__in=ids) | Q(destination_id__in=ids) | Q(created_by=user)
+        Q(source_id__in=ids)
+        | Q(destination_id__in=ids)
+        | Q(created_by=user)
+        | (
+            Q(kind__in=["COUNT", "ADJUST"])
+            if can_approve_adjustments(user)
+            else Q(pk__in=[])
+        )
     ).distinct()
+
+
+def can_approve_adjustments(user):
+    # CEO authority is explicit, even for superusers. Never auto-granted by migration.
+    from .access import explicit_permission
+
+    return explicit_permission(user, "approve_inventory_adjustment")
 
 
 def validate_document(doc):
@@ -168,20 +184,31 @@ def validate_document(doc):
 
 def approval_documents_for(user):
     qs = documents_for(user).exclude(created_by=user)
+    special = (
+        qs.filter(kind__in=["COUNT", "ADJUST"], status="DRAFT")
+        if can_approve_adjustments(user)
+        else qs.none()
+    )
+    ordinary = qs.exclude(kind__in=["COUNT", "ADJUST"])
     if user.is_superuser:
-        return qs.filter(status__in=["DRAFT", "TRANSIT"])
+        return (ordinary.filter(status__in=["DRAFT", "TRANSIT"]) | special).distinct()
     source_ids = user.issue_warehouses.values_list("id", flat=True)
     dest_ids = user.managed_warehouses.values_list("id", flat=True)
-    return qs.filter(
-        Q(status="TRANSIT", destination_id__in=dest_ids)
-        | Q(status="DRAFT", source_id__in=source_ids)
-        | Q(status="DRAFT", source__isnull=True, destination_id__in=dest_ids)
+    return (
+        ordinary.filter(
+            Q(status="TRANSIT", destination_id__in=dest_ids)
+            | Q(status="DRAFT", source_id__in=source_ids)
+            | Q(status="DRAFT", source__isnull=True, destination_id__in=dest_ids)
+        )
+        | special
     ).distinct()
 
 
 def can_approve(doc, user):
     if doc.status not in ["DRAFT", "TRANSIT"] or doc.created_by_id == user.pk:
         return False
+    if doc.kind in ["COUNT", "ADJUST"]:
+        return can_approve_adjustments(user)
     if user.is_superuser:
         return True
     receiving = doc.status == "TRANSIT" or not doc.source_id
@@ -200,7 +227,11 @@ def require_approver(doc, user, receiving):
             "Người lập phiếu không được tự xác nhận. Hãy nhờ người được chỉ định duyệt."
         )
     if not can_approve(doc, user):
-        raise PermissionDenied("Bạn chưa được chỉ định duyệt tại kho này.")
+        raise PermissionDenied(
+            "Chỉ Tổng giám đốc được cấp riêng quyền duyệt kiểm kê / điều chỉnh mới được cập nhật chênh lệch."
+            if doc.kind in ["COUNT", "ADJUST"]
+            else "Bạn chưa được chỉ định duyệt tại kho này."
+        )
 
 
 def record(doc, line, wid, delta, value_delta):
@@ -263,6 +294,23 @@ def post_document(pk, user):
         .filter(pk__in=sorted(filter(None, [doc.source_id, doc.destination_id])))
         .order_by("pk")
     )
+    if doc.kind in ["COUNT", "ADJUST"]:
+        from .models import StocktakeSession
+
+        session = StocktakeSession.objects.filter(document=doc).first()
+        if (
+            session
+            and (
+                Movement.objects.filter(warehouse=doc.destination).aggregate(
+                    v=Max("id")
+                )["v"]
+                or 0
+            )
+            > session.cutoff_id
+        ):
+            raise ValidationError(
+                "Kho đã biến động sau khi mở phiên kiểm kê QR. Biên bản không còn hợp lệ để điều chỉnh; cần kiểm đếm lại."
+            )
 
     def money(v):
         with localcontext() as context:
@@ -275,7 +323,9 @@ def post_document(pk, user):
 
     for line in lines:
         validate_line_details(doc, line)
-        if doc.kind == "COUNT":
+        if doc.kind == "COUNT" or (
+            doc.kind == "ADJUST" and getattr(doc, "stocktake_session", None)
+        ):
             if line.stocktake_version is None:
                 raise ValidationError(
                     "Phiếu kiểm kê cần người lập mở sửa, kiểm đếm lại và lưu mốc tồn trước khi duyệt."

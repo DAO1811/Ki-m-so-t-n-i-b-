@@ -37,9 +37,9 @@
         {% endif %}
         <a class="nav-link {% if route_name == 'loans' or operation_kind == 'LOAN' or operation_kind == 'RETURN' %}active{% endif %}"
            href="{% url 'loans' %}">{% icon 'loan' %}<span>Mượn & trả</span></a>
-        {% if perms.inventory.add_document %}
-          <a class="nav-link {% if operation_kind == 'COUNT' %}active{% endif %}"
-             href="{% url 'operation_new' 'count' %}">{% icon 'count' %}<span>Kiểm kê</span></a>
+        {% if perms.inventory.add_document or can_approve_inventory_adjustments %}
+          <a class="nav-link {% if operation_kind == 'COUNT' or 'stocktake' in route_name %}active{% endif %}"
+             href="{% url 'stocktakes' %}">{% icon 'count' %}<span>Kiểm kê · QR</span></a>
         {% endif %}
         <a class="nav-link {% if route_name == 'approvals' %}active{% endif %}"
            href="{% url 'approvals' %}">{% icon 'shield' %}<span>Duyệt phiếu</span></a>
@@ -53,6 +53,9 @@
         <a class="nav-link {% if route_name == 'ledger' %}active{% endif %}"
            href="{% url 'ledger' %}">{% icon 'history' %}<span>Thẻ kho & lịch sử</span></a>
         <div class="nav-label">V. TIỆN ÍCH</div>
+        {% if user.is_superuser %}
+          <a class="nav-link" href="{% url 'drive_settings' %}">{% icon 'file' %}<span>Kết nối Google Drive</span></a>
+        {% endif %}
         {% if perms.inventory.add_document %}
           <a class="nav-link {% if route_name == 'receipt_import' %}active{% endif %}"
              href="{% url 'receipt_import' %}">{% icon 'upload' %}<span>Nhập từ Excel</span></a>

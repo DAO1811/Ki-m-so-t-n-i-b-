@@ -45,7 +45,7 @@
           {% for p in products %}
             <tr>
               <td>
-                <b>{{ p.sku }}</b>
+                <a href="{% url 'product_detail' p.pk %}"><b>{{ p.sku }}</b></a>
               </td>
               <td>
                 {{ p.name }}<small>{{ p.category }}
@@ -56,6 +56,7 @@
             <td>{{ p.unit }}</td>
             <td>{{ p.minimum|number }}</td>
             <td>
+              <a class="button secondary small" href="{% url 'product_detail' p.pk %}">Ảnh · QR · Hóa đơn</a>
               {% for key,value in p.extra.items %}
                 <small>{{ key }}: {{ value }}</small>{% empty %}<span class="muted">—</span>
               {% endfor %}

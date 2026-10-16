@@ -3,7 +3,7 @@ from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -24,6 +24,12 @@ class AssetControlTests(TestCase):
         cls.maker = User.objects.create_user("maker", password="1")
         cls.manager = User.objects.create_user("manager", password="1")
         cls.admin = User.objects.create_superuser("admin", "admin@example.test", "1")
+        cls.admin.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="inventory",
+                codename="approve_inventory_adjustment",
+            )
+        )
         call_command("setup_roles", stdout=StringIO())
         cls.maker.groups.add(Group.objects.get(name="Nhân viên kho"))
         cls.a = Warehouse.objects.create(code="A", name="Kho A")
@@ -200,7 +206,7 @@ class AssetControlTests(TestCase):
         self.doc(kind="ADJUST", quantity=1, post=True)
         self.doc(kind="ADJUST", quantity=-1, post=True)
         with self.assertRaisesMessage(ValidationError, "tồn đã biến động"):
-            post_document(count.pk, self.manager)
+            post_document(count.pk, self.admin)
         self.assertEqual(Balance.objects.get().quantity, 10)
         self.assertFalse(count.events.exists())
 
@@ -214,14 +220,14 @@ class AssetControlTests(TestCase):
         line = count.lines.get()
         self.assertEqual(line.stocktake_quantity, 10)
         self.assertEqual(line.count_difference, -2)
-        post_document(count.pk, self.manager)
+        post_document(count.pk, self.admin)
         self.assertEqual(Balance.objects.get().quantity, 8)
 
     def test_legacy_stocktake_requires_new_snapshot(self):
         count = self.doc(kind="COUNT")
         count.lines.update(stocktake_version=None)
         with self.assertRaisesMessage(ValidationError, "lưu mốc tồn"):
-            post_document(count.pk, self.manager)
+            post_document(count.pk, self.admin)
 
     def test_item_identity_snapshots_and_unit_protection(self):
         doc = self.doc(post=True)

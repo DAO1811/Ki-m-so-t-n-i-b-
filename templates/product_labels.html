@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>Tem QR hàng hóa</h1>
+      <p>Tối đa 100 mã mỗi lần in. Mỗi QR nhận diện một mã hàng.</p>
+    </div>
+    <button data-print type="button" class="button">In tem / lưu PDF</button>
+  </div>
+  <div class="qr-label-sheet">
+    {% for p in products %}
+      <article class="qr-label">
+        <img src="{% url 'product_qr' p.pk %}" alt="QR {{ p.sku }}">
+        <div>
+          <strong>{{ p.sku }}</strong>
+          <p>{{ p.name }}</p>
+          <small>ĐVT: {{ p.unit }}</small>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% endblock %}

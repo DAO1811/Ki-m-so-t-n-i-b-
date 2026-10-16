@@ -2,7 +2,7 @@
 
 from django.db.models import Q
 from django.http import Http404
-from .services import warehouses_for, documents_for
+from .services import warehouses_for, documents_for, can_approve_adjustments
 
 
 def selected_warehouse(request):
@@ -16,7 +16,7 @@ def selected_warehouse(request):
             request.session.pop("warehouse_scope", None)
         request._warehouse_scope_cache = None
         return None
-    if not str(raw).isdigit():
+    if not str(raw).isdigit() or len(str(raw)) > 18:
         raise Http404("Kho không hợp lệ.")
     warehouse = warehouses_for(request.user).filter(pk=raw).first()
     if warehouse is None:
@@ -54,6 +54,12 @@ def workspace_context(request):
         "products": "Hàng hóa",
         "product_new": "Thêm hàng hóa",
         "product_edit": "Sửa hàng hóa",
+        "product_detail": "Hồ sơ hàng hóa",
+        "product_labels": "In tem QR",
+        "stocktakes": "Kiểm kê theo kho",
+        "stocktake_detail": "Kiểm kê QR",
+        "stocktake_report": "Biên bản kiểm kê",
+        "drive_settings": "Google Drive",
         "approvals": "Duyệt phiếu",
         "warehouse_list": "Kho hàng",
         "warehouse_edit": "Sửa kho",
@@ -73,6 +79,7 @@ def workspace_context(request):
         "workspace_warehouses": warehouses_for(request.user).order_by("code"),
         "active_warehouse": active,
         "page_name": labels.get(name, "Quản lý kho"),
+        "can_approve_inventory_adjustments": can_approve_adjustments(request.user),
         "route_name": name,
         "operation_kind": request.resolver_match.kwargs.get("kind", "").upper()
         if request.resolver_match

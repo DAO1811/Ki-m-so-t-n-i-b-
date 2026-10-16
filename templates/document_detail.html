@@ -11,7 +11,7 @@
     </div>
     <div class="heading-actions">
       <button type="button" class="button secondary" data-print>In phiếu</button>
-      {% if doc.created_by_id == user.pk %}
+      {% if doc.created_by_id == user.pk and not qr_session %}
         {% if doc.status == 'DRAFT' or doc.status == 'REJECTED' %}
           <a class="button secondary" href="{% url 'document_edit' doc.pk %}">{% icon 'edit' %}Sửa phiếu</a>
         {% endif %}
@@ -63,13 +63,18 @@
     {% else %}
       Phiếu chưa làm thay đổi tồn kho.
     {% endif %}
-    <b>Người được phân công:</b>
-    {% for person in approvers %}
-      {{ person.get_full_name|default:person.username }}
-      {% if not forloop.last %},{% endif %}
-    {% empty %}chưa được phân công; quản trị viên cần thiết lập tại Kho hàng
-    {% endfor %}
-  . Quản trị viên khác cũng có thể hỗ trợ duyệt.</span>
+    {% if doc.kind == 'COUNT' or doc.kind == 'ADJUST' %}
+      <b>Chờ Tổng giám đốc được cấp quyền duyệt phiếu điều chỉnh. Quản lý kho và admin không tự động có quyền này.</b>
+    {% else %}
+      <b>Người được phân công:</b>
+      {% for person in approvers %}
+        {{ person.get_full_name|default:person.username }}
+        {% if not forloop.last %},{% endif %}
+      {% empty %}chưa được phân công; quản trị viên cần thiết lập tại Kho hàng
+      {% endfor %}
+      . Quản trị viên khác cũng có thể hỗ trợ duyệt.
+    {% endif %}
+  </span>
 </div>
 {% elif doc.status == 'TRANSIT' %}
 <div class="notice warning">
@@ -253,6 +258,11 @@
           Ngày nghiệp vụ: {{ event.snapshot.business_date }} · Chứng từ nguồn: {{ event.snapshot.reference_number|default:'—' }} · Đối tác: {{ event.snapshot.counterparty|default:'—' }}
         </p>
         <p>{{ event.snapshot.note|default:'Không có diễn giải' }}</p>
+        {% if event.snapshot.attachment %}
+          <p>
+            Hồ sơ: {{ event.snapshot.attachment.filename }} · {{ event.snapshot.attachment.invoice_number }} {{ event.snapshot.attachment.reason }}
+          </p>
+        {% endif %}
         {% if event.snapshot.closure_reason %}<p>Lý do xử lý: {{ event.snapshot.closure_reason }}</p>{% endif %}
         <div class="table-scroll">
           <table>
@@ -288,4 +298,56 @@
     {% endfor %}
   </div>
 </section>
+{% if qr_session %}
+  <section class="panel form-panel record-panel">
+    <h2>Căn cứ điều chỉnh theo kiểm kê</h2>
+    <p>
+      Phiếu chỉ chứa số tăng / giảm đúng chênh lệch trong <a href="{% url 'stocktake_report' qr_session.pk %}">biên bản KK-{{ qr_session.pk|stringformat:'06d' }}</a>. Số liệu nguồn đã khóa; Tổng giám đốc duyệt phiếu này thì hệ thống mới cập nhật tồn.
+    </p>
+  </section>
+{% endif %}
+{% if doc.kind == 'IN' %}
+  <section class="panel form-panel record-panel">
+    <h2>Hóa đơn & hồ sơ đợt nhập</h2>
+    <p>
+      Tải một lần cho cả đợt nhập. Hồ sơ sẽ xuất hiện trong lịch sử của từng mã hàng thuộc phiếu, không nhân bản theo dòng.
+    </p>
+    <ul class="attachment-list">
+      {% for a in attachments %}
+        <li>
+          <a href="{% url 'private_file' a.file_id %}">{{ a.get_category_display }} · {{ a.invoice_number }} · {{ a.filename }}</a><small>{{ a.invoice_date|date:'d/m/Y' }} · Tải bởi {{ a.uploaded_by }} lúc {{ a.created_at|date:'d/m/Y H:i' }}</small>
+          {% if a.voided_at %}
+            <p class="negative">Không sử dụng: {{ a.void_reason }} · {{ a.voided_by }} · {{ a.voided_at|date:'d/m/Y H:i' }}</p>
+          {% elif can_attach %}
+            <details>
+              <summary>Tệp tải nhầm / không sử dụng</summary>
+              <form method="post" action="{% url 'receipt_attachment_void' a.pk %}">
+                {% csrf_token %}
+                <input name="reason"
+                       required
+                       maxlength="250"
+                       placeholder="Lý do, bản gốc vẫn được giữ">
+                <button class="button secondary small">Đánh dấu, không xóa bản gốc</button>
+              </form>
+            </details>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li>Chưa có tệp hồ sơ.</li>
+      {% endfor %}
+    </ul>
+    {% if can_attach %}
+      <details class="advanced-fields">
+        <summary>Bổ sung hóa đơn / tệp PDF, XML, ảnh</summary>
+        <form method="post"
+              enctype="multipart/form-data"
+              action="{% url 'receipt_attachment_add' doc.pk %}"
+              class="standard-form">
+          {% csrf_token %}{{ attachment_form.as_p }}<small>Tối đa 8 MB/tệp, 20 tệp/đợt nhập. Giữ nguyên bản gốc hóa đơn; lưu vào Google Drive đã kết nối.</small>
+          <button class="button">Lưu hồ sơ đợt nhập</button>
+        </form>
+      </details>
+    {% endif %}
+  </section>
+{% endif %}
 {% endblock %}

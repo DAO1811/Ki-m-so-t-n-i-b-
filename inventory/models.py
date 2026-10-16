@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models import Q
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from uuid import uuid4
+from decimal import Decimal, ROUND_HALF_UP, localcontext
 
 
 class Warehouse(models.Model):
@@ -49,6 +51,7 @@ class CustomField(models.Model):
 
 
 class Product(models.Model):
+    qr_token = models.UUIDField(default=uuid4, unique=True, editable=False)
     sku = models.CharField("Mã hàng", max_length=50, unique=True)
     name = models.CharField("Tên hàng", max_length=200)
     unit = models.CharField("Đơn vị tính", max_length=30, default="Cái")
@@ -74,6 +77,58 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.sku} · {self.name}"
+
+
+class StoredFile(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    sha256 = models.CharField(max_length=64)
+    context_key = models.CharField(max_length=100)
+    provider = models.CharField(max_length=12, default="database")
+    drive_id = models.CharField(max_length=150, blank=True)
+    content_type = models.CharField(max_length=80)
+    size = models.PositiveIntegerField()
+    data = models.BinaryField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sha256", "context_key"], name="unique_file_in_context"
+            )
+        ]
+
+
+class DriveConnection(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    encrypted_refresh_token = models.TextField()
+    account_email = models.EmailField()
+    folder_id = models.CharField(max_length=150, blank=True)
+    folder_name = models.CharField(max_length=200, blank=True)
+    connected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    connected_at = models.DateTimeField(auto_now=True)
+
+
+class MediaQuota(models.Model):
+    """Singleton row serializes file creation and development quota checks."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+
+
+class ProductPhoto(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="photos"
+    )
+    file = models.ForeignKey(StoredFile, on_delete=models.PROTECT)
+    caption = models.CharField(max_length=150, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "file"], name="unique_product_photo"
+            )
+        ]
 
 
 class Balance(models.Model):
@@ -196,7 +251,13 @@ class Document(models.Model):
     posted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        permissions = [("post_document", "Được ghi sổ chứng từ")]
+        permissions = [
+            ("post_document", "Được ghi sổ chứng từ"),
+            (
+                "approve_inventory_adjustment",
+                "Tổng giám đốc: duyệt biên bản kiểm kê và điều chỉnh tồn",
+            ),
+        ]
         verbose_name = "Chứng từ"
         verbose_name_plural = "Chứng từ"
         ordering = ["-id"]
@@ -258,6 +319,8 @@ class Line(models.Model):
 
     @property
     def count_difference(self):
+        if self.stocktake_quantity is not None and self.document.kind == "ADJUST":
+            return self.quantity
         return (
             self.quantity - self.stocktake_quantity
             if self.stocktake_quantity is not None
@@ -326,6 +389,8 @@ class DocumentEvent(models.Model):
             ("POST", "Duyệt ghi sổ"),
             ("REJECT", "Yêu cầu sửa"),
             ("CANCEL", "Hủy phiếu chưa ghi sổ"),
+            ("FILE_ADD", "Bổ sung hồ sơ đợt nhập"),
+            ("FILE_VOID", "Đánh dấu hồ sơ không sử dụng"),
         ],
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -333,6 +398,184 @@ class DocumentEvent(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+
+class ReceiptAttachment(models.Model):
+    document = models.ForeignKey(
+        Document, on_delete=models.PROTECT, related_name="attachments"
+    )
+    file = models.ForeignKey(StoredFile, on_delete=models.PROTECT)
+    filename = models.CharField(max_length=150)
+    invoice_number = models.CharField("Số hóa đơn / tên hồ sơ", max_length=100)
+    invoice_date = models.DateField("Ngày hóa đơn", null=True, blank=True)
+    category = models.CharField(
+        "Loại hồ sơ",
+        max_length=15,
+        default="INVOICE",
+        choices=[
+            ("INVOICE", "Hóa đơn"),
+            ("DELIVERY", "Giao nhận"),
+            ("QUALITY", "Chất lượng / bảo hành"),
+        ],
+    )
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    void_reason = models.CharField(max_length=250, blank=True)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="voided_receipt_attachments",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "file"],
+                name="unique_receipt_attachment",
+                condition=Q(voided_at__isnull=True),
+            )
+        ]
+
+
+class StocktakeSession(models.Model):
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    business_date = models.DateField(default=timezone.localdate)
+    cutoff_id = models.BigIntegerField(default=0)
+    status = models.CharField(
+        max_length=12,
+        default="OPEN",
+        choices=[
+            ("OPEN", "Đang đếm"),
+            ("SUBMITTED", "Đã lập phiếu điều chỉnh"),
+            ("COMPLETED", "Hoàn tất, không chênh lệch"),
+            ("CANCELLED", "Đã hủy phiên"),
+        ],
+    )
+    note = models.TextField(blank=True)
+    document = models.OneToOneField(
+        Document,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="stocktake_session",
+    )
+
+    class Meta:
+        ordering = ["-id"]
+
+    @property
+    def workflow_status(self):
+        if self.document_id:
+            return {
+                "DRAFT": "Chờ Tổng giám đốc duyệt điều chỉnh",
+                "POSTED": "Hoàn tất, đã điều chỉnh tồn",
+                "REJECTED": "Yêu cầu kiểm đếm lại bằng phiên mới",
+                "CANCELLED": "Phiếu điều chỉnh đã hủy",
+            }.get(self.document.status, self.get_status_display())
+        return self.get_status_display()
+
+
+class StocktakeItem(models.Model):
+    session = models.ForeignKey(
+        StocktakeSession, on_delete=models.PROTECT, related_name="items"
+    )
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    sku_snapshot = models.CharField(max_length=50, blank=True)
+    name_snapshot = models.CharField(max_length=200, blank=True)
+    unit_snapshot = models.CharField(max_length=30, blank=True)
+    book_quantity = models.DecimalField(max_digits=16, decimal_places=3, default=0)
+    book_value = models.DecimalField(max_digits=22, decimal_places=2, default=0)
+    movement_version = models.BigIntegerField(default=0)
+    counted_quantity = models.DecimalField(
+        max_digits=16, decimal_places=3, null=True, blank=True
+    )
+    unit_price = models.DecimalField(
+        max_digits=18, decimal_places=4, null=True, blank=True
+    )
+    note = models.CharField(max_length=250, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    @property
+    def difference(self):
+        return (
+            self.counted_quantity - self.book_quantity
+            if self.counted_quantity is not None
+            else None
+        )
+
+    @property
+    def value_difference(self):
+        if self.difference is None:
+            return None
+        if self.difference == 0:
+            return Decimal(0)
+        price = (
+            self.book_value / self.book_quantity
+            if self.book_quantity
+            else self.unit_price
+        )
+        if self.difference > 0 and self.unit_price is not None:
+            price = self.unit_price
+        with localcontext() as context:
+            context.prec = 50
+            return (
+                (self.difference * price).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                if price is not None
+                else None
+            )
+
+    class Meta:
+        ordering = ["product__sku"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "product"], name="unique_stocktake_item"
+            ),
+            models.CheckConstraint(
+                condition=Q(counted_quantity__gte=0) | Q(counted_quantity__isnull=True),
+                name="nonnegative_counted_quantity",
+            ),
+        ]
+
+
+class StocktakeEvent(models.Model):
+    session = models.ForeignKey(
+        StocktakeSession, on_delete=models.PROTECT, related_name="events"
+    )
+    item = models.ForeignKey(
+        StocktakeItem, on_delete=models.PROTECT, null=True, blank=True
+    )
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    request_id = models.UUIDField(null=True, blank=True)
+    payload_hash = models.CharField(max_length=64, blank=True)
+    action = models.CharField(
+        max_length=12,
+        choices=[
+            ("START", "Mở phiên"),
+            ("SET", "Ghi số đếm"),
+            ("ADD", "Quét cộng 1"),
+            ("SUBMIT", "Gửi duyệt"),
+            ("CANCEL", "Hủy phiên"),
+        ],
+    )
+    before = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
+    after = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "request_id"], name="unique_stocktake_request"
+            )
+        ]
 
 
 class LoanHolding(models.Model):

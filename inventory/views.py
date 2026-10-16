@@ -345,7 +345,10 @@ def document_new(request, kind=None):
     loan_id = request.GET.get("loan")
     if operation == "RETURN" and loan_id:
         loan = get_object_or_404(
-            documents_for(request.user), pk=loan_id, kind="LOAN", status="POSTED"
+            documents_for(request.user),
+            pk=loan_id if str(loan_id).isdigit() and len(str(loan_id)) <= 18 else 0,
+            kind="LOAN",
+            status="POSTED",
         )
         initial.update(loan=loan, source=loan.destination, destination=loan.source)
         line_initial = [
@@ -406,6 +409,10 @@ def document_edit(request, pk):
     doc = get_object_or_404(
         Document, pk=pk, created_by=request.user, status__in=["DRAFT", "REJECTED"]
     )
+    if hasattr(doc, "stocktake_session"):
+        raise PermissionDenied(
+            "Phiếu điều chỉnh kiểm kê khóa theo biên bản gốc. Nếu cần sửa, hủy phiếu rồi mở phiên kiểm kê mới."
+        )
     form = DocumentForm(
         request.POST or None, user=request.user, instance=doc, fixed_kind=doc.kind
     )
@@ -469,6 +476,9 @@ def document_edit(request, pk):
 @login_required
 def document_detail(request, pk):
     doc = get_object_or_404(documents_for(request.user), pk=pk)
+    from .forms import ReceiptAttachmentForm
+    from .access import may_attach
+
     can_post = can_approve(doc, request.user)
     receiving = doc.status == "TRANSIT" or not doc.source_id
     approvers = (
@@ -483,6 +493,12 @@ def document_detail(request, pk):
             "can_post": can_post,
             "approvers": approvers,
             "events": doc.events.select_related("actor"),
+            "attachment_form": ReceiptAttachmentForm(
+                initial={"invoice_number": doc.reference_number}
+            ),
+            "attachments": doc.attachments.select_related("uploaded_by", "voided_by"),
+            "can_attach": may_attach(doc, request.user),
+            "qr_session": getattr(doc, "stocktake_session", None),
             "can_cancel": doc.status in ["DRAFT", "REJECTED"]
             and (doc.created_by_id == request.user.pk or request.user.is_superuser),
             "duplicate_sources": documents_for(request.user)
@@ -593,7 +609,9 @@ def ledger(request):
         qs = qs.filter(warehouse=warehouse)
     if request.GET.get("product"):
         raw = request.GET["product"]
-        product = get_object_or_404(Product, pk=raw if raw.isdigit() else 0)
+        product = get_object_or_404(
+            Product, pk=raw if raw.isdigit() and len(raw) <= 18 else 0
+        )
         qs = qs.filter(product=product)
     if request.GET.get("from") or request.GET.get("to"):
         start, end = date_range(request)
@@ -712,11 +730,28 @@ def products(request):
 @permission_required("inventory.add_product", raise_exception=True)
 def product_new(request):
     form = ProductForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Đã thêm hàng hóa.")
-        return redirect("products")
-    return render(request, "product_form.html", {"form": form})
+    from .forms import ProductPhotoForm
+    from .media import add_product_photo
+
+    photo_form = ProductPhotoForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid() and photo_form.is_valid():
+        try:
+            with transaction.atomic():
+                product = form.save()
+                if photo_form.cleaned_data.get("image"):
+                    add_product_photo(
+                        product,
+                        request.user,
+                        photo_form.validated_image,
+                        photo_form.cleaned_data["caption"],
+                    )
+            messages.success(request, "Đã thêm hàng hóa và tạo mã QR.")
+            return redirect("product_detail", pk=product.pk)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+    return render(
+        request, "product_form.html", {"form": form, "photo_form": photo_form}
+    )
 
 
 @login_required
@@ -842,7 +877,8 @@ def warehouse_scope(request):
     raw = request.POST.get("warehouse", "")
     if raw:
         warehouse = get_object_or_404(
-            warehouses_for(request.user), pk=raw if raw.isdigit() else 0
+            warehouses_for(request.user),
+            pk=raw if raw.isdigit() and len(raw) <= 18 else 0,
         )
         request.session["warehouse_scope"] = str(warehouse.pk)
     else:
@@ -859,13 +895,13 @@ def warehouse_scope(request):
 def availability(request):
     raw = request.GET.get("warehouse", "")
     warehouse = get_object_or_404(
-        warehouses_for(request.user), pk=raw if raw.isdigit() else 0
+        warehouses_for(request.user), pk=raw if raw.isdigit() and len(raw) <= 18 else 0
     )
     loan_id = request.GET.get("loan", "")
     if loan_id:
         loan = get_object_or_404(
             documents_for(request.user),
-            pk=loan_id if loan_id.isdigit() else 0,
+            pk=loan_id if loan_id.isdigit() and len(loan_id) <= 18 else 0,
             kind="LOAN",
             status="POSTED",
             destination=warehouse,
@@ -903,11 +939,30 @@ def approvals(request):
 def product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
     form = ProductForm(request.POST or None, instance=product)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Đã cập nhật hàng hóa.")
-        return redirect("products")
-    return render(request, "product_form.html", {"form": form, "editing": True})
+    from .forms import ProductPhotoForm
+    from .media import add_product_photo
+
+    photo_form = ProductPhotoForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid() and photo_form.is_valid():
+        try:
+            with transaction.atomic():
+                product = form.save()
+                if photo_form.cleaned_data.get("image"):
+                    add_product_photo(
+                        product,
+                        request.user,
+                        photo_form.validated_image,
+                        photo_form.cleaned_data["caption"],
+                    )
+            messages.success(request, "Đã cập nhật hàng hóa.")
+            return redirect("product_detail", pk=product.pk)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+    return render(
+        request,
+        "product_form.html",
+        {"form": form, "editing": True, "photo_form": photo_form},
+    )
 
 
 @login_required
@@ -974,7 +1029,21 @@ def team(request):
             | Q(first_name__icontains=request.GET["q"])
             | Q(last_name__icontains=request.GET["q"])
         )
-    return render(request, "team.html", {"employees": qs})
+    return render(
+        request,
+        "team.html",
+        {
+            "employees": qs,
+            "ceo_ids": set(
+                get_user_model()
+                .objects.filter(
+                    user_permissions__codename="approve_inventory_adjustment",
+                    user_permissions__content_type__app_label="inventory",
+                )
+                .values_list("id", flat=True)
+            ),
+        },
+    )
 
 
 @login_required
@@ -992,6 +1061,33 @@ def employee_form(request, pk=None):
         else:
             with transaction.atomic():
                 saved = form.save()
+                from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
+                from django.contrib.contenttypes.models import ContentType
+                import json
+
+                details = {
+                    "active": saved.is_active,
+                    "groups": list(saved.groups.values_list("name", flat=True)),
+                    "warehouses": list(saved.warehouses.values_list("code", flat=True)),
+                    "managed_warehouses": list(
+                        saved.managed_warehouses.values_list("code", flat=True)
+                    ),
+                    "issue_warehouses": list(
+                        saved.issue_warehouses.values_list("code", flat=True)
+                    ),
+                    "ceo_adjustment_approval": bool(
+                        form.cleaned_data["approve_adjustments"]
+                    ),
+                }
+                LogEntry.objects.create(
+                    user=request.user,
+                    content_type=ContentType.objects.get_for_model(saved),
+                    object_id=str(saved.pk),
+                    object_repr=saved.username[:200],
+                    action_flag=CHANGE if employee else ADDITION,
+                    change_message="Cập nhật quyền từ giao diện công ty: "
+                    + json.dumps(details, ensure_ascii=False),
+                )
             if saved.pk == request.user.pk:
                 update_session_auth_hash(request, saved)
             messages.success(

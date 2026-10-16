@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load static ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'stocktakes' %}">← Các phiên kiểm kê</a>
+      <h1>KK-{{ session.pk|stringformat:'06d' }} · {{ session.warehouse.code }}</h1>
+      <p>{{ session.warehouse.name }} · {{ session.business_date|date:'d/m/Y' }} · {{ session.workflow_status }}</p>
+    </div>
+    <a class="button secondary"
+       href="{% url 'stocktake_report' session.pk %}">Biên bản & in</a>
+    {% if session.document %}
+      <a class="button" href="{% url 'document_detail' session.document_id %}">Phiếu điều chỉnh</a>
+    {% endif %}
+  </div>
+  <div class="notice">
+    <span><b>Hàng mượn tạm không tính vào tồn thường.</b> Mỗi lần quét cộng 1 đơn vị của mã hàng. Tồn sổ được giữ tại mốc mở phiên; kho biến động thì không được duyệt điều chỉnh theo mốc cũ.</span>
+  </div>
+  {% if can_edit %}
+    <section class="panel form-panel record-panel"
+             id="stocktake-scanner"
+             data-lookup="{% url 'stocktake_lookup' session.pk %}"
+             data-count="{% url 'stocktake_count' session.pk %}">
+      {% csrf_token %}
+      <div class="panel-title">
+        <h2>Quét để đếm</h2>
+        <select id="scan-mode" aria-label="Chế độ quét">
+          <option value="ADD">Mỗi lượt quét cộng 1</option>
+          <option value="SET">Ghi / sửa tổng số thực đếm</option>
+        </select>
+      </div>
+      <div class="scan-grid">
+        <div>
+          <div id="qr-reader"></div>
+          <div class="filters">
+            <button type="button" class="button" id="start-camera">Mở camera</button>
+            <button type="button" class="button secondary" id="stop-camera" hidden>Dừng camera</button>
+          </div>
+          <label class="button secondary">
+            Đọc QR từ ảnh
+            <input type="file" id="qr-image" accept="image/*" hidden>
+          </label>
+          <small>Camera cần HTTPS và quyền truy cập. Có thể dùng máy quét USB hoặc nhập mã bên dưới.</small>
+        </div>
+        <div>
+          <form id="scan-code-form" class="filters">
+            <label for="scan-code">Mã QR / mã hàng</label>
+            <input id="scan-code"
+                   autocomplete="off"
+                   placeholder="Quét máy USB hoặc nhập mã hàng">
+            <button class="button secondary">Quét / chọn mã</button>
+          </form>
+          <p id="scan-status" role="status" aria-live="polite">
+            Sẵn sàng. Giữ tem rõ trong khung; đưa tem ra ngoài trước khi quét đơn vị tiếp theo.
+          </p>
+          <div id="scanned-product" hidden>
+            <img id="scan-photo" alt="Ảnh nhận diện hàng hóa" hidden>
+            <h2 id="scan-name"></h2>
+            <p id="scan-summary"></p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="scan-quantity">Tổng số đã đếm</label>
+                <input id="scan-quantity"
+                       type="number"
+                       min="0"
+                       step="0.001"
+                       placeholder="Chưa đếm">
+              </div>
+              <div class="field">
+                <label for="scan-price">Đơn giá phần tăng (nếu cần)</label>
+                <input id="scan-price" type="number" min="0" step="0.0001">
+              </div>
+              <div class="field full-width">
+                <label for="scan-note">Ghi chú kiểm đếm</label>
+                <input id="scan-note" maxlength="250">
+              </div>
+            </div>
+            <button id="save-count" type="button" class="button secondary">Ghi tổng số / lưu thông tin</button>
+            <small>Ghi tổng thay thế số đã đếm; số 0 phải được xác nhận rõ. Không cộng hàng mượn tạm.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Đối chiếu số đếm</h2>
+      <span id="count-progress">{{ counted }}/{{ item_count }} mã đã đếm</span><a class="text-link" href="">Tải lại bảng</a>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã / hàng hóa</th>
+            <th>ĐVT</th>
+            <th>Tồn sổ</th>
+            <th>Thực đếm</th>
+            <th>Chênh lệch</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="stocktake-rows">
+          {% for i in items %}
+            <tr data-sku="{{ i.sku_snapshot }}">
+              <td>
+                {{ i.sku_snapshot }}<small>{{ i.name_snapshot }}</small>
+              </td>
+              <td>{{ i.unit_snapshot }}</td>
+              <td>{{ i.book_quantity|number }}</td>
+              <td data-counted>
+                {% if i.counted_quantity is not None %}
+                  {{ i.counted_quantity|number }}
+                {% else %}
+                  <span class="badge">Chưa đếm</span>
+                {% endif %}
+              </td>
+              <td data-difference>
+                {% if i.difference is not None %}
+                  {{ i.difference|number }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if can_edit %}
+                  <button type="button"
+                          class="button secondary small select-count-item"
+                          data-code="{{ i.sku_snapshot }}">Ghi số / xác nhận 0</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">
+                Kho chưa có tồn thường. Có thể quét mã có hàng thực tế ngoài sổ; cần bổ sung đơn giá cho phần tăng.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% if can_edit %}
+    <section class="panel form-panel record-panel">
+      <h2>Kết thúc kiểm kê</h2>
+      <form method="post"
+            action="{% url 'stocktake_submit' session.pk %}"
+            data-confirm="Chốt số đếm và lập phiếu điều chỉnh? Phiếu cần Tổng giám đốc duyệt, tồn chưa thay đổi.">
+        {% csrf_token %}
+        <label for="conclusion">Kết luận / lý do chênh lệch</label>
+        <textarea id="conclusion" name="note" rows="3" required maxlength="4000"></textarea>
+        <button class="button">Chốt biên bản & lập phiếu điều chỉnh</button>
+      </form>
+      <details class="advanced-fields">
+        <summary>Hủy phiên chưa chốt</summary>
+        <form method="post" action="{% url 'stocktake_cancel' session.pk %}">
+          {% csrf_token %}
+          <input name="reason" required maxlength="1000" placeholder="Lý do hủy phiên">
+          <button class="button secondary">Hủy phiên, giữ lịch sử</button>
+        </form>
+      </details>
+    </section>
+  {% endif %}
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Lịch sử kiểm đếm</h2>
+      <span class="caption">100 lượt mới nhất</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Thời điểm</th>
+            <th>Người thực hiện</th>
+            <th>Mã hàng</th>
+            <th>Thao tác</th>
+            <th>Trước → sau</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+            <tr>
+              <td>{{ e.created_at|date:'d/m/Y H:i:s' }}</td>
+              <td>{{ e.actor }}</td>
+              <td>{{ e.item.product.sku|default:'—' }}</td>
+              <td>{{ e.get_action_display }}</td>
+              <td>{{ e.before|default_if_none:'Chưa đếm' }} → {{ e.after|default_if_none:'—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% if can_cancel and not can_edit %}
+    <section class="panel form-panel record-panel">
+      <p>Phiên không còn được ghi số đếm. Có thể hủy phiên với lý do; dữ liệu đếm vẫn được giữ.</p>
+      <form method="post" action="{% url 'stocktake_cancel' session.pk %}">
+        {% csrf_token %}
+        <input name="reason" required maxlength="1000" placeholder="Lý do hủy phiên">
+        <button class="button secondary">Hủy phiên chưa chốt</button>
+      </form>
+    </section>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+  {% if can_edit %}
+    <script src="{% static 'vendor/html5-qrcode.min.js' %}" defer></script><script src="{% static 'stocktake.js' %}" defer></script>
+  {% endif %}
+{% endblock %}

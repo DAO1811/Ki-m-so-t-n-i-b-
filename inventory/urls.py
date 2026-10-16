@@ -1,7 +1,50 @@
 from django.urls import path
 from . import views
+from . import records_views as records, stocktake_views as counts, drive_views
 
 urlpatterns = [
+    path("products/labels/", records.product_labels, name="product_labels"),
+    path("products/<int:pk>/", records.product_detail, name="product_detail"),
+    path("products/<int:pk>/qr.png", records.product_qr, name="product_qr"),
+    path(
+        "products/<int:pk>/photos/", records.product_photo_add, name="product_photo_add"
+    ),
+    path("q/items/<uuid:token>/", records.qr_landing, name="qr_landing"),
+    path("files/<uuid:pk>/", records.private_file, name="private_file"),
+    path(
+        "documents/<int:pk>/attachments/",
+        records.receipt_attachment_add,
+        name="receipt_attachment_add",
+    ),
+    path(
+        "attachments/<int:pk>/void/",
+        records.receipt_attachment_void,
+        name="receipt_attachment_void",
+    ),
+    path("stocktakes/", counts.stocktakes, name="stocktakes"),
+    path("stocktakes/<int:pk>/", counts.stocktake_detail, name="stocktake_detail"),
+    path(
+        "stocktakes/<int:pk>/lookup/", counts.stocktake_lookup, name="stocktake_lookup"
+    ),
+    path("stocktakes/<int:pk>/count/", counts.stocktake_count, name="stocktake_count"),
+    path(
+        "stocktakes/<int:pk>/submit/", counts.stocktake_submit, name="stocktake_submit"
+    ),
+    path(
+        "stocktakes/<int:pk>/cancel/", counts.stocktake_cancel, name="stocktake_cancel"
+    ),
+    path(
+        "stocktakes/<int:pk>/report/", counts.stocktake_report, name="stocktake_report"
+    ),
+    path("settings/drive/", drive_views.drive_settings, name="drive_settings"),
+    path("settings/drive/connect/", drive_views.drive_connect, name="drive_connect"),
+    path("settings/drive/callback/", drive_views.drive_callback, name="drive_callback"),
+    path(
+        "settings/drive/picker-token/",
+        drive_views.drive_picker_token,
+        name="drive_picker_token",
+    ),
+    path("settings/drive/folder/", drive_views.drive_folder, name="drive_folder"),
     path("workspace/warehouse/", views.warehouse_scope, name="warehouse_scope"),
     path("api/availability/", views.availability, name="availability"),
     path("operations/<str:kind>/", views.document_new, name="operation_new"),

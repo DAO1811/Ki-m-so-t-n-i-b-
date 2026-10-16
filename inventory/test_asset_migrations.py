@@ -10,7 +10,7 @@ from django.test import TransactionTestCase
 class AssetMigrationTests(TransactionTestCase):
     def test_existing_stock_values_users_and_historical_dates_survive_upgrade(self):
         old = [("inventory", "0007_balance_nonnegative_stock_value")]
-        latest = [("inventory", "0011_preserve_existing_document_dates")]
+        latest = [("inventory", "0014_stocktake_catalog_snapshot")]
         executor = MigrationExecutor(connection)
         try:
             executor.migrate(old)
@@ -26,6 +26,9 @@ class AssetMigrationTests(TransactionTestCase):
             )
             warehouse = Warehouse.objects.create(code="OLD", name="Kho cũ")
             product = Product.objects.create(sku="OLD", name="Hàng cũ", unit="Cái")
+            second_product = Product.objects.create(
+                sku="OLD2", name="Hàng cũ 2", unit="Cái"
+            )
             balance = Balance.objects.create(
                 warehouse=warehouse, product=product, quantity=5, value=1250
             )
@@ -45,6 +48,11 @@ class AssetMigrationTests(TransactionTestCase):
             executor.migrate(latest)
             apps = executor.loader.project_state(latest).apps
             upgraded = apps.get_model("inventory", "Document").objects.get(pk=doc.pk)
+            products = apps.get_model("inventory", "Product")
+            self.assertNotEqual(
+                products.objects.get(pk=product.pk).qr_token,
+                products.objects.get(pk=second_product.pk).qr_token,
+            )
             upgraded_balance = apps.get_model("inventory", "Balance").objects.get(
                 pk=balance.pk
             )

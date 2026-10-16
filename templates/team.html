@@ -47,6 +47,7 @@
                     <span class="badge">{{ group.name }}</span>{% empty %}<span class="muted">Chưa gán vai trò</span>
                   {% endfor %}
                 {% endif %}
+                {% if e.pk in ceo_ids %}<span class="badge posted">Duyệt kiểm kê / điều chỉnh (Tổng giám đốc)</span>{% endif %}
               </td>
               <td>
                 {% for w in e.managed_warehouses.all %}

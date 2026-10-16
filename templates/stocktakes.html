@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'count' %}Kiểm kê theo kho</h1>
+      <p>Quét QR cộng 1, đối chiếu thực đếm và lập biên bản. Tồn chỉ đổi sau khi Tổng giám đốc duyệt phiếu điều chỉnh.</p>
+    </div>
+    <a class="button secondary" href="{% url 'product_labels' %}">In tem QR</a>
+  </div>
+  {% if perms.inventory.add_document %}
+    <form method="post" class="panel form-panel record-panel">
+      {% csrf_token %}
+      <h2>Mở phiên kiểm kê</h2>
+      <p>
+        Danh sách lấy toàn bộ mã đang có tồn thường ở kho; chưa quét không được coi là 0. Tạm ngừng nhập/xuất thực tế trong lúc đếm để tránh phải làm lại.
+      </p>
+      <div class="filters">
+        <select name="warehouse" required aria-label="Kho kiểm kê">
+          <option value="">Chọn kho</option>
+          {% for w in warehouses %}
+            <option value="{{ w.pk }}"
+                    {% if active_warehouse.pk == w.pk %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+        <button class="button">Bắt đầu đếm bằng QR</button>
+        <a href="{% url 'operation_new' 'count' %}" class="text-link">Nhập kiểm kê thủ công</a>
+      </div>
+    </form>
+  {% endif %}
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Các phiên kiểm kê</h2>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Biên bản</th>
+            <th>Kho</th>
+            <th>Ngày</th>
+            <th>Người kiểm kê</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+            <tr>
+              <td>
+                <a href="{% url 'stocktake_detail' s.pk %}">KK-{{ s.pk|stringformat:'06d' }}</a>
+              </td>
+              <td>{{ s.warehouse }}</td>
+              <td>{{ s.business_date|date:'d/m/Y' }}</td>
+              <td>{{ s.created_by.get_full_name|default:s.created_by.username }}</td>
+              <td>{{ s.workflow_status }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Chưa có phiên kiểm kê.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

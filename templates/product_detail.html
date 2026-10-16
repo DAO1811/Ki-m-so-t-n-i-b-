@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'products' %}">← Hàng hóa</a>
+      <h1>{{ product.sku }} · {{ product.name }}</h1>
+      <p>{{ product.unit }} · {{ product.category }} · {{ product.brand }} · {{ product.model_number }}</p>
+    </div>
+    <div class="heading-actions">
+      <a class="button secondary"
+         href="{% url 'product_labels' %}?id={{ product.pk }}">In tem QR</a>
+      {% if perms.inventory.change_product %}
+        <a class="button" href="{% url 'product_edit' product.pk %}">Sửa thông tin</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="product-record-grid">
+    <section class="panel form-panel record-panel">
+      <h2>Nhận diện & ảnh hàng hóa</h2>
+      <div class="photo-gallery">
+        {% for photo in photos %}
+          <figure>
+            <img src="{% url 'private_file' photo.file_id %}"
+                 alt="{{ photo.caption|default:product.name }}">
+            <figcaption>{{ photo.caption }}</figcaption>
+          </figure>
+        {% empty %}
+          <p>Chưa có ảnh. Bạn có thể thêm ảnh nếu cần nhận diện.</p>
+        {% endfor %}
+      </div>
+      <p>{{ product.specifications|linebreaksbr }}</p>
+      <p>{{ product.storage_instructions|linebreaksbr }}</p>
+      {% if perms.inventory.change_product %}
+        <details class="advanced-fields">
+          <summary>Thêm ảnh (tối đa 5 ảnh / mã)</summary>
+          <form method="post"
+                enctype="multipart/form-data"
+                action="{% url 'product_photo_add' product.pk %}">
+            {% csrf_token %}{{ photo_form.as_p }}
+            <button class="button secondary">Lưu ảnh</button>
+          </form>
+        </details>
+      {% endif %}
+    </section>
+    <section class="panel form-panel record-panel qr-card">
+      <h2>QR riêng của mã hàng</h2>
+      <img src="{% url 'product_qr' product.pk %}" alt="QR mã {{ product.sku }}">
+      <b>{{ product.sku }}</b>
+      <p>
+        QR tự tạo khi thêm sản phẩm. Mỗi lượt quét trong phiên kiểm kê cộng 1 đơn vị {{ product.unit }}. QR chỉ nhận diện mã hàng, không tự thay đổi tồn.
+      </p>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Tồn tại các kho được cấp quyền</h2>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Kho</th>
+            <th>Tồn thường</th>
+            <th>Giá trị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in balances %}
+            <tr>
+              <td>{{ b.warehouse }}</td>
+              <td>{{ b.quantity|number }} {{ product.unit }}</td>
+              <td>{{ b.value|money }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3">Chưa có tồn trong phạm vi được xem.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel form-panel record-panel">
+    <h2>Lịch sử đợt nhập & hóa đơn</h2>
+    <p>
+      Mỗi đợt nhập là một mục riêng. Một hóa đơn nhiều mã hàng chỉ lưu một lần ở phiếu nhập, không tải lại theo từng mã.
+    </p>
+    {% for line in receipts %}
+      <details class="receipt-period">
+        <summary>
+          <b>{{ line.document.business_date|date:'d/m/Y' }} · PK-{{ line.document_id|stringformat:'06d' }}</b> · {{ line.quantity|number }} {{ product.unit }} · {{ line.document.counterparty|default:'Chưa ghi đối tác' }} · {{ line.document.status|status_label }}
+        </summary>
+        <p>
+          Kho {{ line.document.destination }} · Số nguồn {{ line.document.reference_number|default:'—' }} · Đơn giá {{ line.unit_price|money }}
+        </p>
+        <ul>
+          {% for a in line.document.attachments.all %}
+            <li>
+              <a href="{% url 'private_file' a.file_id %}">{{ a.get_category_display }} · {{ a.invoice_number }} · {{ a.filename }}</a>
+              {% if a.voided_at %}<span class="badge">Không sử dụng: {{ a.void_reason }}</span>{% endif %}
+              <small>{{ a.invoice_date|date:'d/m/Y' }}</small>
+            </li>
+          {% empty %}
+            <li>Chưa đính kèm hồ sơ.</li>
+          {% endfor %}
+        </ul>
+        <a class="button secondary small"
+           href="{% url 'document_detail' line.document_id %}">Mở đợt nhập / bổ sung hóa đơn</a>
+      </details>
+    {% empty %}
+      <p>Chưa có đợt nhập trong phạm vi được xem.</p>
+    {% endfor %}
+    {% include 'pagination.html' %}
+  </section>
+  {% if user.is_superuser %}
+    <p class="hint">
+      Tệp online lưu trong Google Drive đã kết nối; database lưu chỉ mục và mã kiểm tra nội dung. <a href="{% url 'drive_settings' %}">Quản lý kết nối Drive</a>
+    </p>
+  {% endif %}
+{% endblock %}

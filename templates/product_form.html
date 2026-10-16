@@ -15,7 +15,7 @@
       <p>Điền mã, tên và đơn vị tính. Các thông tin khác có thể bổ sung sau.</p>
     </div>
   </div>
-  <form method="post" class="standard-form">
+  <form method="post" enctype="multipart/form-data" class="standard-form">
     {% csrf_token %}{{ form.non_field_errors }}
     <section class="panel form-panel">
       <div class="panel-title">
@@ -45,6 +45,12 @@
           {% endfor %}
         </div>
       </details>
+      <div class="form-grid">
+        <div class="field">
+          {{ photo_form.image.label_tag }}{{ photo_form.image }}{{ photo_form.image.errors }}<small>Ảnh tùy chọn. QR được tạo tự động dù chưa có ảnh.</small>
+        </div>
+        <div class="field">{{ photo_form.caption.label_tag }}{{ photo_form.caption }}{{ photo_form.caption.errors }}</div>
+      </div>
     </section>
     <div class="form-actions">
       <button class="button" type="submit">{% icon 'check' %}Lưu hàng hóa</button>

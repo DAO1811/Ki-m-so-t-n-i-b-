@@ -126,7 +126,7 @@ class DocumentForm(forms.ModelForm):
                 loan_id = loan_id.pk
             loan = (
                 self.fields["loan"].queryset.filter(pk=loan_id).first()
-                if str(loan_id).isdigit()
+                if str(loan_id).isdigit() and len(str(loan_id)) <= 18
                 else None
             )
             if loan:
@@ -286,7 +286,12 @@ class ProductForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        if self.instance.pk and Line.objects.filter(product=self.instance).exists():
+        from .models import StocktakeItem
+
+        if self.instance.pk and (
+            Line.objects.filter(product=self.instance).exists()
+            or StocktakeItem.objects.filter(product=self.instance).exists()
+        ):
             original = Product.objects.get(pk=self.instance.pk)
             for key in ["sku", "unit"]:
                 if key in data and data[key] != getattr(original, key):
@@ -305,6 +310,80 @@ class ProductForm(forms.ModelForm):
             },
         }
         return super().save(commit=commit)
+
+
+class ProductPhotoForm(forms.Form):
+    image = forms.FileField(
+        label="Ảnh hàng hóa (nếu có)",
+        required=False,
+        widget=forms.ClearableFileInput(
+            attrs={"accept": "image/jpeg,image/png,image/webp"}
+        ),
+    )
+    caption = forms.CharField(label="Mô tả ảnh", max_length=150, required=False)
+
+    def clean_image(self):
+        upload = self.cleaned_data.get("image")
+        if upload:
+            from .media import validate_upload
+
+            self.validated_image = validate_upload(upload, photo=True)
+        return upload
+
+
+class ReceiptAttachmentForm(forms.ModelForm):
+    file = forms.FileField(
+        label="Tệp PDF, XML hoặc ảnh hóa đơn",
+        widget=forms.ClearableFileInput(
+            attrs={"accept": ".pdf,.xml,.jpg,.jpeg,.png,.webp"}
+        ),
+    )
+
+    class Meta:
+        from .models import ReceiptAttachment
+
+        model = ReceiptAttachment
+        fields = ["category", "invoice_number", "invoice_date"]
+        widgets = {
+            "invoice_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"})
+        }
+
+    def clean_invoice_date(self):
+        day = self.cleaned_data.get("invoice_date")
+        if day and day > timezone.localdate():
+            raise forms.ValidationError("Ngày hóa đơn không được ở tương lai.")
+        return day
+
+    def clean_file(self):
+        from .media import validate_upload
+
+        upload = self.cleaned_data["file"]
+        self.validated_file = validate_upload(upload)
+        return upload
+
+
+class StocktakeCountForm(forms.Form):
+    code = forms.CharField(max_length=500)
+    mode = forms.ChoiceField(
+        choices=[("SET", "Ghi tổng số đếm"), ("ADD", "Quét cộng 1")]
+    )
+    quantity = forms.DecimalField(
+        max_digits=16, decimal_places=3, min_value=0, required=False
+    )
+    unit_price = forms.DecimalField(
+        max_digits=18, decimal_places=4, min_value=0, required=False
+    )
+    note = forms.CharField(max_length=250, required=False)
+    request_id = forms.UUIDField()
+    revision = forms.IntegerField(min_value=1)
+
+    def clean(self):
+        data = super().clean()
+        if data.get("mode") == "SET" and data.get("quantity") is None:
+            self.add_error(
+                "quantity", "Nhập tổng số thực đếm; nhập 0 khi xác nhận không có hàng."
+            )
+        return data
 
 
 class ReceiptImportForm(forms.ModelForm):
@@ -371,13 +450,18 @@ class WarehouseForm(forms.ModelForm):
         ].help_text = "Được xem kho và lập phiếu nếu có vai trò nhân viên kho."
         self.fields[
             "managers"
-        ].help_text = "Xác nhận nhập, kiểm kê, điều chỉnh và nhận hàng liên kho."
+        ].help_text = "Xác nhận nhập và nhận hàng liên kho. Duyệt kiểm kê / điều chỉnh là quyền Tổng giám đốc được cấp riêng."
         self.fields[
             "issue_approvers"
         ].help_text = "Được duyệt xuất, chuyển đi, cho mượn và trả hàng tại kho này."
 
 
 class EmployeeForm(forms.ModelForm):
+    approve_adjustments = forms.BooleanField(
+        label="Tổng giám đốc: duyệt biên bản kiểm kê và điều chỉnh tồn",
+        required=False,
+        help_text="Quyền toàn công ty, cấp riêng. Không tự duyệt phiếu do chính mình lập. Quản lý kho thường không có quyền này.",
+    )
     password = forms.CharField(
         label="Mật khẩu",
         required=False,
@@ -423,6 +507,9 @@ class EmployeeForm(forms.ModelForm):
             "password"
         ].help_text = "Mật khẩu tự chọn, không bắt buộc độ dài hay tổ hợp ký tự. Khi sửa, để trống để giữ mật khẩu hiện tại."
         if self.instance.pk:
+            from .services import can_approve_adjustments
+
+            self.initial["approve_adjustments"] = can_approve_adjustments(self.instance)
             self.initial["first_name"] = self.instance.get_full_name()
             for field, relation in [
                 ("access_warehouses", "warehouses"),
@@ -448,4 +535,14 @@ class EmployeeForm(forms.ModelForm):
             user.warehouses.set(self.cleaned_data["access_warehouses"])
             user.managed_warehouses.set(self.cleaned_data["managed_warehouses"])
             user.issue_warehouses.set(self.cleaned_data["issue_warehouses"])
+            from django.contrib.auth.models import Permission
+
+            permission = Permission.objects.get(
+                content_type__app_label="inventory",
+                codename="approve_inventory_adjustment",
+            )
+            if self.cleaned_data["approve_adjustments"]:
+                user.user_permissions.add(permission)
+            else:
+                user.user_permissions.remove(permission)
         return user

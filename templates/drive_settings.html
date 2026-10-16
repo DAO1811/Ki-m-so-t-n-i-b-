@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>Google Drive · Hồ sơ công ty</h1>
+      <p>Chỉ quản trị viên cấu hình. Không cần chia sẻ thư mục công khai.</p>
+    </div>
+  </div>
+  <section class="panel form-panel record-panel">
+    <h2>Thư mục lưu trữ đã chỉ định</h2>
+    <p>
+      <a href="https://drive.google.com/drive/folders/{{ root_folder }}"
+         target="_blank"
+         rel="noopener">Mở thư mục của bạn trên Drive</a>
+    </p>
+    <p>Hàng hóa / mã hàng / ảnh · Hóa đơn / năm / đợt nhập. Phần mềm không sửa hồ sơ bên ngoài thư mục gốc.</p>
+    {% if missing %}
+      <div class="notice warning">
+        <span>Chưa cấu hình ứng dụng Google. Cần điền bảo mật tại hosting: {{ missing|join:', ' }}. Không gửi giá trị bí mật vào chat.</span>
+      </div>
+      <p>Địa chỉ chuyển hướng OAuth cần đăng ký:</p>
+      <code>{{ callback_url }}</code>
+    {% endif %}
+    <p>
+      Kết nối:
+      {% if connection %}
+        {{ connection.account_email }} · {{ connection.folder_name|default:'Chưa chọn thư mục' }}
+      {% else %}
+        Chưa kết nối
+      {% endif %}
+    </p>
+    <form method="post" action="{% url 'drive_connect' %}">
+      {% csrf_token %}
+      <button class="button" {% if missing %}disabled{% endif %}>Kết nối tài khoản Google của bạn</button>
+    </form>
+    {% if connection and not missing %}
+      <button id="choose-drive-folder"
+              class="button secondary"
+              type="button"
+              data-token-url="{% url 'drive_picker_token' %}">Chọn thư mục qua Google</button>
+      <form method="post"
+            action="{% url 'drive_folder' %}"
+            id="drive-folder-form">
+        {% csrf_token %}
+        <input name="folder_id" type="hidden" id="drive-folder-id">
+      </form>
+      <p id="drive-status" role="status"></p>
+    {% endif %}
+    <p class="hint">
+      Chỉ xin quyền drive.file cho tệp/thư mục được bạn chọn hoặc do phần mềm tạo. Liên kết thư mục riêng lẻ chưa cấp quyền API. Không dùng tài khoản dịch vụ để tránh vấn đề hạn mức trên Drive cá nhân.
+    </p>
+    {% if provider != 'drive' %}
+      <div class="notice warning">
+        Đang ở chế độ phát triển: tệp minh họa có thể nằm trong database thử. Bản online phải dùng Drive; không tự chuyển sang database khi Drive lỗi.
+      </div>
+    {% endif %}
+  </section>
+  {{ picker_config|json_script:'picker-config' }}
+{% endblock %}
+{% block scripts %}
+  {% if not missing %}
+    <script src="https://apis.google.com/js/api.js" defer></script><script src="{% static 'drive-picker.js' %}" defer></script>
+  {% endif %}
+{% endblock %}

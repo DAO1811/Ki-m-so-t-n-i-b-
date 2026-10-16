@@ -25,6 +25,12 @@ class InventoryTests(TestCase):
         self.admin = get_user_model().objects.create_superuser(
             "owner", "owner@example.test", "test-password-not-production"
         )
+        self.admin.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="inventory",
+                codename="approve_inventory_adjustment",
+            )
+        )
         self.maker = get_user_model().objects.create_user("maker")
         self.staff = get_user_model().objects.create_user(
             "worker", password="test-password-not-production"

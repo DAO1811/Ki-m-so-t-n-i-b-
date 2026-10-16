@@ -54,11 +54,17 @@
           {{ form.access_warehouses.label_tag }}<span class="helptext">Các kho nhân viên có thể xem và làm việc.</span>{{ form.access_warehouses }}{{ form.access_warehouses.errors }}
         </div>
         <div class="permission-field">
-          {{ form.managed_warehouses.label_tag }}<span class="helptext">Xác nhận nhập, kiểm kê, điều chỉnh và nhận hàng.</span>{{ form.managed_warehouses }}{{ form.managed_warehouses.errors }}
+          {{ form.managed_warehouses.label_tag }}<span class="helptext">Xác nhận nhập và nhận hàng. Không bao gồm duyệt kiểm kê / điều chỉnh.</span>{{ form.managed_warehouses }}{{ form.managed_warehouses.errors }}
           <hr>
           {{ form.issue_warehouses.label_tag }}<span class="helptext">Được duyệt xuất, chuyển đi, cho mượn và trả hàng.</span>{{ form.issue_warehouses }}{{ form.issue_warehouses.errors }}
         </div>
       </div>
+    </section>
+    <section class="panel form-panel record-panel">
+      <h2>Quyền phê duyệt đặc biệt</h2>
+      <label class="checkbox-line">{{ form.approve_adjustments }} {{ form.approve_adjustments.label }}</label>
+      <p>{{ form.approve_adjustments.help_text }}</p>
+      {{ form.approve_adjustments.errors }}
     </section>
     <div class="form-actions">
       <button class="button" type="submit">{% icon 'check' %}Lưu nhân viên</button>
