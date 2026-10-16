@@ -1,8 +1,12 @@
+# Test-only branch. Do not merge this deployment file into production main.
 services:
   - type: web
-    name: kho-viet
+    name: dhd-ksnb-test
     runtime: python
     plan: free
+    region: singapore
+    branch: preview/dhd-live-test
+    autoDeployTrigger: 'off'
     buildCommand: bash build.sh
     startCommand: bash start.sh
     envVars:
@@ -13,8 +17,17 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: dhd-ksnb-test-db
+          property: connectionString
       - key: INITIAL_ADMIN_USERNAME
-        sync: false
+        value: admin_test
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
+
+databases:
+  - name: dhd-ksnb-test-db
+    databaseName: dhd_ksnb_test
+    plan: free
+    region: singapore
+    ipAllowList: []
