@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>Thêm hàng hóa</h1><p class="hint">Trường bổ sung được khai báo tại Cấu hình hệ thống → Trường bổ sung.</p><form method="post" class="panel form-panel">{% csrf_token %}{{ form.as_p }}<button class="button">Lưu hàng hóa</button></form>{% endblock %}

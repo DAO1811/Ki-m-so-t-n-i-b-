@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: kho-viet
+    runtime: python
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: bash start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: INITIAL_ADMIN_USERNAME
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
