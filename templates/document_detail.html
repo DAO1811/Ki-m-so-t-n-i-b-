@@ -10,8 +10,11 @@
       <p>{{ doc.get_kind_display }} · Tạo ngày {{ doc.created_at|date:'d/m/Y H:i' }}</p>
     </div>
     <div class="heading-actions">
-      {% if doc.status == 'DRAFT' and doc.created_by_id == user.pk %}
-        <a class="button secondary" href="{% url 'document_edit' doc.pk %}">{% icon 'edit' %}Sửa phiếu</a>
+      <button type="button" class="button secondary" data-print>In phiếu</button>
+      {% if doc.created_by_id == user.pk %}
+        {% if doc.status == 'DRAFT' or doc.status == 'REJECTED' %}
+          <a class="button secondary" href="{% url 'document_edit' doc.pk %}">{% icon 'edit' %}Sửa phiếu</a>
+        {% endif %}
       {% endif %}
       {% if can_post %}
         <form method="post"
@@ -23,23 +26,35 @@
       {% endif %}
     </div>
   </div>
-  <div class="workflow">
-    <span class="complete"><b>{% icon 'check' %}</b>Đã lập phiếu</span><i></i><span class="{% if doc.status == 'DRAFT' %}current{% else %}complete{% endif %}"><b>2</b>
-    {% if doc.status == 'DRAFT' %}
-      Chờ duyệt
-    {% else %}
-      Đã duyệt
-    {% endif %}
-    </span><i></i><span class="{% if doc.status == 'TRANSIT' %}current{% elif doc.status == 'POSTED' %}complete{% endif %}"><b>3</b>
-    {% if doc.status == 'TRANSIT' %}
-      Chờ nhận hàng
-    {% elif doc.status == 'POSTED' %}
-      Hoàn tất
-    {% else %}
-      Cập nhật sổ kho
-    {% endif %}
-  </span>
-</div>
+  {% if doc.status != 'REJECTED' and doc.status != 'CANCELLED' %}
+    <div class="workflow">
+      <span class="complete"><b>{% icon 'check' %}</b>Đã lập phiếu</span><i></i><span class="{% if doc.status == 'DRAFT' %}current{% else %}complete{% endif %}"><b>2</b>
+      {% if doc.status == 'DRAFT' %}
+        Chờ duyệt
+      {% else %}
+        Đã duyệt
+      {% endif %}
+      </span><i></i><span class="{% if doc.status == 'TRANSIT' %}current{% elif doc.status == 'POSTED' %}complete{% endif %}"><b>3</b>
+      {% if doc.status == 'TRANSIT' %}
+        Chờ nhận hàng
+      {% elif doc.status == 'POSTED' %}
+        Hoàn tất
+      {% else %}
+        Cập nhật sổ kho
+      {% endif %}
+    </span>
+  </div>
+{% endif %}
+{% if duplicate_sources %}
+  <div class="notice warning">
+    <span>Chứng từ nguồn này cũng có trên phiếu khác. Kiểm tra để tránh nhập trùng; nếu giao nhiều đợt, đối chiếu tổng số thực nhận:
+      {% for other in duplicate_sources %}
+        <a href="{% url 'document_detail' other.pk %}">{{ other }}</a>
+        {% if not forloop.last %},{% endif %}
+      {% endfor %}
+    </span>
+  </div>
+{% endif %}
 {% if doc.status == 'DRAFT' %}
   <div class="notice">
     {% icon 'shield' %}<span>
@@ -62,16 +77,84 @@
   {% if doc.kind == 'LOAN' %}Hàng chỉ được ghi vào <b>tồn mượn tạm bị khóa</b>, không cộng vào tồn khả dụng.{% endif %}
 </span>
 </div>
-{% else %}
+{% elif doc.status == 'POSTED' %}
 <div class="notice">
   {% icon 'check' %}<span>Đã ghi sổ bởi <b>{{ doc.posted_by }}</b> lúc {{ doc.posted_at|date:'d/m/Y H:i' }}. Lịch sử được giữ nguyên; sai lệch cần phiếu điều chỉnh có lý do.</span>
 </div>
+{% else %}
+<div class="notice warning">
+  <span><b>{{ doc.status|status_label }}</b>: {{ doc.closure_reason }}. Phiếu chưa ghi sổ, tồn kho không thay đổi.</span>
+</div>
+{% endif %}
+{% if can_cancel or can_post and doc.status == 'DRAFT' %}
+  <section class="panel form-panel">
+    <details class="advanced-fields">
+      <summary>Xử lý phiếu chưa ghi sổ</summary>
+      {% if can_post and doc.status == 'DRAFT' %}
+        <form method="post"
+              action="{% url 'document_close' doc.pk 'reject' %}"
+              class="standard-form">
+          {% csrf_token %}
+          <label for="reject-reason">Lý do yêu cầu người lập sửa</label>
+          <textarea id="reject-reason" name="reason" required maxlength="1000" rows="2"></textarea>
+          <button class="button secondary">Yêu cầu sửa, chưa duyệt</button>
+        </form>
+      {% endif %}
+      {% if can_cancel %}
+        <form method="post"
+              action="{% url 'document_close' doc.pk 'cancel' %}"
+              data-confirm="Hủy phiếu chưa ghi sổ? Phiếu và lý do vẫn được giữ trong lịch sử."
+              class="standard-form">
+          {% csrf_token %}
+          <label for="cancel-reason">Lý do hủy phiếu</label>
+          <textarea id="cancel-reason" name="reason" required maxlength="1000" rows="2"></textarea>
+          <button class="button secondary">Hủy phiếu</button>
+        </form>
+      {% endif %}
+    </details>
+  </section>
 {% endif %}
 <section class="panel">
   <div class="panel-title">
     <h2>Thông tin chứng từ</h2>
   </div>
   <div class="detail-grid">
+    <div>
+      <small>Ngày nghiệp vụ thực tế</small><strong>{{ doc.business_date|date:'d/m/Y' }}</strong>
+    </div>
+    <div>
+      <small>Số chứng từ nguồn</small><strong>{{ doc.reference_number|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Ngày chứng từ nguồn</small><strong>{{ doc.reference_date|date:'d/m/Y'|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Nhà cung cấp / đối tác</small><strong>{{ doc.counterparty|default:'—' }}</strong><small>{{ doc.counterparty_address }}</small>
+    </div>
+    <div>
+      <small>Bộ phận / công trình</small><strong>{{ doc.department|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Người giao / bàn giao</small><strong>{{ doc.handed_over_by|default:'—' }}</strong>
+    </div>
+    <div>
+      <small>Người nhận / kiểm đếm</small><strong>{{ doc.received_by|default:'—' }}</strong>
+    </div>
+    {% if doc.kind == 'LOAN' %}
+      <div>
+        <small>Hạn trả</small><strong>{{ doc.due_date|date:'d/m/Y'|default:'Chưa ghi hạn' }}</strong>
+      </div>
+    {% endif %}
+    {% if doc.dispatched_at %}
+      <div>
+        <small>Đã xuất chuyển đi</small><strong>{{ doc.dispatched_at|date:'d/m/Y H:i' }}</strong><small>{{ doc.dispatched_by }}</small>
+      </div>
+    {% endif %}
+    {% if doc.posted_at %}
+      <div>
+        <small>Đã nhận / ghi sổ</small><strong>{{ doc.posted_at|date:'d/m/Y H:i' }}</strong><small>{{ doc.posted_by }}</small>
+      </div>
+    {% endif %}
     <div>
       <small>Nghiệp vụ</small><strong>{{ doc.get_kind_display }}</strong>
     </div>
@@ -114,9 +197,19 @@
         {% for l in lines %}
           <tr>
             <td>
-              <b>{{ l.product.sku }}</b><small>{{ l.product.name }}</small>
+              <b>{{ l.sku_snapshot|default:l.product.sku }}</b><small>{{ l.name_snapshot|default:l.product.name }}</small>
+              {% if l.note %}<small>{{ l.note }}</small>{% endif %}
+              {% if doc.kind == 'IN' %}
+                {% if l.expected_quantity is not None %}
+                  <small>Theo chứng từ: {{ l.expected_quantity|number }} · Thiếu: {{ l.shortage|number }}</small>
+                {% endif %}
+                {% if l.rejected_quantity %}<small>Không nhận: {{ l.rejected_quantity|number }} (không cộng tồn)</small>{% endif %}
+              {% endif %}
+              {% if l.stocktake_quantity is not None %}
+                <small>Tồn khi lập: {{ l.stocktake_quantity|number }} · Chênh lệch: {{ l.count_difference|number }}</small>
+              {% endif %}
             </td>
-            <td>{{ l.product.unit }}</td>
+            <td>{{ l.unit_snapshot|default:l.product.unit }}</td>
             <td>
               <b>{{ l.quantity|number }}</b>
             </td>
@@ -128,7 +221,7 @@
               {% endif %}
             </td>
             <td>
-              {% if doc.source_id and doc.status != 'DRAFT' %}
+              {% if doc.source_id and doc.dispatched_at or doc.kind == 'OUT' and doc.status == 'POSTED' %}
                 {{ l.book_value|money }}
               {% else %}
                 —
@@ -144,5 +237,55 @@
       Tổng tiền nhập <strong>{{ total_amount|money }}</strong>
     </div>
   {% endif %}
+</section>
+<section class="panel">
+  <div class="panel-title">
+    <h2>Lịch sử kiểm soát phiếu</h2>
+    <span class="caption">Tự động lưu người thực hiện và thời điểm</span>
+  </div>
+  <div class="detail-grid">
+    {% for event in events %}
+      <details class="full-width advanced-fields">
+        <summary>
+          {{ event.created_at|date:'d/m/Y H:i:s' }} · {{ event.get_action_display }} · {{ event.actor.get_full_name|default:event.actor.username }}
+        </summary>
+        <p>
+          Ngày nghiệp vụ: {{ event.snapshot.business_date }} · Chứng từ nguồn: {{ event.snapshot.reference_number|default:'—' }} · Đối tác: {{ event.snapshot.counterparty|default:'—' }}
+        </p>
+        <p>{{ event.snapshot.note|default:'Không có diễn giải' }}</p>
+        {% if event.snapshot.closure_reason %}<p>Lý do xử lý: {{ event.snapshot.closure_reason }}</p>{% endif %}
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Mã / tên hàng tại thời điểm thao tác</th>
+                <th>Số lượng</th>
+                <th>ĐVT</th>
+                <th>Đơn giá</th>
+                <th>Theo chứng từ / không nhận</th>
+                <th>Lý do</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in event.snapshot.lines %}
+                <tr>
+                  <td>{{ row.sku_snapshot }} · {{ row.name_snapshot }}</td>
+                  <td>{{ row.quantity }}</td>
+                  <td>{{ row.unit_snapshot }}</td>
+                  <td>{{ row.unit_price|default:'—' }}</td>
+                  <td>{{ row.expected_quantity|default:'—' }} / {{ row.rejected_quantity }}</td>
+                  <td>{{ row.note }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% empty %}
+      <p>
+        Phiếu có trước bản cập nhật: chưa có nhật ký chi tiết. Thời điểm lập, chuyển đi và duyệt hiện có vẫn được giữ nguyên.
+      </p>
+    {% endfor %}
+  </div>
 </section>
 {% endblock %}

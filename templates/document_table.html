@@ -15,7 +15,7 @@
       {% for d in documents %}
         <tr>
           <td>
-            <a class="document-code" href="{% url 'document_detail' d.pk %}">PK-{{ d.pk|stringformat:'06d' }}</a><small>{{ d.created_at|date:'d/m/Y H:i' }}</small>
+            <a class="document-code" href="{% url 'document_detail' d.pk %}">PK-{{ d.pk|stringformat:'06d' }}</a><small>Ngày thực tế: {{ d.business_date|date:'d/m/Y' }}</small><small>Lập: {{ d.created_at|date:'d/m/Y H:i' }}</small>
           </td>
           <td>
             <span class="type-label">{{ d.get_kind_display }}</span>

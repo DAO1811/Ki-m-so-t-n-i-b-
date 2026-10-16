@@ -5,7 +5,7 @@
     {{ row.product }}{{ row.product.errors }}
   </div>
   <div class="field quantity-field">
-    <label class="mobile-label" for="{{ row.quantity.id_for_label }}">Số lượng</label>
+    <label class="mobile-label" for="{{ row.quantity.id_for_label }}">{% if form_kind == 'IN' %}Thực nhận đạt{% else %}Số lượng{% endif %}</label>
     {{ row.quantity }}{{ row.quantity.errors }}<small class="available" data-available aria-live="polite"></small>
   </div>
   <div class="field price-field">
@@ -19,5 +19,21 @@
             class="icon-button remove-line"
             aria-label="Xóa dòng hàng">{% icon 'trash' %}</button>
   </div>
-  {{ row.non_field_errors }}
+  <details class="line-extras" {% if row.errors %}open{% endif %}>
+    <summary>Chi tiết kiểm soát dòng hàng</summary>
+    <div class="form-grid">
+      <div class="field receipt-line-detail"
+           {% if form_kind != 'IN' %}hidden{% endif %}>
+        {{ row.expected_quantity.label_tag }}{{ row.expected_quantity }}{{ row.expected_quantity.errors }}
+      </div>
+      <div class="field receipt-line-detail"
+           {% if form_kind != 'IN' %}hidden{% endif %}>
+        {{ row.rejected_quantity.label_tag }}{{ row.rejected_quantity }}{{ row.rejected_quantity.errors }}
+      </div>
+      <div class="field full-width">
+        {{ row.note.label_tag }}{{ row.note }}{{ row.note.errors }}<small>Chỉ số thực nhận đạt yêu cầu ở ô Số lượng mới được cộng tồn. Số không nhận không đi vào kho; đây không phải sổ hàng hỏng đang giữ.</small>
+      </div>
+    </div>
+    {{ row.non_field_errors }}
+  </details>
 </div>

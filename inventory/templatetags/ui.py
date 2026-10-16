@@ -69,9 +69,13 @@ def money(value):
 
 @register.filter
 def status_label(value):
-    return {"DRAFT": "Chờ duyệt", "TRANSIT": "Chờ nhận hàng", "POSTED": "Hoàn tất"}.get(
-        value, value
-    )
+    return {
+        "DRAFT": "Chờ duyệt",
+        "TRANSIT": "Chờ nhận hàng",
+        "POSTED": "Hoàn tất",
+        "REJECTED": "Yêu cầu sửa",
+        "CANCELLED": "Đã hủy",
+    }.get(value, value)
 
 
 @register.simple_tag(takes_context=True)

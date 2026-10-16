@@ -37,6 +37,8 @@
             <tr>
               <td>
                 <a class="document-code" href="{% url 'document_detail' row.doc.pk %}">PK-{{ row.doc.pk|stringformat:'06d' }}</a>
+                <small>Ngày mượn: {{ row.doc.business_date|date:'d/m/Y' }}</small><small>Hạn trả: {{ row.doc.due_date|date:'d/m/Y'|default:'Chưa ghi' }}</small>
+                {% if row.overdue %}<span class="badge rejected">Quá hạn trả</span>{% endif %}
               </td>
               <td>{{ row.doc.source.code }} → {{ row.doc.destination.code }}</td>
               <td>

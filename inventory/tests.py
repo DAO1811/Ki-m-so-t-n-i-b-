@@ -16,7 +16,7 @@ from .models import (
     CustomField,
     LoanHolding,
 )
-from .services import post_document
+from .services import post_document, capture_lines
 from .forms import ProductForm
 
 
@@ -52,7 +52,11 @@ class InventoryTests(TestCase):
             note=note,
             created_by=self.maker,
         )
-        Line.objects.create(document=d, product=self.p, quantity=qty, unit_price=100)
+        Line.objects.bulk_create(
+            capture_lines(
+                d, [Line(document=d, product=self.p, quantity=qty, unit_price=100)]
+            )
+        )
         if post:
             result = post_document(d.pk, self.admin)
             if result.status == "TRANSIT":

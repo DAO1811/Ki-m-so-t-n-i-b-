@@ -90,4 +90,91 @@
       </tbody>
     </table>
   </section>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Nhập thiếu / không nhận hàng</h2>
+      <span class="caption">Tối đa 100 dòng, loại trừ phiếu đã hủy</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Phiếu / ngày nhập</th>
+            <th>Đối tác / chứng từ nguồn</th>
+            <th>Hàng hóa</th>
+            <th>Thực nhận</th>
+            <th>Thiếu</th>
+            <th>Không nhận</th>
+            <th>Lý do / trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in receipt_exceptions %}
+            <tr>
+              <td>
+                <a href="{% url 'document_detail' line.document_id %}">{{ line.document }}</a><small>{{ line.document.business_date|date:'d/m/Y' }}</small>
+              </td>
+              <td>
+                {{ line.document.counterparty }}<small>{{ line.document.reference_number }}</small>
+              </td>
+              <td>{{ line.product.sku }} · {{ line.product.name }}</td>
+              <td>{{ line.quantity|number }} {{ line.product.unit }}</td>
+              <td>{{ line.shortage|number }}</td>
+              <td>{{ line.rejected_quantity|number }}</td>
+              <td>
+                {{ line.note }}<small>{{ line.document.status|status_label }}</small>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7">Chưa có phiếu nhập ghi nhận thiếu / không nhận.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Hàng mượn quá hạn còn giữ</h2>
+      <span class="caption">Không cộng vào tồn khả dụng; tối đa 100 dòng</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Lệnh gốc</th>
+            <th>Hạn trả</th>
+            <th>Hàng hóa</th>
+            <th>Còn giữ</th>
+            <th>Giá trị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for holding in overdue_loans %}
+            <tr>
+              <td>
+                <a href="{% url 'document_detail' holding.loan_line.document_id %}">{{ holding.loan_line.document }}</a>
+              </td>
+              <td>{{ holding.loan_line.document.due_date|date:'d/m/Y' }}</td>
+              <td>{{ holding.loan_line.product }}</td>
+              <td>{{ holding.quantity|number }} {{ holding.loan_line.product.unit }}</td>
+              <td>{{ holding.value|money }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Không có hàng mượn quá hạn còn giữ trong phạm vi đang xem.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-title">
+      <h2>Phiếu cần theo dõi, cũ nhất trước</h2>
+      <span class="caption">Chờ duyệt, yêu cầu sửa, đang chuyển; tối đa 100 phiếu</span>
+    </div>
+    {% include 'document_table.html' with documents=pending_documents %}
+  </section>
 {% endblock %}

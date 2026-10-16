@@ -24,6 +24,11 @@ urlpatterns = [
     path("documents/<int:pk>/edit/", views.document_edit, name="document_edit"),
     path("documents/<int:pk>/", views.document_detail, name="document_detail"),
     path("documents/<int:pk>/post/", views.document_post, name="document_post"),
+    path(
+        "documents/<int:pk>/close/<str:action>/",
+        views.document_close,
+        name="document_close",
+    ),
     path("stock/", views.stock, name="stock"),
     path("ledger/", views.ledger, name="ledger"),
     path("loans/", views.loans, name="loans"),

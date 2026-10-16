@@ -2,9 +2,11 @@ from decimal import Decimal, InvalidOperation
 from zipfile import ZipFile
 from django.core.exceptions import ValidationError
 from openpyxl import load_workbook, Workbook
-from .models import Product
+from .models import Product, Document, Line
+from .services import validate_line_details
 
 HEADERS = ["ma_hang", "so_luong", "don_gia"]
+DETAIL_HEADERS = ["sl_chung_tu", "sl_khong_nhan", "ly_do"]
 
 
 def parse_receipt(file):
@@ -34,17 +36,21 @@ def parse_receipt(file):
             raise ValidationError(
                 "File có quá nhiều dòng, hãy dùng file mẫu mới (tối đa 50 mã hàng / phiếu)."
             )
-        if sheet.max_column and sheet.max_column > 20:
-            raise ValidationError("File có quá nhiều cột. Chỉ dùng 3 cột của mẫu.")
-        rows = sheet.iter_rows(max_row=1001, max_col=4)
+        if sheet.max_column and sheet.max_column > 6:
+            raise ValidationError("File có quá nhiều cột. Chỉ dùng các cột của mẫu.")
+        rows = sheet.iter_rows(max_row=1001, max_col=6)
         header = next(rows, None)
+        extended = bool(
+            header
+            and [str(c.value or "").strip() for c in header] == HEADERS + DETAIL_HEADERS
+        )
         if (
             not header
             or [str(c.value or "").strip() for c in header[:3]] != HEADERS
-            or header[3].value is not None
+            or (not extended and any(c.value is not None for c in header[3:]))
         ):
             raise ValidationError(
-                "Hàng đầu tiên phải gồm đúng 3 cột: ma_hang, so_luong, don_gia. Tải file mẫu để sử dụng."
+                "Dùng mẫu 3 cột cũ hoặc mẫu 6 cột mới: ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do."
             )
         result = []
         seen = set()
@@ -77,7 +83,7 @@ def parse_receipt(file):
                 if (
                     not q.is_finite()
                     or not price.is_finite()
-                    or q <= 0
+                    or q < 0
                     or price < 0
                     or q >= Decimal("1e13")
                     or price >= Decimal("1e14")
@@ -94,8 +100,47 @@ def parse_receipt(file):
                     f"Dòng {number}: số lượng phải dương (tối đa 3 số lẻ), đơn giá không âm (tối đa 4 số lẻ), không để trống hoặc thêm dấu phân cách trong ô văn bản."
                 )
                 continue
-            if cells[3].value is not None:
-                errors.append(f"Dòng {number}: có dữ liệu ngoài 3 cột mẫu.")
+            if not extended and any(c.value is not None for c in cells[3:]):
+                errors.append(f"Dòng {number}: có dữ liệu ngoài cột mẫu.")
+                continue
+            try:
+                quantities = []
+                for cell, default in [(cells[3], None), (cells[4], Decimal(0))]:
+                    value = (
+                        Decimal(str(cell.value)) if cell.value is not None else default
+                    )
+                    if value is not None and (
+                        isinstance(cell.value, bool)
+                        or not value.is_finite()
+                        or value < 0
+                        or value >= Decimal("1e13")
+                        or value != value.quantize(Decimal(".001"))
+                    ):
+                        raise ValueError
+                    quantities.append(value)
+                expected, rejected = quantities
+                note = str(cells[5].value or "").strip()
+                if len(note) > 250:
+                    raise ValueError
+                validate_line_details(
+                    Document(kind="IN"),
+                    Line(
+                        product=product,
+                        quantity=q,
+                        expected_quantity=expected,
+                        rejected_quantity=rejected,
+                        note=note,
+                    ),
+                )
+                if q == 0 and not (expected or rejected):
+                    raise ValueError
+            except (InvalidOperation, ValueError, ValidationError) as exc:
+                reason = (
+                    " ".join(exc.messages)
+                    if isinstance(exc, ValidationError)
+                    else "Số lượng chi tiết không hợp lệ hoặc lý do dài quá 250 ký tự."
+                )
+                errors.append(f"Dòng {number}: {reason}")
                 continue
             result.append(
                 {
@@ -105,6 +150,14 @@ def parse_receipt(file):
                     "quantity": str(q),
                     "unit_price": str(price),
                     "amount": str((q * price).quantize(Decimal(".01"))),
+                    "expected_quantity": str(expected)
+                    if expected is not None
+                    else None,
+                    "rejected_quantity": str(rejected),
+                    "shortage": str(max(expected - q - rejected, 0))
+                    if expected is not None
+                    else None,
+                    "note": note,
                 }
             )
         if errors:
@@ -120,7 +173,9 @@ def receipt_template():
     book = Workbook()
     sheet = book.active
     sheet.title = "Nhap kho"
-    sheet.append(HEADERS)
+    sheet.append(HEADERS + DETAIL_HEADERS)
+    for column in ["D", "E", "F"]:
+        sheet.column_dimensions[column].width = 28
     sheet.column_dimensions["A"].width = 25
     sheet.column_dimensions["B"].width = 20
     sheet.column_dimensions["C"].width = 25

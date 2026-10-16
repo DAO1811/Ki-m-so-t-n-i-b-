@@ -22,6 +22,14 @@
                 {% if request.GET.product == p.pk|stringformat:'s' %}selected{% endif %}>{{ p }}</option>
       {% endfor %}
     </select>
+    <input type="date"
+           name="from"
+           value="{{ request.GET.from }}"
+           aria-label="Từ ngày nghiệp vụ">
+    <input type="date"
+           name="to"
+           value="{{ request.GET.to }}"
+           aria-label="Đến ngày nghiệp vụ">
     <button class="button">Tra cứu</button>
     <button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>
   </form>
@@ -30,7 +38,7 @@
       <table>
         <thead>
           <tr>
-            <th>Ngày ghi sổ</th>
+            <th>Ngày thực tế / ghi sổ</th>
             <th>Phiếu gốc</th>
             <th>Kho / hàng hóa</th>
             <th>Biến động SL</th>
@@ -43,7 +51,7 @@
           {% for m in movements %}
             <tr>
               <td>
-                {{ m.created_at|date:'d/m/Y' }}<small>{{ m.created_at|date:'H:i' }}</small>
+                {{ m.business_date|date:'d/m/Y' }}<small>Ghi sổ: {{ m.created_at|date:'d/m/Y H:i' }}</small>
               </td>
               <td>
                 <a href="{% url 'document_detail' m.document_id %}"

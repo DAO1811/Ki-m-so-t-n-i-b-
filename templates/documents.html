@@ -17,14 +17,16 @@
        href="{% url 'documents' %}">Tất cả phiếu</a><a class="{% if request.GET.mine %}active{% endif %}" href="?mine=1">Phiếu tôi lập</a><a class="{% if request.GET.status == 'DRAFT' %}active{% endif %}"
    href="?status=DRAFT">Chờ duyệt</a><a class="{% if request.GET.status == 'TRANSIT' %}active{% endif %}"
    href="?status=TRANSIT">Chờ nhận hàng</a><a class="{% if request.GET.status == 'POSTED' %}active{% endif %}"
-   href="?status=POSTED">Hoàn tất</a>
+   href="?status=POSTED">Hoàn tất</a><a class="{% if request.GET.status == 'REJECTED' %}active{% endif %}"
+   href="?status=REJECTED">Yêu cầu sửa</a><a class="{% if request.GET.status == 'CANCELLED' %}active{% endif %}"
+   href="?status=CANCELLED">Đã hủy</a>
   </div>
   <form class="filters">
     <div class="search-box">
       {% icon 'search' %}
       <input name="q"
              value="{{ request.GET.q }}"
-             placeholder="Mã phiếu, nội dung hoặc người lập…"
+             placeholder="Mã phiếu, chứng từ nguồn, đối tác, bộ phận…"
              aria-label="Tìm phiếu">
     </div>
     <select name="kind" aria-label="Loại nghiệp vụ">
@@ -36,7 +38,16 @@
     </select>
     <input type="hidden" name="status" value="{{ request.GET.status }}">
     {% if request.GET.mine %}<input type="hidden" name="mine" value="1">{% endif %}
+    <input type="date"
+           name="from"
+           value="{{ request.GET.from }}"
+           aria-label="Từ ngày nghiệp vụ">
+    <input type="date"
+           name="to"
+           value="{{ request.GET.to }}"
+           aria-label="Đến ngày nghiệp vụ">
     <button class="button secondary">Lọc phiếu</button>
+    <button name="export" value="1" class="button secondary">Xuất CSV</button>
     <a class="text-link" href="{% url 'documents' %}">Xóa bộ lọc</a>
   </form>
   <section class="panel">

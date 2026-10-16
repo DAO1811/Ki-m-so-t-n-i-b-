@@ -3,16 +3,71 @@ from django.forms import formset_factory, BaseFormSet
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
-from .models import Document, Product, CustomField, Warehouse
-from .services import warehouses_for, documents_for, validate_document
+from django.utils import timezone
+from .models import Document, Product, CustomField, Warehouse, Line
+from .services import (
+    warehouses_for,
+    documents_for,
+    validate_document,
+    validate_line_details,
+)
+
+DOCUMENT_DETAILS = [
+    "business_date",
+    "reference_number",
+    "reference_date",
+    "counterparty",
+    "counterparty_address",
+    "department",
+    "handed_over_by",
+    "received_by",
+    "due_date",
+]
+
+
+def configure_document_details(form, operation):
+    for name in ["business_date", "reference_date", "due_date"]:
+        form.fields[name].widget = forms.DateInput(
+            format="%Y-%m-%d", attrs={"type": "date"}
+        )
+    form.fields["business_date"].required = False
+    form.fields["business_date"].label = {
+        "IN": "Ngày nhập thực tế",
+        "OUT": "Ngày xuất thực tế",
+        "COUNT": "Ngày kiểm kê",
+        "LOAN": "Ngày cho mượn",
+        "RETURN": "Ngày trả thực tế",
+    }.get(operation, "Ngày nghiệp vụ thực tế")
+    form.fields["business_date"].widget.attrs["readonly"] = True
+    form.initial["business_date"] = timezone.localdate()
+    form.fields[
+        "business_date"
+    ].help_text = "Chỉ dùng ngày hôm nay theo quy định công ty. Tồn và giá vốn chỉ cập nhật khi người được phân công duyệt. Phiếu sang ngày mới cần người lập cập nhật lại."
+    if operation != "LOAN":
+        form.fields["due_date"].widget = forms.HiddenInput()
 
 
 class DocumentForm(forms.ModelForm):
     submission_key = forms.UUIDField(required=False, widget=forms.HiddenInput())
+    revision = forms.IntegerField(
+        required=False, min_value=1, widget=forms.HiddenInput()
+    )
+
+    @property
+    def core_fields(self):
+        return [
+            field
+            for field in self
+            if field.name not in DOCUMENT_DETAILS or field.name == "business_date"
+        ]
+
+    @property
+    def detail_fields(self):
+        return [self[name] for name in DOCUMENT_DETAILS if name != "business_date"]
 
     class Meta:
         model = Document
-        fields = ["kind", "source", "destination", "loan", "note"]
+        fields = ["kind", "source", "destination", "loan", *DOCUMENT_DETAILS, "note"]
         widgets = {
             "note": forms.Textarea(
                 attrs={
@@ -24,12 +79,15 @@ class DocumentForm(forms.ModelForm):
 
     def __init__(self, *args, user, fixed_kind=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.initial["revision"] = self.instance.revision
+        self.fields["revision"].required = bool(self.instance.pk)
         self.fixed_kind = fixed_kind
         self.operation = fixed_kind or (
             self.data.get("kind")
             if self.is_bound
             else self.initial.get("kind", self.instance.kind or "IN")
         )
+        configure_document_details(self, self.operation)
         if fixed_kind:
             self.fields["kind"].widget = forms.HiddenInput()
             self.initial["kind"] = fixed_kind
@@ -88,6 +146,7 @@ class DocumentForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        data["business_date"] = data.get("business_date") or timezone.localdate()
         if self.fixed_kind and data.get("kind") != self.fixed_kind:
             raise forms.ValidationError("Loại phiếu không khớp với nghiệp vụ đang mở.")
         if not self.errors:
@@ -96,6 +155,25 @@ class DocumentForm(forms.ModelForm):
 
 
 class LineForm(forms.Form):
+    expected_quantity = forms.DecimalField(
+        label="SL theo chứng từ",
+        max_digits=16,
+        decimal_places=3,
+        min_value=0,
+        required=False,
+        widget=forms.NumberInput(attrs={"step": "0.001"}),
+    )
+    rejected_quantity = forms.DecimalField(
+        label="SL không nhận",
+        max_digits=16,
+        decimal_places=3,
+        min_value=0,
+        required=False,
+        widget=forms.NumberInput(attrs={"step": "0.001", "placeholder": "0"}),
+    )
+    note = forms.CharField(
+        label="Tình trạng / lý do thiếu, hỏng", max_length=250, required=False
+    )
     product = forms.ModelChoiceField(
         queryset=Product.objects.order_by("sku"), label="Hàng hóa"
     )
@@ -135,7 +213,23 @@ class BaseLineFormSet(BaseFormSet):
                 )
             seen.add(product.pk)
             q = data["quantity"]
-            if self.kind not in ["COUNT", "ADJUST"] and q <= 0:
+            data["rejected_quantity"] = data.get("rejected_quantity") or 0
+            if self.kind != "IN":
+                data["expected_quantity"] = None
+                data["rejected_quantity"] = 0
+            try:
+                validate_line_details(
+                    Document(kind=self.kind),
+                    Line(**{k: v for k, v in data.items() if k != "DELETE"}),
+                )
+            except forms.ValidationError as exc:
+                form.add_error(None, exc)
+            zero_receipt = (
+                self.kind == "IN"
+                and q == 0
+                and (data.get("expected_quantity") or data.get("rejected_quantity"))
+            )
+            if self.kind not in ["COUNT", "ADJUST"] and q <= 0 and not zero_receipt:
                 form.add_error("quantity", "Số lượng phải lớn hơn 0.")
             if self.kind == "COUNT" and q < 0:
                 form.add_error("quantity", "Số thực đếm không được âm.")
@@ -162,7 +256,21 @@ LineFormSet = formset_factory(
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["sku", "name", "unit", "minimum"]
+        fields = [
+            "sku",
+            "name",
+            "unit",
+            "category",
+            "brand",
+            "model_number",
+            "specifications",
+            "storage_instructions",
+            "minimum",
+        ]
+        widgets = {
+            "specifications": forms.Textarea(attrs={"rows": 3}),
+            "storage_instructions": forms.Textarea(attrs={"rows": 2}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -176,6 +284,18 @@ class ProductForm(forms.ModelForm):
                 initial=self.instance.extra.get(field.key, ""),
             )
 
+    def clean(self):
+        data = super().clean()
+        if self.instance.pk and Line.objects.filter(product=self.instance).exists():
+            original = Product.objects.get(pk=self.instance.pk)
+            for key in ["sku", "unit"]:
+                if key in data and data[key] != getattr(original, key):
+                    self.add_error(
+                        key,
+                        "Hàng đã có chứng từ: giữ nguyên mã và đơn vị tính để bảo toàn thẻ kho. Nếu khác quy cách, tạo mã hàng mới.",
+                    )
+        return data
+
     def save(self, commit=True):
         self.instance.extra = {
             **self.instance.extra,
@@ -187,7 +307,11 @@ class ProductForm(forms.ModelForm):
         return super().save(commit=commit)
 
 
-class ReceiptImportForm(forms.Form):
+class ReceiptImportForm(forms.ModelForm):
+    class Meta:
+        model = Document
+        fields = [*DOCUMENT_DETAILS, "note"]
+
     warehouse = forms.ModelChoiceField(queryset=None, label="Kho nhận hàng")
     file = forms.FileField(
         label="File Excel .xlsx",
@@ -199,7 +323,22 @@ class ReceiptImportForm(forms.Form):
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
+        configure_document_details(self, "IN")
+        self.fields["business_date"].initial = timezone.localdate
         self.fields["warehouse"].queryset = warehouses_for(user)
+
+    def clean(self):
+        data = super().clean()
+        data["business_date"] = data.get("business_date") or timezone.localdate()
+        if not self.errors:
+            validate_document(
+                Document(
+                    kind="IN",
+                    destination=data["warehouse"],
+                    **{k: data.get(k) for k in self.Meta.fields},
+                )
+            )
+        return data
 
     def clean_file(self):
         file = self.cleaned_data["file"]

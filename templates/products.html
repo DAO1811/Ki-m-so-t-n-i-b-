@@ -47,35 +47,40 @@
               <td>
                 <b>{{ p.sku }}</b>
               </td>
-              <td>{{ p.name }}</td>
-              <td>{{ p.unit }}</td>
-              <td>{{ p.minimum|number }}</td>
               <td>
-                {% for key,value in p.extra.items %}
-                  <small>{{ key }}: {{ value }}</small>{% empty %}<span class="muted">—</span>
-                {% endfor %}
-              </td>
-              <td>
-                {% if perms.inventory.change_product %}
-                  <a class="button secondary small" href="{% url 'product_edit' p.pk %}">{% icon 'edit' %}Sửa</a>
+                {{ p.name }}<small>{{ p.category }}
+                {% if p.brand %}· {{ p.brand }}{% endif %}
+                {% if p.model_number %}· {{ p.model_number }}{% endif %}
+              </small>
+            </td>
+            <td>{{ p.unit }}</td>
+            <td>{{ p.minimum|number }}</td>
+            <td>
+              {% for key,value in p.extra.items %}
+                <small>{{ key }}: {{ value }}</small>{% empty %}<span class="muted">—</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% if perms.inventory.change_product %}
+                <a class="button secondary small" href="{% url 'product_edit' p.pk %}">{% icon 'edit' %}Sửa</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                {% icon 'box' %}<strong>Chưa có hàng hóa phù hợp</strong><span>Thêm mã hàng đầu tiên để bắt đầu nhập kho.</span>
+                {% if perms.inventory.add_product %}
+                  <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
                 {% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">
-                  {% icon 'box' %}<strong>Chưa có hàng hóa phù hợp</strong><span>Thêm mã hàng đầu tiên để bắt đầu nhập kho.</span>
-                  {% if perms.inventory.add_product %}
-                    <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% include 'pagination.html' %}
-  </section>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include 'pagination.html' %}
+</section>
 {% endblock %}

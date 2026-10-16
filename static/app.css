@@ -1134,10 +1134,9 @@ label {
 .line-table-head,
 .line-row {
   display: grid;
-  grid-template-columns: minmax(180px, 2.4fr) minmax(90px, 0.8fr) minmax(
-      120px,
-      1.1fr
-    ) minmax(100px, 1fr) 30px;
+  grid-template-columns:
+    minmax(180px, 2.4fr) minmax(90px, 0.8fr) minmax(120px, 1.1fr)
+    minmax(100px, 1fr) 30px;
   gap: 14px;
   padding: 12px 22px;
   align-items: start;
@@ -2259,4 +2258,42 @@ button:disabled {
 }
 body:has(.sidebar-open) {
   overflow-x: hidden;
+}
+
+.line-extras {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.line-extras > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+}
+.line-extras .form-grid {
+  padding: 12px 0;
+}
+@media print {
+  .sidebar,
+  .topbar,
+  .heading-actions,
+  .workflow,
+  .back-link {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+  }
+  .content { padding: 0; }
+  .line-extras, .advanced-fields { break-inside: avoid; }
+  .line-extras > summary, .advanced-fields > summary { list-style: none; }
+  footer { display: none; }
+  .panel {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  .table-scroll {
+    overflow: visible;
+  }
 }

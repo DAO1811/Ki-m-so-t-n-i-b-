@@ -64,6 +64,7 @@ class WorkspaceTests(TestCase):
 
     def payload(self, **overrides):
         data = {
+            "revision": "1",
             "kind": "IN",
             "source": "",
             "destination": self.a.pk,

@@ -58,7 +58,7 @@
       <span class="caption">Điền các ô có dấu *</span>
     </div>
     <div class="form-grid">
-      {% for field in form %}
+      {% for field in form.core_fields %}
         {% if field.is_hidden %}
           {{ field }}
         {% else %}
@@ -72,6 +72,18 @@
         {% endif %}
       {% endfor %}
     </div>
+    <details class="advanced-fields" {% if form.errors %}open{% endif %}>
+      <summary>Chứng từ nguồn, giao nhận & trách nhiệm</summary>
+      <div class="form-grid">
+        {% for field in form.detail_fields %}
+          {% if field.is_hidden %}
+            {{ field }}
+          {% else %}
+            <div class="field" data-doc-field="{{ field.name }}">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </details>
     <div id="kind-help" class="inline-help" aria-live="polite">
       {% icon 'shield' %}<span>{{ operation_help }}</span>
     </div>
@@ -91,6 +103,8 @@
           Thực đếm
         {% elif form_kind == 'ADJUST' %}
           Tăng / giảm
+        {% elif form_kind == 'IN' %}
+          Thực nhận đạt
         {% else %}
           Số lượng
         {% endif %}

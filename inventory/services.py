@@ -1,9 +1,99 @@
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Max
 from django.utils import timezone
-from .models import Warehouse, Document, Balance, Movement, LoanHolding
+from .models import Warehouse, Document, Balance, Movement, LoanHolding, DocumentEvent
+
+
+@transaction.atomic
+def capture_lines(doc, rows):
+    """Keep item identity and the stocktake cutoff at the time the draft is saved."""
+    if doc.kind == "COUNT":
+        Warehouse.objects.select_for_update().get(pk=doc.destination_id)
+    for line in rows:
+        line.sku_snapshot = line.product.sku
+        line.name_snapshot = line.product.name
+        line.unit_snapshot = line.product.unit
+        if doc.kind == "COUNT":
+            balance = Balance.objects.filter(
+                warehouse=doc.destination, product=line.product
+            ).first()
+            line.stocktake_quantity = balance.quantity if balance else Decimal(0)
+            line.stocktake_version = (
+                Movement.objects.filter(
+                    warehouse=doc.destination, product=line.product
+                ).aggregate(n=Max("id"))["n"]
+                or 0
+            )
+    return rows
+
+
+def audit_document(doc, actor, action):
+    fields = [
+        "kind",
+        "source_id",
+        "destination_id",
+        "loan_id",
+        "status",
+        "revision",
+        "business_date",
+        "reference_number",
+        "reference_date",
+        "counterparty",
+        "counterparty_address",
+        "department",
+        "handed_over_by",
+        "received_by",
+        "due_date",
+        "note",
+        "closure_reason",
+    ]
+    snapshot = {
+        k: str(getattr(doc, k)) if getattr(doc, k) is not None else None for k in fields
+    }
+    snapshot["lines"] = [
+        {
+            k: str(getattr(line, k)) if getattr(line, k) is not None else None
+            for k in [
+                "product_id",
+                "quantity",
+                "unit_price",
+                "expected_quantity",
+                "rejected_quantity",
+                "note",
+                "sku_snapshot",
+                "name_snapshot",
+                "unit_snapshot",
+                "stocktake_quantity",
+                "stocktake_version",
+            ]
+        }
+        for line in doc.lines.all().order_by("product_id")
+    ]
+    DocumentEvent.objects.create(
+        document=doc, actor=actor, action=action, snapshot=snapshot
+    )
+
+
+def validate_line_details(doc, line):
+    if doc.kind != "IN":
+        if line.expected_quantity is not None or line.rejected_quantity:
+            raise ValidationError(
+                "Số theo chứng từ và số không nhận chỉ dùng cho nhập kho."
+            )
+        return
+    expected, rejected = line.expected_quantity, line.rejected_quantity
+    if rejected < 0 or (
+        expected is not None and (expected < 0 or line.quantity + rejected > expected)
+    ):
+        raise ValidationError(
+            f"{line.product}: số thực nhận cộng số không nhận không được vượt số theo chứng từ."
+        )
+    if (
+        rejected or (expected is not None and line.quantity + rejected < expected)
+    ) and not line.note.strip():
+        raise ValidationError(f"{line.product}: ghi rõ lý do thiếu / không nhận hàng.")
 
 
 def warehouses_for(user):
@@ -26,6 +116,24 @@ def documents_for(user):
 
 
 def validate_document(doc):
+    if doc.status == "DRAFT" and doc.business_date != timezone.localdate():
+        raise ValidationError(
+            "Phiếu chỉ được lập và duyệt cho ngày hôm nay. Người lập cần mở sửa phiếu để cập nhật lại ngày và kiểm tra hàng."
+        )
+    if doc.business_date > timezone.localdate():
+        raise ValidationError(
+            "Ngày nghiệp vụ không được ở tương lai. Phiếu chỉ ghi hàng thực tế đã phát sinh."
+        )
+    if doc.reference_date and (
+        not doc.reference_number.strip() or doc.reference_date > timezone.localdate()
+    ):
+        raise ValidationError(
+            "Ngày chứng từ nguồn cần có số chứng từ và không được ở tương lai."
+        )
+    if doc.due_date and (doc.kind != "LOAN" or doc.due_date < doc.business_date):
+        raise ValidationError(
+            "Hạn trả chỉ dùng cho lệnh mượn và không trước ngày mượn."
+        )
     transfer = doc.kind in ["TRANSFER", "LOAN", "RETURN"]
     if doc.kind not in dict(Document.TYPES):
         raise ValidationError("Loại phiếu không hợp lệ.")
@@ -52,6 +160,8 @@ def validate_document(doc):
             raise ValidationError(
                 "Phiếu trả phải đảo chiều kho của phiếu mượn đã ghi sổ."
             )
+        if doc.business_date < loan.business_date:
+            raise ValidationError("Ngày trả không được trước ngày mượn gốc.")
     elif doc.loan_id:
         raise ValidationError("Chỉ phiếu trả mới được chọn phiếu mượn gốc.")
 
@@ -123,6 +233,8 @@ def post_document(pk, user):
     doc = Document.objects.select_for_update().get(pk=pk)
     if doc.status == "POSTED":
         raise ValidationError("Phiếu đã ghi sổ trước đó.")
+    if doc.status not in ["DRAFT", "TRANSIT"]:
+        raise ValidationError("Phiếu đã hủy hoặc đang yêu cầu sửa không thể ghi sổ.")
     transfer = doc.kind in ["TRANSFER", "LOAN", "RETURN"]
     receiving = doc.status == "TRANSIT" or not doc.source_id
     require_approver(doc, user, receiving)
@@ -162,8 +274,29 @@ def post_document(pk, user):
             return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     for line in lines:
+        validate_line_details(doc, line)
+        if doc.kind == "COUNT":
+            if line.stocktake_version is None:
+                raise ValidationError(
+                    "Phiếu kiểm kê cần người lập mở sửa, kiểm đếm lại và lưu mốc tồn trước khi duyệt."
+                )
+            current_version = (
+                Movement.objects.filter(
+                    warehouse=doc.destination, product=line.product
+                ).aggregate(n=Max("id"))["n"]
+                or 0
+            )
+            if current_version != line.stocktake_version:
+                raise ValidationError(
+                    f"{line.product}: tồn đã biến động sau khi lập phiếu kiểm kê. Người lập cần kiểm đếm lại và lưu sửa phiếu trước khi duyệt."
+                )
         q = line.quantity
-        if (doc.kind not in ["COUNT", "ADJUST"] and q <= 0) or (
+        zero_receipt = (
+            doc.kind == "IN"
+            and q == 0
+            and (line.expected_quantity or line.rejected_quantity)
+        )
+        if (doc.kind not in ["COUNT", "ADJUST"] and q <= 0 and not zero_receipt) or (
             doc.kind == "COUNT" and q < 0
         ):
             raise ValidationError(
@@ -171,6 +304,9 @@ def post_document(pk, user):
             )
         if line.unit_price is not None and line.unit_price < 0:
             raise ValidationError("Đơn giá không được âm.")
+        if zero_receipt:
+            # Record the discrepancy on the document, without creating usable stock or a zero movement.
+            continue
         if doc.status == "TRANSIT":
             if doc.kind == "LOAN":
                 LoanHolding.objects.create(
@@ -244,9 +380,40 @@ def post_document(pk, user):
         doc.dispatched_by = user
         doc.dispatched_at = timezone.now()
         doc.save(update_fields=["status", "dispatched_by", "dispatched_at"])
+        audit_document(doc, user, "DISPATCH")
     else:
         doc.status = "POSTED"
         doc.posted_by = user
         doc.posted_at = timezone.now()
         doc.save(update_fields=["status", "posted_by", "posted_at"])
+        audit_document(doc, user, "POST")
+    return doc
+
+
+@transaction.atomic
+def close_document(pk, user, action, reason):
+    doc = Document.objects.select_for_update().get(pk=pk)
+    reason = reason.strip()
+    if not reason or len(reason) > 1000:
+        raise ValidationError("Ghi lý do từ 1 đến 1000 ký tự.")
+    if action == "REJECT":
+        if doc.status != "DRAFT" or not can_approve(doc, user):
+            raise PermissionDenied(
+                "Chỉ người được duyệt mới được yêu cầu sửa phiếu đang chờ."
+            )
+        doc.status = "REJECTED"
+    elif action == "CANCEL":
+        if doc.status not in ["DRAFT", "REJECTED"] or not (
+            doc.created_by_id == user.pk or user.is_superuser
+        ):
+            raise PermissionDenied(
+                "Chỉ người lập hoặc quản trị viên được hủy phiếu chưa ghi sổ / chưa chuyển đi."
+            )
+        doc.status = "CANCELLED"
+    else:
+        raise ValidationError("Thao tác không hợp lệ.")
+    doc.closure_reason = reason
+    doc.revision += 1
+    doc.save(update_fields=["status", "closure_reason", "revision"])
+    audit_document(doc, user, action)
     return doc

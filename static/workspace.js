@@ -1,4 +1,9 @@
 (() => {
+  document
+    .querySelectorAll("[data-print]")
+    .forEach((button) =>
+      button.addEventListener("click", () => window.print()),
+    );
   const body = document.body;
   try {
     if (localStorage.getItem("warehouse-theme") === "dark")

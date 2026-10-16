@@ -229,12 +229,18 @@
     document.getElementById("document-total").hidden = !hasPrice;
     lines.querySelectorAll("[data-line]").forEach((row) => {
       row.classList.toggle("no-price", !hasPrice);
+      row.querySelectorAll(".receipt-line-detail").forEach((node) => {
+        node.hidden = k !== "IN";
+        node.querySelectorAll("input").forEach((input) => {
+          input.disabled = k !== "IN" || row.hidden;
+        });
+      });
       const price = row.querySelector('[name$="-unit_price"]');
       price.closest(".field").hidden = !hasPrice;
       price.disabled = !hasPrice;
       row.querySelector("[data-line-amount]").hidden = !hasPrice;
       const q = row.querySelector('[name$="-quantity"]');
-      q.min = k === "ADJUST" ? "" : k === "COUNT" ? "0" : "0.001";
+      q.min = k === "ADJUST" ? "" : ["COUNT", "IN"].includes(k) ? "0" : "0.001";
       q.placeholder =
         k === "COUNT"
           ? "Số thực đếm"

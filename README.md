@@ -4,6 +4,8 @@
 
 **Bản cải tiến được chủ dự án yêu cầu phát hành ngày 16/10/2026.** Website chính triển khai từ nhánh `main`; phát triển tiếp ở nhánh riêng và chỉ phát hành khi chủ dự án yêu cầu.
 
+Nhánh `feature/asset-control-details` bổ sung kiểm soát chứng từ và hàng hóa, **chưa phát hành**. Quy tắc đã chốt: chỉ ngày hôm nay; nhập số thực nhận, ghi riêng thiếu / không nhận và lý do. Xem [chi tiết và nguồn tham khảo](docs/ASSET_CONTROL_DETAILS.md) và [kết quả kiểm tra đợt này](docs/ASSET_CONTROL_VALIDATION.md). Đợt này có migration database, cần sao lưu trước khi triển khai chính.
+
 ![Tổng quan mới — dữ liệu minh họa](docs/preview/tong-quan-desktop.png)
 
 ## Quy trình sử dụng

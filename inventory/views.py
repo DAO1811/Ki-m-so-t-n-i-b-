@@ -16,6 +16,9 @@ from .services import (
     post_document,
     can_approve,
     approval_documents_for,
+    capture_lines,
+    audit_document,
+    close_document,
 )
 from .workspace import selected_warehouse, scoped_documents
 from django.utils import timezone
@@ -183,10 +186,71 @@ def documents(request):
     if request.GET.get("q"):
         q = request.GET["q"].strip()
         number = q.upper().removeprefix("PK-")
-        qs = (
-            qs.filter(Q(pk=int(number)) | Q(note__icontains=q))
-            if number.isdigit()
-            else qs.filter(Q(note__icontains=q) | Q(created_by__username__icontains=q))
+        search = (
+            Q(note__icontains=q)
+            | Q(created_by__username__icontains=q)
+            | Q(reference_number__icontains=q)
+            | Q(counterparty__icontains=q)
+            | Q(department__icontains=q)
+        )
+        if number.isdigit() and len(number) <= 18:
+            search |= Q(pk=int(number))
+        qs = qs.filter(search)
+    if request.GET.get("from") or request.GET.get("to"):
+        start, end = date_range(request)
+        qs = qs.filter(business_date__range=[start, end])
+    if request.GET.get("export"):
+        return export_csv(
+            "chung-tu-kho",
+            [
+                "Mã phiếu",
+                "Loại phiếu",
+                "Ngày thực tế",
+                "Thời điểm lập",
+                "Thời điểm chuyển đi",
+                "Thời điểm ghi sổ",
+                "Kho xuất",
+                "Kho nhận",
+                "Trạng thái",
+                "Chứng từ nguồn",
+                "Ngày chứng từ nguồn",
+                "Đối tác",
+                "Bộ phận",
+                "Người giao",
+                "Người nhận",
+                "Hạn trả",
+                "Người lập",
+                "Người duyệt chuyển",
+                "Người ghi sổ",
+                "Diễn giải",
+                "Lý do yêu cầu sửa / hủy",
+            ],
+            (
+                (
+                    str(d),
+                    d.get_kind_display(),
+                    str(d.business_date),
+                    d.created_at.isoformat(),
+                    d.dispatched_at.isoformat() if d.dispatched_at else "",
+                    d.posted_at.isoformat() if d.posted_at else "",
+                    d.source.code if d.source else "",
+                    d.destination.code if d.destination else "",
+                    d.get_status_display(),
+                    d.reference_number,
+                    str(d.reference_date or ""),
+                    d.counterparty,
+                    d.department,
+                    d.handed_over_by,
+                    d.received_by,
+                    str(d.due_date or ""),
+                    d.created_by.username,
+                    d.dispatched_by.username if d.dispatched_by else "",
+                    d.posted_by.username if d.posted_by else "",
+                    d.note,
+                    d.closure_reason,
+                )
+                for d in qs.select_related("created_by", "posted_by", "dispatched_by")
+            ),
         )
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(
@@ -312,17 +376,23 @@ def document_new(request, kind=None):
                 )
             if created:
                 Line.objects.bulk_create(
-                    [
-                        Line(
-                            document=doc,
-                            **{
-                                k: v for k, v in f.cleaned_data.items() if k != "DELETE"
-                            },
-                        )
-                        for f in formset
-                        if f.cleaned_data and not f.cleaned_data.get("DELETE")
-                    ]
+                    capture_lines(
+                        doc,
+                        [
+                            Line(
+                                document=doc,
+                                **{
+                                    k: v
+                                    for k, v in f.cleaned_data.items()
+                                    if k != "DELETE"
+                                },
+                            )
+                            for f in formset
+                            if f.cleaned_data and not f.cleaned_data.get("DELETE")
+                        ],
+                    )
                 )
+                audit_document(doc, request.user, "CREATE")
         messages.success(
             request, "Đã lưu phiếu nháp. Kiểm tra rồi bấm Ghi sổ để cập nhật tồn."
         )
@@ -333,13 +403,24 @@ def document_new(request, kind=None):
 @login_required
 @permission_required("inventory.add_document", raise_exception=True)
 def document_edit(request, pk):
-    doc = get_object_or_404(Document, pk=pk, created_by=request.user, status="DRAFT")
+    doc = get_object_or_404(
+        Document, pk=pk, created_by=request.user, status__in=["DRAFT", "REJECTED"]
+    )
     form = DocumentForm(
         request.POST or None, user=request.user, instance=doc, fixed_kind=doc.kind
     )
     formset = LineFormSet(
         request.POST or None,
-        initial=list(doc.lines.values("product", "quantity", "unit_price")),
+        initial=list(
+            doc.lines.values(
+                "product",
+                "quantity",
+                "unit_price",
+                "expected_quantity",
+                "rejected_quantity",
+                "note",
+            )
+        ),
         kind=doc.kind,
     )
     if (
@@ -350,21 +431,36 @@ def document_edit(request, pk):
     ):
         with transaction.atomic():
             locked = Document.objects.select_for_update().get(pk=pk)
-            if locked.status != "DRAFT":
+            if locked.status not in ["DRAFT", "REJECTED"]:
                 messages.error(request, "Phiếu đã được xử lý, không thể sửa.")
                 return redirect("document_detail", pk=pk)
+            if locked.revision != form.cleaned_data["revision"]:
+                messages.error(
+                    request,
+                    "Phiếu đã được sửa ở phiên khác. Hãy mở lại phiếu mới nhất để tránh ghi đè.",
+                )
+                return redirect("document_edit", pk=pk)
+            form.instance.status = "DRAFT"
+            form.instance.closure_reason = ""
+            form.instance.revision = locked.revision + 1
             form.save()
             doc.lines.all().delete()
             Line.objects.bulk_create(
-                [
-                    Line(
-                        document=doc,
-                        **{k: v for k, v in f.cleaned_data.items() if k != "DELETE"},
-                    )
-                    for f in formset
-                    if f.cleaned_data and not f.cleaned_data.get("DELETE")
-                ]
+                capture_lines(
+                    doc,
+                    [
+                        Line(
+                            document=doc,
+                            **{
+                                k: v for k, v in f.cleaned_data.items() if k != "DELETE"
+                            },
+                        )
+                        for f in formset
+                        if f.cleaned_data and not f.cleaned_data.get("DELETE")
+                    ],
+                )
             )
+            audit_document(doc, request.user, "EDIT")
         messages.success(request, "Đã cập nhật phiếu nháp.")
         return redirect("document_detail", pk=pk)
     return document_form_response(request, form, formset, doc.kind, editing=True)
@@ -386,6 +482,19 @@ def document_detail(request, pk):
             "lines": doc.lines.select_related("product"),
             "can_post": can_post,
             "approvers": approvers,
+            "events": doc.events.select_related("actor"),
+            "can_cancel": doc.status in ["DRAFT", "REJECTED"]
+            and (doc.created_by_id == request.user.pk or request.user.is_superuser),
+            "duplicate_sources": documents_for(request.user)
+            .filter(
+                kind="IN",
+                reference_number__iexact=doc.reference_number,
+                counterparty__iexact=doc.counterparty,
+            )
+            .exclude(pk=doc.pk)
+            .exclude(status="CANCELLED")[:5]
+            if doc.kind == "IN" and doc.reference_number
+            else [],
             "total_amount": sum(
                 (
                     l.quantity * l.unit_price
@@ -412,6 +521,18 @@ def document_post(request, pk):
         )
     except ValidationError as e:
         messages.error(request, " ".join(e.messages))
+    return redirect("document_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def document_close(request, pk, action):
+    get_object_or_404(documents_for(request.user), pk=pk)
+    try:
+        close_document(pk, request.user, action.upper(), request.POST.get("reason", ""))
+        messages.success(request, "Đã lưu xử lý phiếu; tồn kho không thay đổi.")
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
     return redirect("document_detail", pk=pk)
 
 
@@ -474,12 +595,16 @@ def ledger(request):
         raw = request.GET["product"]
         product = get_object_or_404(Product, pk=raw if raw.isdigit() else 0)
         qs = qs.filter(product=product)
+    if request.GET.get("from") or request.GET.get("to"):
+        start, end = date_range(request)
+        qs = qs.filter(created_at__date__range=[start, end])
     # Balance after is persisted per movement, so filtered history retains true running balance.
     if request.GET.get("export"):
         return export_csv(
             "the-kho",
             [
-                "Thời gian",
+                "Thời gian ghi sổ",
+                "Ngày nghiệp vụ thực tế",
                 "Phiếu",
                 "Kho",
                 "Hàng",
@@ -491,6 +616,7 @@ def ledger(request):
             (
                 (
                     m.created_at.isoformat(),
+                    m.business_date.isoformat(),
                     str(m.document),
                     m.warehouse.code,
                     m.product.sku,
@@ -548,6 +674,11 @@ def loans(request):
                     "value": holding.value if holding else 0,
                     "pending": pending,
                     "can_return": doc.destination_id in warehouse_ids,
+                    "overdue": bool(
+                        doc.due_date
+                        and doc.due_date < timezone.localdate()
+                        and line.quantity > returned
+                    ),
                 }
             )
     return render(
@@ -567,7 +698,11 @@ def products(request):
     qs = Product.objects.all().order_by("sku")
     if request.GET.get("q"):
         qs = qs.filter(
-            Q(name__icontains=request.GET["q"]) | Q(sku__icontains=request.GET["q"])
+            Q(name__icontains=request.GET["q"])
+            | Q(sku__icontains=request.GET["q"])
+            | Q(category__icontains=request.GET["q"])
+            | Q(brand__icontains=request.GET["q"])
+            | Q(model_number__icontains=request.GET["q"])
         )
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
     return render(request, "products.html", {"products": page, "page_obj": page})
@@ -619,6 +754,13 @@ def receipt_import(request):
         warehouse = get_object_or_404(
             warehouses_for(request.user), pk=preview["warehouse_id"]
         )
+        if preview.get("details", {}).get("business_date") != str(timezone.localdate()):
+            request.session.pop("receipt_import", None)
+            messages.error(
+                request,
+                "Bản xem trước đã sang ngày khác hoặc dùng phiên cũ. Hãy tải lại để tạo phiếu ngày hôm nay.",
+            )
+            return redirect("receipt_import")
         with transaction.atomic():
             doc, created = Document.objects.get_or_create(
                 import_key=preview["key"],
@@ -627,6 +769,12 @@ def receipt_import(request):
                     "destination": warehouse,
                     "created_by": request.user,
                     "note": preview["note"],
+                    **{
+                        k: date.fromisoformat(v)
+                        if k in ["business_date", "reference_date", "due_date"] and v
+                        else v
+                        for k, v in preview.get("details", {}).items()
+                    },
                 },
             )
             if created:
@@ -638,16 +786,27 @@ def receipt_import(request):
                     messages.error(request, "Danh mục đã thay đổi. Hãy tải lại file.")
                     return redirect("receipt_import")
                 Line.objects.bulk_create(
-                    [
-                        Line(
-                            document=doc,
-                            product_id=i["product_id"],
-                            quantity=Decimal(i["quantity"]),
-                            unit_price=Decimal(i["unit_price"]),
-                        )
-                        for i in preview["rows"]
-                    ]
+                    capture_lines(
+                        doc,
+                        [
+                            Line(
+                                document=doc,
+                                product_id=i["product_id"],
+                                quantity=Decimal(i["quantity"]),
+                                unit_price=Decimal(i["unit_price"]),
+                                expected_quantity=Decimal(i["expected_quantity"])
+                                if i.get("expected_quantity") is not None
+                                else None,
+                                rejected_quantity=Decimal(
+                                    i.get("rejected_quantity", "0")
+                                ),
+                                note=i.get("note", ""),
+                            )
+                            for i in preview["rows"]
+                        ],
+                    )
                 )
+                audit_document(doc, request.user, "CREATE")
         request.session.pop("receipt_import", None)
         messages.success(
             request,
@@ -662,6 +821,13 @@ def receipt_import(request):
                 "warehouse_id": form.cleaned_data["warehouse"].pk,
                 "warehouse_name": str(form.cleaned_data["warehouse"]),
                 "note": form.cleaned_data["note"],
+                "details": {
+                    k: str(form.cleaned_data[k])
+                    if isinstance(form.cleaned_data[k], date)
+                    else form.cleaned_data[k]
+                    for k in form.Meta.fields
+                    if k != "note"
+                },
                 "rows": rows,
             }
             request.session["receipt_import"] = preview
@@ -864,6 +1030,25 @@ def reports(request):
             "warehouse_totals": warehouses,
             "low": b.filter(quantity__lt=F("product__minimum")),
             "total_value": b.aggregate(n=Sum("value"))["n"] or 0,
+            "receipt_exceptions": Line.objects.filter(
+                document__in=scoped_documents(request)
+                .filter(kind="IN")
+                .exclude(status="CANCELLED")
+            )
+            .filter(
+                Q(rejected_quantity__gt=0)
+                | Q(expected_quantity__gt=F("quantity") + F("rejected_quantity"))
+            )
+            .select_related("document", "product")[:100],
+            "overdue_loans": LoanHolding.objects.filter(
+                loan_line__document__in=scoped_documents(request).filter(
+                    kind="LOAN", due_date__lt=timezone.localdate()
+                ),
+                quantity__gt=0,
+            ).select_related("loan_line__document", "loan_line__product")[:100],
+            "pending_documents": scoped_documents(request)
+            .filter(status__in=["DRAFT", "REJECTED", "TRANSIT"])
+            .order_by("created_at")[:100],
         },
     )
 

@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 
 class Warehouse(models.Model):
@@ -51,6 +52,13 @@ class Product(models.Model):
     sku = models.CharField("Mã hàng", max_length=50, unique=True)
     name = models.CharField("Tên hàng", max_length=200)
     unit = models.CharField("Đơn vị tính", max_length=30, default="Cái")
+    category = models.CharField("Nhóm hàng", max_length=100, blank=True)
+    brand = models.CharField("Nhãn hiệu / nhà sản xuất", max_length=100, blank=True)
+    model_number = models.CharField(
+        "Model / mã nhà sản xuất", max_length=100, blank=True
+    )
+    specifications = models.TextField("Quy cách / thông số kỹ thuật", blank=True)
+    storage_instructions = models.TextField("Điều kiện bảo quản", blank=True)
     minimum = models.DecimalField(
         "Mức tồn tối thiểu mỗi kho",
         max_digits=16,
@@ -103,6 +111,7 @@ class Document(models.Model):
         ("ADJUST", "Điều chỉnh tồn"),
     ]
     import_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    revision = models.PositiveIntegerField(default=1, editable=False)
     kind = models.CharField("Loại phiếu", max_length=10, choices=TYPES)
     source = models.ForeignKey(
         Warehouse,
@@ -128,6 +137,29 @@ class Document(models.Model):
         verbose_name="Phiếu mượn gốc",
     )
     note = models.TextField("Diễn giải / lý do", blank=True)
+    business_date = models.DateField(
+        "Ngày nghiệp vụ thực tế", default=timezone.localdate
+    )
+    reference_number = models.CharField(
+        "Số hóa đơn / chứng từ nguồn", max_length=100, blank=True
+    )
+    reference_date = models.DateField("Ngày chứng từ nguồn", null=True, blank=True)
+    counterparty = models.CharField(
+        "Nhà cung cấp / đối tác", max_length=200, blank=True
+    )
+    counterparty_address = models.CharField(
+        "Địa chỉ đối tác", max_length=250, blank=True
+    )
+    department = models.CharField(
+        "Bộ phận / công trình sử dụng", max_length=150, blank=True
+    )
+    handed_over_by = models.CharField(
+        "Người giao hàng / bàn giao", max_length=150, blank=True
+    )
+    received_by = models.CharField(
+        "Người nhận hàng / kiểm đếm", max_length=150, blank=True
+    )
+    due_date = models.DateField("Hạn trả hàng mượn", null=True, blank=True)
     status = models.CharField(
         max_length=10,
         default="DRAFT",
@@ -135,6 +167,8 @@ class Document(models.Model):
             ("DRAFT", "Nháp"),
             ("TRANSIT", "Đang chuyển / chờ nhận"),
             ("POSTED", "Đã ghi sổ"),
+            ("REJECTED", "Yêu cầu sửa"),
+            ("CANCELLED", "Đã hủy"),
         ],
     )
     created_by = models.ForeignKey(
@@ -158,6 +192,7 @@ class Document(models.Model):
         related_name="posted_documents",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    closure_reason = models.TextField("Lý do yêu cầu sửa / hủy", blank=True)
     posted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -190,6 +225,45 @@ class Line(models.Model):
     )
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=16, decimal_places=3)
+    expected_quantity = models.DecimalField(
+        "Số lượng theo chứng từ nguồn",
+        max_digits=16,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+    rejected_quantity = models.DecimalField(
+        "Số lượng không nhận (hỏng / sai quy cách)",
+        max_digits=16,
+        decimal_places=3,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    note = models.CharField("Tình trạng / lý do chênh lệch", max_length=250, blank=True)
+    stocktake_quantity = models.DecimalField(
+        max_digits=16, decimal_places=3, null=True, blank=True, editable=False
+    )
+    stocktake_version = models.BigIntegerField(null=True, blank=True, editable=False)
+    sku_snapshot = models.CharField(max_length=50, blank=True, editable=False)
+    name_snapshot = models.CharField(max_length=200, blank=True, editable=False)
+    unit_snapshot = models.CharField(max_length=30, blank=True, editable=False)
+
+    @property
+    def shortage(self):
+        return (
+            max(self.expected_quantity - self.quantity - self.rejected_quantity, 0)
+            if self.expected_quantity is not None
+            else None
+        )
+
+    @property
+    def count_difference(self):
+        return (
+            self.quantity - self.stocktake_quantity
+            if self.stocktake_quantity is not None
+            else None
+        )
+
     book_value = models.DecimalField(max_digits=22, decimal_places=2, default=0)
     unit_price = models.DecimalField(
         max_digits=18,
@@ -203,7 +277,19 @@ class Line(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["document", "product"], name="unique_document_product"
-            )
+            ),
+            models.CheckConstraint(
+                condition=Q(rejected_quantity__gte=0),
+                name="nonnegative_rejected_quantity",
+            ),
+            models.CheckConstraint(
+                condition=Q(expected_quantity__isnull=True)
+                | Q(
+                    expected_quantity__gte=models.F("quantity")
+                    + models.F("rejected_quantity")
+                ),
+                name="receipt_quantities_reconcile",
+            ),
         ]
 
 
@@ -217,8 +303,36 @@ class Movement(models.Model):
     value_after = models.DecimalField(max_digits=22, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def business_date(self):
+        # Each transfer leg has its own actual date under the today's-only policy.
+        return timezone.localdate(self.created_at)
+
     class Meta:
         ordering = ["-id"]
+
+
+class DocumentEvent(models.Model):
+    document = models.ForeignKey(
+        Document, on_delete=models.PROTECT, related_name="events"
+    )
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ("CREATE", "Lập phiếu"),
+            ("EDIT", "Sửa phiếu / gửi duyệt lại"),
+            ("DISPATCH", "Duyệt chuyển đi"),
+            ("POST", "Duyệt ghi sổ"),
+            ("REJECT", "Yêu cầu sửa"),
+            ("CANCEL", "Hủy phiếu chưa ghi sổ"),
+        ],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    snapshot = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["id"]
 
 
 class LoanHolding(models.Model):
