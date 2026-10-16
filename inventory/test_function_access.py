@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urljoin, urlsplit
-from django.db import DatabaseError
+from django.db import DatabaseError, connection
 from hashlib import sha256
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
@@ -444,7 +444,11 @@ class FunctionAccessTests(TestCase):
         )
 
     def test_release_health_checks_database_and_hides_connection_errors(self):
-        response = self.client.get("/healthz/")
+        if connection.vendor == "postgresql":
+            with override_settings(DEBUG=False):
+                self.assertEqual(self.client.get("/healthz/").status_code, 503)
+        with override_settings(DEBUG=True):
+            response = self.client.get("/healthz/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
         with patch(

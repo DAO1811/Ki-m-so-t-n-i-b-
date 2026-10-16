@@ -16,7 +16,7 @@ Bản phát triển `feature/admin-function-permissions`, kế thừa hai đợt
 
 ## Kiểm thử PostgreSQL
 
-**135 bài kiểm thử đạt, không bỏ qua.** Chạy toàn bộ `manage.py test --noinput` trên PostgreSQL thử, bao gồm các bài nghiệp vụ và nâng cấp trước đây cùng 19 bài kiểm tra quyền/điều hướng/health mới.
+**142 bài kiểm thử đạt, không bỏ qua.** Chạy toàn bộ `manage.py test --noinput` trên PostgreSQL thử, bao gồm các bài nghiệp vụ và nâng cấp trước đây cùng 19 bài kiểm tra quyền/điều hướng/health và 7 bài snapshot. Bài nâng cấp cũng diễn tập phục hồi schema/dữ liệu trước nâng cấp.
 
 Các tình huống có kiểm tra kết quả dữ liệu, không chỉ mã HTTP:
 
@@ -59,15 +59,15 @@ Camera mô phỏng không thay thế nghiệm thu bằng điện thoại/máy qu
 - Django system check: đạt; `makemigrations --check --dry-run`: không còn thay đổi schema chưa ghi.
 - Ruff kiểm tra lỗi F, định dạng các tệp Python đã sửa, cú pháp JavaScript/shell và `git diff --check`: đạt.
 - Biên dịch toàn bộ template và thu thập 137 static assets: đạt.
-- Docker dùng cùng base/dependency/code, cài wheel đã tải từ PyPI qua TLS trong build tách biệt vì mạng Docker không tải trực tiếp được. Production Dockerfile giữ nguyên. Container chạy migration đến 0016, Django check và `pip check`: đạt.
+- Docker dùng cùng base/dependency/code, cài wheel đã tải từ PyPI qua TLS trong build tách biệt vì mạng Docker không tải trực tiếp được. Dockerfile production dùng pip thông thường và khởi động bằng `safe_migrate`. Container dùng PostgreSQL riêng, `DEBUG=0`, thử từ schema 0007 → snapshot → 0016 → khởi động lại bằng CMD thật; health xác nhận snapshot nguồn 0007, login/static HTTP 200, Django check và `pip check` đạt.
 - Cấu hình `DEBUG=0`, PostgreSQL thử và khóa thử ngẫu nhiên: deploy check không có lỗi, còn hai khuyến nghị HSTS `includeSubDomains`/`preload`. Chưa bật hai tùy chọn này trước khi chốt quyền kiểm soát domain/subdomain; HTTPS, secure cookies và HSTS cho hostname hiện tại đã bật.
 - Quét chuỗi bí mật trong các tệp dự kiến commit; không đưa tài khoản thử, DB, file môi trường, token hoặc wheel vào Git.
 
 ## Điều kiện còn thiếu ở hệ thống thật
 
-Chủ dự án đã cho phép phát hành sau kiểm tra. **Chưa triển khai bản này lên production** vì chưa có xác nhận/bằng chứng bản sao lưu mới của Neon đang dùng và môi trường này không có kết nối DB/API production để tự sao lưu. Đã hỏi thông tin backup trong lúc hoàn tất kiểm tra độc lập; không coi yêu cầu “tiếp tục” là xác nhận đã backup.
+Chủ dự án đã cho phép phát hành và yêu cầu tự cập nhật ngày 17/10/2026. Đã bổ sung [snapshot tự động trước migration](AUTOMATED_RELEASE_SNAPSHOT.md), dùng kết nối database sẵn có trong Render. Cơ chế đã thử sao chép, lỗi, đồng thời và khôi phục trên DB thử; trạng thái production phải được đối chiếu qua health sau deploy, không suy ra đã tạo snapshot thật chỉ từ test. Bản chụp nằm trong cùng Neon, chưa thay thế backup độc lập.
 
-Remote main được kiểm tra vẫn là `f0a38e7`, schema đang dùng trước bản cải tiến là 0007. GET trang đăng nhập production đã phản hồi HTTP 200 sau các lần đầu hết thời gian chờ; chưa dùng tài khoản thật để nghiệm thu nghiệp vụ. Giữ website hiện tại trong khi chờ điều kiện dữ liệu thật. Xem [quy trình phát hành](RELEASE_PROCESS.md).
+Trước khi push đợt phát hành 17/10, remote main được kiểm tra là `f0a38e7` và schema inventory cũ là 0007. Trang đăng nhập production phản hồi HTTP 200; chưa dùng tài khoản thật để nghiệm thu nghiệp vụ. Sau push, phải đối chiếu chính xác mã release và metadata snapshot tại `/healthz/` cùng login/static; kết quả HTTP 200 trước push không chứng minh bản mới đã triển khai. Xem [quy trình phát hành](RELEASE_PROCESS.md).
 
 Google Drive vẫn cần cấu hình OAuth và kết nối tài khoản/thư mục thật. Chưa tải tệp công ty vào Drive, chưa kiểm chứng lưu/tải thật. Kho vẫn dùng database; tải ảnh/hóa đơn online phải hoàn tất cấu hình Drive, không ghi tạm vào ổ Render và không tuyên bố đã kết nối chỉ vì có link thư mục.
 

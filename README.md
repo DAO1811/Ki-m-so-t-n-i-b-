@@ -2,13 +2,13 @@
 
 Ứng dụng web tiếng Việt để quản lý nhiều kho, số lượng và giá trị hàng hóa. Django 5.2 LTS, PostgreSQL cho môi trường online; giao diện kho và bộ đọc QR dùng tài nguyên nội bộ. Kết nối Drive tùy chọn tải bộ chọn chính thức của Google trên trang cấu hình quản trị.
 
-**Bản cải tiến được chủ dự án yêu cầu phát hành ngày 16/10/2026.** Website chính triển khai từ nhánh `main`; phát triển tiếp ở nhánh riêng và chỉ phát hành khi chủ dự án yêu cầu.
+**Bản giao diện phát hành ngày 16/10/2026; bản nghiệp vụ, QR và phân quyền được yêu cầu tự cập nhật ngày 17/10/2026.** Website chính triển khai từ nhánh `main`; phát triển tiếp ở nhánh riêng và chỉ cập nhật main sau kiểm tra trong phạm vi chủ dự án yêu cầu.
 
-Nhánh hiện tại `feature/admin-function-permissions` kế thừa `feature/asset-control-details`, **chưa phát hành**. Bổ sung kiểm kê QR theo kho, biên bản → phiếu chênh lệch → Tổng giám đốc duyệt mới cập nhật tồn; ảnh theo mã hàng, hóa đơn theo đợt nhập và tích hợp Drive riêng tư. Cần cấu hình OAuth Google và thử kết nối thật trước khi dùng tệp online. Xem [hướng dẫn QR/Drive](docs/QR_STOCKTAKE_AND_DRIVE.md), [kiểm thử QR và giới hạn nghiệm thu](docs/QR_VALIDATION.md), [rà soát vận hành và hướng quản lý công ty](docs/COMPANY_PLATFORM_REVIEW.md).
+Bản nâng cấp gom các thay đổi đã kiểm tra của `feature/admin-function-permissions`, `feature/qr-stocktake-product-records` và `feature/asset-control-details` để phát hành từ `main`. Bổ sung kiểm kê QR theo kho, biên bản → phiếu chênh lệch → Tổng giám đốc duyệt mới cập nhật tồn; ảnh theo mã hàng, hóa đơn theo đợt nhập và tích hợp Drive riêng tư. Cần cấu hình OAuth Google và thử kết nối thật trước khi dùng tệp online. Xem [hướng dẫn QR/Drive](docs/QR_STOCKTAKE_AND_DRIVE.md), [kiểm thử QR và giới hạn nghiệm thu](docs/QR_VALIDATION.md), [rà soát vận hành và hướng quản lý công ty](docs/COMPANY_PLATFORM_REVIEW.md).
 
 Quy tắc ngày hôm nay, thực nhận/thiếu/không nhận và dữ liệu chi tiết được mô tả tại [kiểm soát chứng từ](docs/ASSET_CONTROL_DETAILS.md). Nhánh này có migration 0008–0016 so với production schema 0007; cần sao lưu và thử nâng cấp trước khi phát hành.
 
-**Quyền mới theo yêu cầu chủ dự án:** admin dùng toàn bộ chức năng; tài khoản khác chỉ xem và thao tác những mục được admin cấp. Có bảng quyền theo nghiệp vụ, kiểm tra phía máy chủ, phạm vi kho và thu hồi quyền ngay ở lần truy cập tiếp theo. Xem [hướng dẫn cấp quyền](docs/FUNCTION_ACCESS.md), [135 kiểm thử và kiểm tra phát hành](docs/FUNCTION_ACCESS_VALIDATION.md), [đề xuất nhân sự chờ duyệt](docs/HR_COMPANY_PROPOSAL.md). Chủ dự án đã yêu cầu phát hành sau kiểm tra; trước khi chuyển main cần hoàn tất sao lưu production.
+**Quyền mới theo yêu cầu chủ dự án:** admin dùng toàn bộ chức năng; tài khoản khác chỉ xem và thao tác những mục được admin cấp. Có bảng quyền theo nghiệp vụ, kiểm tra phía máy chủ, phạm vi kho và thu hồi quyền ngay ở lần truy cập tiếp theo. Xem [hướng dẫn cấp quyền](docs/FUNCTION_ACCESS.md), [142 kiểm thử và kiểm tra phát hành](docs/FUNCTION_ACCESS_VALIDATION.md), [đề xuất nhân sự chờ duyệt](docs/HR_COMPANY_PROPOSAL.md). Chủ dự án yêu cầu tự cập nhật ngày 17/10/2026; Render tự giữ [bản chụp trước migration](docs/AUTOMATED_RELEASE_SNAPSHOT.md) bằng kết nối Neon sẵn có, dừng nâng cấp nếu không chụp được.
 
 ![Tổng quan mới — dữ liệu minh họa](docs/preview/tong-quan-desktop.png)
 
@@ -51,7 +51,7 @@ Mỗi task cloud đã được tách biệt; dùng checkout hiện có, không t
 
 Đặt `DATABASE_URL` trỏ PostgreSQL **thử nghiệm** để chạy cả kiểm thử đồng thời; tài khoản DB test cần quyền tạo DB test. SQLite bỏ qua bài kiểm thử khóa dòng.
 
-Bản phát triển hiện tại đã chạy **135 test PostgreSQL, 135 đạt, không bỏ qua**. Đã kiểm tra Chromium với tài khoản thử nhân viên/quản lý/Tổng giám đốc: nhập, xuất, chuyển hai bước, mượn, trả từng phần, kiểm kê, điều chỉnh, Excel, đổi mật khẩu; bộ giải mã QR thật đọc video camera mô phỏng và ảnh, thử lại lượt đếm khi mất phản hồi. Chi tiết đợt hiện tại tại [kết quả kiểm tra quyền](docs/FUNCTION_ACCESS_VALIDATION.md); [kiểm tra QR](docs/QR_VALIDATION.md) giữ bằng chứng của đợt trước. [Kết quả bản giao diện đã phát hành trước đây](docs/WORKSPACE_VALIDATION.md) được giữ làm lịch sử.
+Bản phát triển hiện tại đã chạy **142 test PostgreSQL, 142 đạt, không bỏ qua**. Đã kiểm tra Chromium với tài khoản thử nhân viên/quản lý/Tổng giám đốc: nhập, xuất, chuyển hai bước, mượn, trả từng phần, kiểm kê, điều chỉnh, Excel, đổi mật khẩu; bộ giải mã QR thật đọc video camera mô phỏng và ảnh, thử lại lượt đếm khi mất phản hồi. Chi tiết đợt hiện tại tại [kết quả kiểm tra quyền](docs/FUNCTION_ACCESS_VALIDATION.md); [kiểm tra QR](docs/QR_VALIDATION.md) giữ bằng chứng của đợt trước. [Kết quả bản giao diện đã phát hành trước đây](docs/WORKSPACE_VALIDATION.md) được giữ làm lịch sử.
 
 ## Cấu trúc và tài liệu
 
@@ -67,6 +67,6 @@ Bản phát triển hiện tại đã chạy **135 test PostgreSQL, 135 đạt, 
 - [Triển khai Render / Neon](docs/FREE_HOSTING.md)
 - [Kiến trúc và định giá](docs/ARCHITECTURE.md)
 
-Production dùng PostgreSQL, `DEBUG=0`, `SECRET_KEY` bảo mật và hostname HTTPS hợp lệ. `render.yaml`, Dockerfile, `build.sh` và `start.sh` giữ cơ chế triển khai hiện có; access log bỏ query string để không ghi mã OAuth vào log. Bí mật nhập trong hosting; không gửi vào chat hoặc ghi vào Git. Migration đã được thử từ schema 0007 trên dữ liệu thử, giữ tài khoản, mật khẩu băm, ngày chứng từ và tồn cũ; vẫn cần backup dữ liệu thật trước khi triển khai.
+Production dùng PostgreSQL, `DEBUG=0`, `SECRET_KEY` bảo mật và hostname HTTPS hợp lệ. `render.yaml`, Dockerfile, `build.sh` và `start.sh` giữ cơ chế triển khai hiện có; access log bỏ query string để không ghi mã OAuth vào log. Bí mật nhập trong hosting; không gửi vào chat hoặc ghi vào Git. Migration và phục hồi đã được thử từ schema 0007 trên dữ liệu thử, giữ tài khoản, mật khẩu băm, ngày chứng từ và tồn cũ. `safe_migrate` giữ snapshot dữ liệu thật trước migration; `/healthz/` công bố trạng thái, mã release và thời điểm/migration nguồn của snapshot, không công bố dữ liệu công ty. Snapshot trong cùng Neon chưa thay thế backup độc lập.
 
 Các giới hạn hiện tại: chưa theo dõi lô / hạn sử dụng theo lựa chọn chủ dự án; chưa có FIFO, nhận hàng từng phần, hủy hàng đang chuyển, kiểm kê riêng tồn mượn hoặc báo cáo tồn cuối kỳ hồi tố. Tổng quan nhập/xuất theo kỳ, còn số tồn hiển thị là tồn hiện tại. File nhập tối đa 50 mã hàng / 5 MB, dùng `.xlsx`; xuất báo cáo CSV mở được bằng Excel.
