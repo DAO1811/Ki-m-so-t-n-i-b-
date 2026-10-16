@@ -1,5 +1,6 @@
 # Rà soát vận hành và hướng phát triển quản lý công ty
 
+**Cập nhật quyền:** chủ dự án đã chốt admin có toàn quyền; tài khoản khác cấp từng chức năng. Các mô tả quyền cũ bên dưới được thay bằng [quy tắc phân quyền mới](FUNCTION_ACCESS.md).
 Ngày 16/10/2026, nhánh `feature/qr-stocktake-product-records`. Đây là đánh giá của bản phát triển hiện tại, chưa phải thông báo phát hành. Xem [kết quả kiểm tra](QR_VALIDATION.md) và [quy trình QR/Drive](QR_STOCKTAKE_AND_DRIVE.md).
 
 ## Những phần đã rà soát và sửa trong đợt này

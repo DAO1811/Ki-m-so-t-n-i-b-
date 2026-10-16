@@ -19,6 +19,7 @@ from .models import (
     Warehouse,
 )
 from .services import warehouses_for, audit_document
+from .access import has_function
 
 
 def product_from_scan(raw):
@@ -43,7 +44,7 @@ def require_open(session, user):
         raise PermissionDenied("Chỉ người mở phiên được ghi số đếm hoặc gửi duyệt.")
     if not warehouses_for(user).filter(
         pk=session.warehouse_id
-    ).exists() or not user.has_perm("inventory.add_document"):
+    ).exists() or not has_function(user, "stocktakes_create"):
         raise PermissionDenied("Bạn không còn quyền lập phiếu tại kho này.")
     if session.status != "OPEN":
         raise ValidationError("Phiên đã khóa; không thể ghi thêm.")
@@ -56,7 +57,7 @@ def require_open(session, user):
 @transaction.atomic
 def start_session(warehouse, user):
     if (
-        not user.has_perm("inventory.add_document")
+        not has_function(user, "stocktakes_create")
         or not warehouses_for(user).filter(pk=warehouse.pk).exists()
     ):
         raise PermissionDenied

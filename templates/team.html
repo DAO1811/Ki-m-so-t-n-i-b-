@@ -6,7 +6,7 @@
       <h1>{% icon 'users' %}Nhân viên & phân quyền</h1>
       <p>Bạn quy định tên đăng nhập. Nhân viên tự thay đổi mật khẩu sau khi đăng nhập.</p>
     </div>
-    <a class="button" href="{% url 'employee_new' %}">{% icon 'plus' %}Thêm nhân viên</a>
+    {% if access.admin %}<a class="button" href="{% url 'employee_new' %}">{% icon 'plus' %}Thêm nhân viên</a>{% endif %}
   </div>
   <form class="filters">
     <div class="search-box">
@@ -25,7 +25,7 @@
           <tr>
             <th>Tên đăng nhập</th>
             <th>Họ và tên</th>
-            <th>Vai trò</th>
+            <th>Quyền chức năng</th>
             <th>Duyệt nhập</th>
             <th>Duyệt xuất</th>
             <th>Trạng thái</th>
@@ -41,11 +41,9 @@
               <td>{{ e.get_full_name|default:'Chưa đặt tên' }}</td>
               <td>
                 {% if e.is_superuser %}
-                  <span class="badge posted">Quản trị viên</span>
+                  <span class="badge posted">Admin · Toàn quyền</span>
                 {% else %}
-                  {% for group in e.groups.all %}
-                    <span class="badge">{{ group.name }}</span>{% empty %}<span class="muted">Chưa gán vai trò</span>
-                  {% endfor %}
+                  {% if e.function_access.permissions %}<span class="badge">{{ e.function_access.permissions|length }} quyền được cấp</span>{% else %}<span class="muted">Chưa cấp quyền nghiệp vụ</span>{% endif %}
                 {% endif %}
                 {% if e.pk in ceo_ids %}<span class="badge posted">Duyệt kiểm kê / điều chỉnh (Tổng giám đốc)</span>{% endif %}
               </td>
@@ -73,7 +71,7 @@
                 </span>
               </td>
               <td>
-                <a class="button secondary small" href="{% url 'employee_edit' e.pk %}">{% icon 'edit' %}Sửa</a>
+                {% if access.admin %}<a class="button secondary small" href="{% url 'employee_edit' e.pk %}">{% icon 'edit' %}Sửa</a>{% endif %}
               </td>
             </tr>
           {% empty %}

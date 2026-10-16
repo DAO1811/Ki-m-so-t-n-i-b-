@@ -1,5 +1,6 @@
 # Kiểm kê QR, ảnh hàng hóa và hồ sơ từng đợt nhập
 
+**Cập nhật quyền:** chủ dự án đã chốt admin có toàn quyền; tài khoản khác cấp từng chức năng. Các mô tả quyền cũ bên dưới được thay bằng [quy tắc phân quyền mới](FUNCTION_ACCESS.md).
 Ngày rà soát: 16/10/2026. Nhánh `feature/qr-stocktake-product-records`, kế thừa bản chi tiết chứng từ `feature/asset-control-details`. Đây là bản phát triển, chưa phát hành lên website chính. Các quy tắc trong tài liệu này thay thế mô tả quyền duyệt kiểm kê ở tài liệu các phiên bản trước.
 
 ## Kiểm kê theo từng kho

@@ -1,7 +1,7 @@
+from .access import can_create_kind
 from django import forms
 from django.forms import formset_factory, BaseFormSet
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from .models import Document, Product, CustomField, Warehouse, Line
@@ -81,6 +81,11 @@ class DocumentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.initial["revision"] = self.instance.revision
         self.fields["revision"].required = bool(self.instance.pk)
+        self.fields["kind"].choices = [
+            (code, label)
+            for code, label in Document.TYPES
+            if can_create_kind(user, code)
+        ]
         self.fixed_kind = fixed_kind
         self.operation = fixed_kind or (
             self.data.get("kind")
@@ -439,15 +444,21 @@ class WarehouseForm(forms.ModelForm):
             for name in ["members", "managers", "issue_approvers"]
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from .access import is_admin
+
+        if not is_admin(actor):
+            for field in ["members", "managers", "issue_approvers"]:
+                self.fields.pop(field)
+            return
         for name in ["members", "managers", "issue_approvers"]:
             self.fields[name].queryset = (
                 get_user_model().objects.filter(is_active=True).order_by("username")
             )
         self.fields[
             "members"
-        ].help_text = "Được xem kho và lập phiếu nếu có vai trò nhân viên kho."
+        ].help_text = "Phạm vi kho. Chỉ thao tác được các chức năng admin đã cấp trong hồ sơ nhân viên."
         self.fields[
             "managers"
         ].help_text = "Xác nhận nhập và nhận hàng liên kho. Duyệt kiểm kê / điều chỉnh là quyền Tổng giám đốc được cấp riêng."
@@ -457,10 +468,16 @@ class WarehouseForm(forms.ModelForm):
 
 
 class EmployeeForm(forms.ModelForm):
-    approve_adjustments = forms.BooleanField(
-        label="Tổng giám đốc: duyệt biên bản kiểm kê và điều chỉnh tồn",
+    from .access import FUNCTION_CHOICES
+
+    function_permissions = forms.MultipleChoiceField(
+        label="Quyền từng chức năng",
+        choices=FUNCTION_CHOICES,
         required=False,
-        help_text="Quyền toàn công ty, cấp riêng. Không tự duyệt phiếu do chính mình lập. Quản lý kho thường không có quyền này.",
+        widget=forms.CheckboxSelectMultiple(),
+    )
+    access_revision = forms.IntegerField(
+        required=False, initial=0, min_value=0, widget=forms.HiddenInput()
     )
     password = forms.CharField(
         label="Mật khẩu",
@@ -489,7 +506,7 @@ class EmployeeForm(forms.ModelForm):
 
     class Meta:
         model = get_user_model()
-        fields = ["username", "first_name", "email", "groups", "is_active"]
+        fields = ["username", "first_name", "email", "is_active"]
         labels = {
             "first_name": "Họ và tên",
             "last_name": "Họ",
@@ -498,18 +515,23 @@ class EmployeeForm(forms.ModelForm):
         }
         widgets = {"groups": forms.CheckboxSelectMultiple()}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.actor = actor
         self.fields["username"].label = "Mã nhân viên / Tên đăng nhập"
-        self.fields["groups"].queryset = Group.objects.order_by("name")
         self.fields["password"].required = not self.instance.pk
         self.fields[
             "password"
         ].help_text = "Mật khẩu tự chọn, không bắt buộc độ dài hay tổ hợp ký tự. Khi sửa, để trống để giữ mật khẩu hiện tại."
         if self.instance.pk:
-            from .services import can_approve_adjustments
+            from .models import FunctionAccess
+            from .access import function_codes
 
-            self.initial["approve_adjustments"] = can_approve_adjustments(self.instance)
+            access = FunctionAccess.objects.filter(user=self.instance).first()
+            self.initial["function_permissions"] = sorted(function_codes(self.instance))
+            self.initial["access_revision"] = access.revision if access else 0
+            if self.instance.is_superuser:
+                self.fields["function_permissions"].disabled = True
             self.initial["first_name"] = self.instance.get_full_name()
             for field, relation in [
                 ("access_warehouses", "warehouses"),
@@ -525,24 +547,47 @@ class EmployeeForm(forms.ModelForm):
         return password
 
     def save(self, commit=True):
+        from .access import is_admin, normalize_permissions
+        from .models import FunctionAccess
+        from django.db import transaction
+        from django.core.exceptions import PermissionDenied, ValidationError
+
+        if not is_admin(self.actor):
+            raise PermissionDenied("Chỉ admin được lưu tài khoản và phân quyền.")
         user = super().save(commit=False)
         user.last_name = ""
         if self.cleaned_data.get("password"):
             user.set_password(self.cleaned_data["password"])
         if commit:
-            user.save()
-            self.save_m2m()
-            user.warehouses.set(self.cleaned_data["access_warehouses"])
-            user.managed_warehouses.set(self.cleaned_data["managed_warehouses"])
-            user.issue_warehouses.set(self.cleaned_data["issue_warehouses"])
-            from django.contrib.auth.models import Permission
-
-            permission = Permission.objects.get(
-                content_type__app_label="inventory",
-                codename="approve_inventory_adjustment",
-            )
-            if self.cleaned_data["approve_adjustments"]:
-                user.user_permissions.add(permission)
-            else:
-                user.user_permissions.remove(permission)
+            with transaction.atomic():
+                if user.pk:
+                    get_user_model().objects.select_for_update().get(pk=user.pk)
+                access = (
+                    FunctionAccess.objects.select_for_update()
+                    .filter(user_id=user.pk)
+                    .first()
+                    if user.pk
+                    else None
+                )
+                if (access.revision if access else 0) != (
+                    self.cleaned_data.get("access_revision") or 0
+                ):
+                    raise ValidationError(
+                        "Quyền hoặc thông tin nhân viên đã được lưu ở cửa sổ khác. Tải lại trước khi chỉnh, không ghi đè bản mới."
+                    )
+                user.save()
+                self.save_m2m()
+                user.warehouses.set(self.cleaned_data["access_warehouses"])
+                user.managed_warehouses.set(self.cleaned_data["managed_warehouses"])
+                user.issue_warehouses.set(self.cleaned_data["issue_warehouses"])
+                FunctionAccess.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        "permissions": normalize_permissions(
+                            self.cleaned_data["function_permissions"]
+                        ),
+                        "updated_by": self.actor,
+                        "revision": (access.revision if access else 0) + 1,
+                    },
+                )
         return user

@@ -30,7 +30,7 @@ if not DEBUG and not os.environ.get("DATABASE_URL", "").startswith(
     )
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "config.apps.CompanyAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -45,6 +45,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "inventory.permission_middleware.FunctionAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

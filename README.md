@@ -4,9 +4,11 @@
 
 **Bản cải tiến được chủ dự án yêu cầu phát hành ngày 16/10/2026.** Website chính triển khai từ nhánh `main`; phát triển tiếp ở nhánh riêng và chỉ phát hành khi chủ dự án yêu cầu.
 
-Nhánh hiện tại `feature/qr-stocktake-product-records` kế thừa `feature/asset-control-details`, **chưa phát hành**. Bổ sung kiểm kê QR theo kho, biên bản → phiếu chênh lệch → Tổng giám đốc duyệt mới cập nhật tồn; ảnh theo mã hàng, hóa đơn theo đợt nhập và tích hợp Drive riêng tư. Cần cấu hình OAuth Google và thử kết nối thật trước khi dùng tệp online. Xem [hướng dẫn QR/Drive](docs/QR_STOCKTAKE_AND_DRIVE.md), [116 kiểm thử và giới hạn nghiệm thu](docs/QR_VALIDATION.md), [rà soát vận hành và hướng quản lý công ty](docs/COMPANY_PLATFORM_REVIEW.md).
+Nhánh hiện tại `feature/admin-function-permissions` kế thừa `feature/asset-control-details`, **chưa phát hành**. Bổ sung kiểm kê QR theo kho, biên bản → phiếu chênh lệch → Tổng giám đốc duyệt mới cập nhật tồn; ảnh theo mã hàng, hóa đơn theo đợt nhập và tích hợp Drive riêng tư. Cần cấu hình OAuth Google và thử kết nối thật trước khi dùng tệp online. Xem [hướng dẫn QR/Drive](docs/QR_STOCKTAKE_AND_DRIVE.md), [kiểm thử QR và giới hạn nghiệm thu](docs/QR_VALIDATION.md), [rà soát vận hành và hướng quản lý công ty](docs/COMPANY_PLATFORM_REVIEW.md).
 
-Quy tắc ngày hôm nay, thực nhận/thiếu/không nhận và dữ liệu chi tiết được mô tả tại [kiểm soát chứng từ](docs/ASSET_CONTROL_DETAILS.md). Nhánh này có migration 0008–0014 so với production schema 0007; cần sao lưu và thử nâng cấp trước khi phát hành.
+Quy tắc ngày hôm nay, thực nhận/thiếu/không nhận và dữ liệu chi tiết được mô tả tại [kiểm soát chứng từ](docs/ASSET_CONTROL_DETAILS.md). Nhánh này có migration 0008–0016 so với production schema 0007; cần sao lưu và thử nâng cấp trước khi phát hành.
+
+**Quyền mới theo yêu cầu chủ dự án:** admin dùng toàn bộ chức năng; tài khoản khác chỉ xem và thao tác những mục được admin cấp. Có bảng quyền theo nghiệp vụ, kiểm tra phía máy chủ, phạm vi kho và thu hồi quyền ngay ở lần truy cập tiếp theo. Xem [hướng dẫn cấp quyền](docs/FUNCTION_ACCESS.md), [135 kiểm thử và kiểm tra phát hành](docs/FUNCTION_ACCESS_VALIDATION.md), [đề xuất nhân sự chờ duyệt](docs/HR_COMPANY_PROPOSAL.md). Chủ dự án đã yêu cầu phát hành sau kiểm tra; trước khi chuyển main cần hoàn tất sao lưu production.
 
 ![Tổng quan mới — dữ liệu minh họa](docs/preview/tong-quan-desktop.png)
 
@@ -23,7 +25,7 @@ Quy tắc ngày hôm nay, thực nhận/thiếu/không nhận và dữ liệu ch
 - Quản lý kho, nhân viên, vai trò và trường bổ sung trong giao diện chính. Danh mục/phiếu có tìm kiếm và phân trang.
 - Quản trị viên quy định tên đăng nhập. Mật khẩu do người dùng tự chọn theo yêu cầu chủ dự án, không bắt buộc độ dài hoặc tổ hợp ký tự; không cho mật khẩu rỗng. Người dùng tự đổi mật khẩu sau khi xác nhận mật khẩu hiện tại. Mật khẩu được băm bằng Django.
 - Hỗ trợ điện thoại, menu thu gọn và giao diện sáng/tối.
-- Kiểm kê QR: mỗi mã hàng một QR tự sinh, mỗi lượt quét cộng 1; không coi chưa đếm là 0, không duyệt số đếm có mốc tồn đã cũ. Quyền duyệt điều chỉnh cấp riêng cho Tổng giám đốc, kể cả quản trị viên cũng không tự có quyền này.
+- Kiểm kê QR: mỗi mã hàng một QR tự sinh, mỗi lượt quét cộng 1; không coi chưa đếm là 0, không duyệt số đếm có mốc tồn đã cũ. Admin có toàn quyền; tài khoản khác được cấp riêng từng chức năng, quyền duyệt điều chỉnh có thể cấp cho Tổng giám đốc.
 - Hồ sơ sản phẩm có ảnh tùy chọn và lịch sử hóa đơn nhóm theo đợt nhập. Một hóa đơn nhiều mã chỉ lưu một lần ở phiếu nhập. Bản online lưu tệp trên Drive đã được chủ tài khoản cấp quyền, không dùng ổ đĩa tạm Render.
 
 ## Phát triển cục bộ
@@ -49,7 +51,7 @@ Mỗi task cloud đã được tách biệt; dùng checkout hiện có, không t
 
 Đặt `DATABASE_URL` trỏ PostgreSQL **thử nghiệm** để chạy cả kiểm thử đồng thời; tài khoản DB test cần quyền tạo DB test. SQLite bỏ qua bài kiểm thử khóa dòng.
 
-Bản phát triển hiện tại đã chạy **116 test PostgreSQL, 116 đạt, không bỏ qua**. Đã kiểm tra Chromium với tài khoản thử nhân viên/quản lý/Tổng giám đốc: nhập, xuất, chuyển hai bước, mượn, trả từng phần, kiểm kê, điều chỉnh, Excel, đổi mật khẩu; bộ giải mã QR thật đọc video camera mô phỏng và ảnh, thử lại lượt đếm khi mất phản hồi. Chi tiết và các bước chưa thử thật tại [bằng chứng kiểm tra QR](docs/QR_VALIDATION.md). [Kết quả bản giao diện đã phát hành trước đây](docs/WORKSPACE_VALIDATION.md) được giữ làm lịch sử.
+Bản phát triển hiện tại đã chạy **135 test PostgreSQL, 135 đạt, không bỏ qua**. Đã kiểm tra Chromium với tài khoản thử nhân viên/quản lý/Tổng giám đốc: nhập, xuất, chuyển hai bước, mượn, trả từng phần, kiểm kê, điều chỉnh, Excel, đổi mật khẩu; bộ giải mã QR thật đọc video camera mô phỏng và ảnh, thử lại lượt đếm khi mất phản hồi. Chi tiết đợt hiện tại tại [kết quả kiểm tra quyền](docs/FUNCTION_ACCESS_VALIDATION.md); [kiểm tra QR](docs/QR_VALIDATION.md) giữ bằng chứng của đợt trước. [Kết quả bản giao diện đã phát hành trước đây](docs/WORKSPACE_VALIDATION.md) được giữ làm lịch sử.
 
 ## Cấu trúc và tài liệu
 

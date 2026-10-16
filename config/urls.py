@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth
 from django.urls import path, include
+from .health import health
 
 urlpatterns = [
+    path("healthz/", health, name="health"),
     path("admin/", admin.site.urls),
     path("login/", auth.LoginView.as_view(template_name="login.html"), name="login"),
     path("logout/", auth.LogoutView.as_view(), name="logout"),

@@ -7,9 +7,9 @@
       <p>Theo dõi nhập, xuất, tồn và những công việc cần xử lý.</p>
     </div>
     <div class="heading-actions">
-      {% if perms.inventory.add_document %}
-        <a class="button" href="{% url 'operation_new' 'in' %}">{% icon 'in' %}Nhập kho</a><a class="button danger" href="{% url 'operation_new' 'out' %}">{% icon 'out' %}Xuất kho</a><a class="button orange" href="{% url 'operation_new' 'transfer' %}">{% icon 'transfer' %}Chuyển kho</a>
-      {% endif %}
+      {% if access.receipts_create %}<a class="button" href="{% url 'operation_new' 'in' %}">{% icon 'in' %}Nhập kho</a>{% endif %}
+      {% if access.issues_create %}<a class="button danger" href="{% url 'operation_new' 'out' %}">{% icon 'out' %}Xuất kho</a>{% endif %}
+      {% if access.transfers_create %}<a class="button orange" href="{% url 'operation_new' 'transfer' %}">{% icon 'transfer' %}Chuyển kho</a>{% endif %}
     </div>
   </div>
   {% if not has_warehouses or not has_products %}
@@ -26,9 +26,9 @@
         </p>
       </div>
       <div class="heading-actions">
-        {% if perms.inventory.add_warehouse and not has_warehouses %}
+        {% if access.warehouses_create and not has_warehouses %}
           <a class="button" href="{% url 'warehouse_new' %}">Tạo kho đầu tiên</a>
-        {% elif perms.inventory.add_product %}
+        {% elif access.products_create %}
           <a class="button" href="{% url 'product_new' %}">Thêm hàng hóa</a>
         {% endif %}
       </div>
@@ -79,26 +79,26 @@
     </div>
   </div>
   <div class="signal-grid">
-  <a class="signal" href="{% url 'stock' %}?low=1"><span class="signal-icon amber">{% icon 'alert' %}</span>
+  {% if access.stock_view %}<a class="signal" href="{% url 'stock' %}?low=1"><span class="signal-icon amber">{% icon 'alert' %}</span>
   <div>
     <b>Hàng dưới định mức</b><small>Cần xem xét bổ sung</small>
   </div>
-  <strong class="amber-text">{{ low_count }}</strong></a>
-<a class="signal" href="{% url 'approvals' %}"><span class="signal-icon blue">{% icon 'shield' %}</span>
+  <strong class="amber-text">{{ low_count }}</strong></a>{% endif %}
+{% if access.any_approve %}<a class="signal" href="{% url 'approvals' %}"><span class="signal-icon blue">{% icon 'shield' %}</span>
 <div>
   <b>Đang chờ bạn duyệt</b><small>Đúng quyền và đúng kho</small>
 </div>
-<strong class="blue-text">{{ approval_count }}</strong></a>
-<a class="signal" href="{% url 'documents' %}?status=TRANSIT"><span class="signal-icon amber">{% icon 'transfer' %}</span>
+<strong class="blue-text">{{ approval_count }}</strong></a>{% endif %}
+{% if access.documents_view %}<a class="signal" href="{% url 'documents' %}?status=TRANSIT"><span class="signal-icon amber">{% icon 'transfer' %}</span>
 <div>
   <b>Hàng đang chuyển</b><small>Chưa xác nhận nhận</small>
 </div>
-<strong class="amber-text">{{ transit_count }}</strong></a>
-<a class="signal" href="{% url 'documents' %}?status=DRAFT"><span class="signal-icon purple">{% icon 'file' %}</span>
+<strong class="amber-text">{{ transit_count }}</strong></a>{% endif %}
+{% if access.documents_view %}<a class="signal" href="{% url 'documents' %}?status=DRAFT"><span class="signal-icon purple">{% icon 'file' %}</span>
 <div>
   <b>Phiếu chờ xử lý</b><small>Chưa cập nhật tồn</small>
 </div>
-<strong>{{ pending }}</strong></a>
+<strong>{{ pending }}</strong></a>{% endif %}
 <div class="signal">
   <span class="signal-icon green">{% icon 'check' %}</span>
   <div>
@@ -135,7 +135,7 @@
   <section class="panel">
     <div class="panel-title">
       <h2>{% icon 'history' %}Phiếu gần đây</h2>
-      <a href="{% url 'documents' %}">Xem tất cả {% icon 'arrow' %}</a>
+      {% if access.documents_view %}<a href="{% url 'documents' %}">Xem tất cả {% icon 'arrow' %}</a>{% endif %}
     </div>
     {% include 'document_table.html' with documents=recent %}
   </section>
@@ -143,8 +143,8 @@
     <div class="panel-title">
       <h2>{% icon 'grid' %}Công việc thường dùng</h2>
     </div>
-    <a href="{% url 'loans' %}"><span class="signal-icon blue">{% icon 'loan' %}</span><span><b>Theo dõi mượn & trả</b><small>Giá trị đang cho mượn: {{ loan_value|money }}</small></span>{% icon 'chevron' %}</a><a href="{% url 'ledger' %}"><span class="signal-icon purple">{% icon 'history' %}</span><span><b>Tra cứu thẻ kho</b><small>Đối chiếu theo mã hàng và từng kho</small></span>{% icon 'chevron' %}</a>
-    {% if perms.inventory.add_document %}
+    {% if access.loans_view %}<a href="{% url 'loans' %}"><span class="signal-icon blue">{% icon 'loan' %}</span><span><b>Theo dõi mượn & trả</b><small>Giá trị đang cho mượn: {{ loan_value|money }}</small></span>{% icon 'chevron' %}</a>{% endif %}{% if access.ledger_view %}<a href="{% url 'ledger' %}"><span class="signal-icon purple">{% icon 'history' %}</span><span><b>Tra cứu thẻ kho</b><small>Đối chiếu theo mã hàng và từng kho</small></span>{% icon 'chevron' %}</a>{% endif %}
+    {% if access.tools_import %}
       <a href="{% url 'receipt_import' %}"><span class="signal-icon green">{% icon 'upload' %}</span><span><b>Nhập phiếu từ Excel</b><small>Tải mẫu · Xem trước · Tạo phiếu</small></span>{% icon 'chevron' %}</a>
     {% endif %}
     <div class="safety-note">

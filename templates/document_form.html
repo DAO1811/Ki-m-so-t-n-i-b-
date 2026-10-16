@@ -93,7 +93,7 @@
       <h2>
         <span class="section-number">02</span>Danh sách hàng hóa
       </h2>
-      {% if perms.inventory.add_product %}
+      {% if access.products_create %}
         <a href="{% url 'product_new' %}" target="_blank" rel="noopener">{% icon 'plus' %}Thêm mã hàng</a>
       {% endif %}
     </div>

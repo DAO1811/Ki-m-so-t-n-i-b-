@@ -1,3 +1,4 @@
+from .test_support import grant_functions, OPERATOR, MANAGER
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO, StringIO
@@ -41,6 +42,10 @@ class QRStocktakeTests(TestCase):
         cls.outsider = User.objects.create_user("outside", password="1")
         call_command("setup_roles", stdout=StringIO())
         cls.maker.groups.add(Group.objects.get(name="Nhân viên kho"))
+        grant_functions(cls.maker, OPERATOR)
+        grant_functions(cls.manager, MANAGER)
+        grant_functions(cls.outsider, {"stocktakes_view", "files_view"})
+        grant_functions(cls.ceo, {"adjustments_approve", "documents_view"})
         cls.ceo.user_permissions.add(
             Permission.objects.get(
                 content_type__app_label="inventory",
@@ -101,8 +106,8 @@ class QRStocktakeTests(TestCase):
         self.assertEqual(doc.lines.get().stocktake_quantity, 3)
         self.assertEqual(Balance.objects.get().quantity, 3)
         self.assertFalse(can_approve(doc, self.manager))
-        self.assertFalse(can_approve(doc, self.admin))
-        for actor in [self.manager, self.admin, self.maker]:
+        self.assertTrue(can_approve(doc, self.admin))
+        for actor in [self.manager, self.maker]:
             with (
                 self.subTest(actor=actor.username),
                 self.assertRaises(PermissionDenied),
@@ -262,6 +267,7 @@ class QRStocktakeTests(TestCase):
         doc.save()
         self.assertFalse(can_approve(doc, self.manager))
         self.ceo.user_permissions.clear()
+        grant_functions(self.ceo, set())
         self.assertFalse(can_approve(doc, self.ceo))
 
     def test_scan_resolution_and_qr_image_are_authenticated(self):
@@ -609,7 +615,8 @@ class RecordMediaTests(TestCase):
             "username": self.manager.username,
             "first_name": "Người duyệt",
             "is_active": "on",
-            "approve_adjustments": "on",
+            "function_permissions": ["adjustments_approve"],
+            "access_revision": "1",
             "password": "private-example-password",
         }
         self.client.post(f"/team/{self.manager.pk}/edit/", data)
@@ -617,7 +624,8 @@ class RecordMediaTests(TestCase):
         self.assertNotIn(
             "private-example-password", LogEntry.objects.latest("id").change_message
         )
-        data.pop("approve_adjustments")
+        data["function_permissions"] = []
+        data["access_revision"] = "2"
         data["password"] = ""
         self.client.post(f"/team/{self.manager.pk}/edit/", data)
         self.assertFalse(can_approve_adjustments(self.manager))

@@ -1,3 +1,4 @@
+from .test_support import grant_functions, OPERATOR, MANAGER
 from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import patch
@@ -32,6 +33,8 @@ class AssetControlTests(TestCase):
         )
         call_command("setup_roles", stdout=StringIO())
         cls.maker.groups.add(Group.objects.get(name="Nhân viên kho"))
+        grant_functions(cls.maker, OPERATOR)
+        grant_functions(cls.manager, MANAGER)
         cls.a = Warehouse.objects.create(code="A", name="Kho A")
         cls.b = Warehouse.objects.create(code="B", name="Kho B")
         cls.a.members.add(cls.maker)
@@ -401,6 +404,7 @@ class AssetControlTests(TestCase):
 
     def test_outsider_cannot_view_audit_or_close_foreign_document(self):
         outsider = get_user_model().objects.create_user("outside", password="1")
+        grant_functions(outsider, {"receipts_view", "receipts_create"})
         self.client.force_login(self.maker)
         self.client.post("/operations/in/", self.payload())
         doc = Document.objects.get()

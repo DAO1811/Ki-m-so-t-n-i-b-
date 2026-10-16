@@ -3,6 +3,7 @@
 from django.db.models import Q
 from django.http import Http404
 from .services import warehouses_for, documents_for, can_approve_adjustments
+from .access import access_context
 
 
 def selected_warehouse(request):
@@ -75,11 +76,16 @@ def workspace_context(request):
         active = selected_warehouse(request)
     except Http404:
         active = None
+    from .navigation import navigation
+
+    access = access_context(request.user)
     return {
         "workspace_warehouses": warehouses_for(request.user).order_by("code"),
         "active_warehouse": active,
         "page_name": labels.get(name, "Quản lý kho"),
         "can_approve_inventory_adjustments": can_approve_adjustments(request.user),
+        "access": access,
+        "navigation": navigation(request, access),
         "route_name": name,
         "operation_kind": request.resolver_match.kwargs.get("kind", "").upper()
         if request.resolver_match

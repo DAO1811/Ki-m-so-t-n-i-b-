@@ -10,7 +10,7 @@ from django.test import TransactionTestCase
 class AssetMigrationTests(TransactionTestCase):
     def test_existing_stock_values_users_and_historical_dates_survive_upgrade(self):
         old = [("inventory", "0007_balance_nonnegative_stock_value")]
-        latest = [("inventory", "0014_stocktake_catalog_snapshot")]
+        latest = [("inventory", "0016_preserve_assigned_function_access")]
         executor = MigrationExecutor(connection)
         try:
             executor.migrate(old)
@@ -24,6 +24,34 @@ class AssetMigrationTests(TransactionTestCase):
             user = User.objects.create(
                 username="historical_user", password="preserve-hash-marker"
             )
+            Group = apps.get_model("auth", "Group")
+            Permission = apps.get_model("auth", "Permission")
+            role = Group.objects.create(name="Historical assigned role")
+            role.permissions.set(
+                Permission.objects.filter(
+                    content_type__app_label="inventory",
+                    codename__in=["view_document", "add_document"],
+                )
+            )
+            user.groups.add(role)
+            # A permission with the same name from a different app must not
+            # become an inventory grant during the one-time role conversion.
+            other_user = User.objects.create(username="unassigned_inventory_user")
+            other_type_id = (
+                Permission.objects.filter(content_type__app_label="auth")
+                .values_list("content_type_id", flat=True)
+                .first()
+            )
+            self.assertIsNotNone(other_type_id)
+            other_role = Group.objects.create(name="Unrelated application role")
+            other_role.permissions.add(
+                Permission.objects.create(
+                    content_type_id=other_type_id,
+                    codename="add_document",
+                    name="Unrelated document creation",
+                )
+            )
+            other_user.groups.add(other_role)
             warehouse = Warehouse.objects.create(code="OLD", name="Kho cũ")
             product = Product.objects.create(sku="OLD", name="Hàng cũ", unit="Cái")
             second_product = Product.objects.create(
@@ -66,6 +94,20 @@ class AssetMigrationTests(TransactionTestCase):
             )
             self.assertEqual(
                 apps.get_model("inventory", "DocumentEvent").objects.count(), 0
+            )
+            grants = (
+                apps.get_model("inventory", "FunctionAccess")
+                .objects.get(user_id=user.pk)
+                .permissions
+            )
+            self.assertIn("receipts_create", grants)
+            self.assertIn("issues_create", grants)
+            self.assertNotIn("adjustments_approve", grants)
+            self.assertEqual(
+                apps.get_model("inventory", "FunctionAccess")
+                .objects.get(user_id=other_user.pk)
+                .permissions,
+                [],
             )
         finally:
             MigrationExecutor(connection).migrate(latest)

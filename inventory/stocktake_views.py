@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 
 from .forms import StocktakeCountForm
+from .access import has_function
 from .models import StocktakeSession, LoanHolding
 from .services import warehouses_for, can_approve_adjustments
 from .stocktakes import (
@@ -78,9 +79,10 @@ def stocktake_detail(request, pk):
             "events": session.events.select_related("item__product", "actor")[:100],
             "can_edit": session.created_by_id == request.user.pk
             and session.status == "OPEN"
-            and request.user.has_perm("inventory.add_document")
+            and has_function(request.user, "stocktakes_create")
             and session.business_date == timezone.localdate(),
             "can_cancel": session.status == "OPEN"
+            and has_function(request.user, "stocktakes_create")
             and (session.created_by_id == request.user.pk or request.user.is_superuser),
             "counted": session.items.filter(counted_quantity__isnull=False).count(),
             "item_count": session.items.count(),

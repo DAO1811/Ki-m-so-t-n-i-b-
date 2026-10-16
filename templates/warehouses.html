@@ -6,7 +6,7 @@
       <h1>{% icon 'warehouse' %}Kho hàng</h1>
       <p>Quản lý địa điểm kho và phân công người duyệt từng nghiệp vụ.</p>
     </div>
-    {% if perms.inventory.add_warehouse %}
+    {% if access.warehouses_create %}
       <a class="button" href="{% url 'warehouse_new' %}">{% icon 'plus' %}Thêm kho</a>
     {% endif %}
   </div>
@@ -46,7 +46,7 @@
         <div class="heading-actions">
           <a class="button secondary small"
              href="{% url 'stock' %}?warehouse={{ w.pk }}">Xem tồn kho</a>
-          {% if perms.inventory.change_warehouse %}
+          {% if access.warehouses_edit %}
             <a class="button secondary small" href="{% url 'warehouse_edit' w.pk %}">{% icon 'edit' %}Sửa & phân quyền</a>
           {% endif %}
         </div>
@@ -55,7 +55,7 @@
       <section class="panel full-width">
         <div class="empty-state">
           {% icon 'warehouse' %}<strong>Chưa có kho được truy cập</strong><span>
-          {% if perms.inventory.add_warehouse %}
+          {% if access.warehouses_create %}
             Tạo kho đầu tiên rồi phân công nhân viên và người duyệt.
           {% else %}
             Liên hệ quản trị viên để được gán kho làm việc.

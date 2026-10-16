@@ -1,3 +1,4 @@
+from .test_support import grant_functions, OPERATOR, MANAGER
 from decimal import Decimal
 from io import StringIO
 from uuid import uuid4
@@ -33,6 +34,8 @@ class WorkspaceTests(TestCase):
         cls.other = User.objects.create_user("other", password="a")
         call_command("setup_roles", stdout=StringIO())
         cls.worker.groups.add(Group.objects.get(name="Nhân viên kho"))
+        grant_functions(cls.worker, OPERATOR)
+        grant_functions(cls.manager, MANAGER)
         cls.a = Warehouse.objects.create(code="A", name="Kho Hà Nội")
         cls.b = Warehouse.objects.create(code="B", name="Kho Hồ Chí Minh")
         cls.a.members.add(cls.worker)
@@ -307,7 +310,7 @@ class WorkspaceTests(TestCase):
                 "first_name": "Nguyễn Văn A",
                 "email": "",
                 "password": "1",
-                "groups": [Group.objects.get(name="Nhân viên kho").pk],
+                "function_permissions": ["receipts_create"],
                 "is_active": "on",
                 "access_warehouses": [self.a.pk],
                 "managed_warehouses": [self.a.pk],
@@ -319,7 +322,10 @@ class WorkspaceTests(TestCase):
         self.assertNotEqual(user.password, "1")
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
-        self.assertTrue(user.has_perm("inventory.add_document"))
+        from .access import has_function
+
+        self.assertTrue(has_function(user, "receipts_create"))
+        self.assertFalse(has_function(user, "issues_create"))
         self.assertTrue(self.a.managers.filter(pk=user.pk).exists())
 
     def test_employee_changes_password_freely_and_keeps_session_and_username(self):
@@ -370,11 +376,12 @@ class WorkspaceTests(TestCase):
             f"/team/{self.worker.pk}/edit/",
             {
                 "username": "worker",
+                "access_revision": "1",
                 "first_name": "Nhân viên",
                 "email": "",
                 "password": "",
                 "is_active": "on",
-                "groups": [Group.objects.get(name="Nhân viên kho").pk],
+                "function_permissions": ["receipts_create"],
                 "access_warehouses": [self.b.pk],
                 "issue_warehouses": [self.b.pk],
             },

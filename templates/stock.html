@@ -7,10 +7,10 @@
       <p>Số hàng được phép xuất hoặc cho mượn. Hàng mượn tạm và hàng đang chuyển được theo dõi riêng.</p>
     </div>
     <div class="heading-actions">
-      {% if perms.inventory.add_document %}
+      {% if access.adjustments_create %}
         <a class="button secondary" href="{% url 'operation_new' 'adjust' %}">{% icon 'settings' %}Điều chỉnh tồn</a>
       {% endif %}
-      <a class="button secondary" href="{% url 'loans' %}">{% icon 'loan' %}Xem tồn mượn tạm</a>
+      {% if access.loans_view %}<a class="button secondary" href="{% url 'loans' %}">{% icon 'loan' %}Xem tồn mượn tạm</a>{% endif %}
     </div>
   </div>
   <form class="filters">
@@ -36,7 +36,7 @@
       Dưới định mức
     </label>
     <button class="button secondary">Lọc</button>
-    <button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>
+    {% if access.tools_export %}<button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>{% endif %}
   </form>
   <section class="panel">
     <div class="table-scroll">
@@ -72,8 +72,8 @@
                 <b>{{ b.value|money }}</b>
               </td>
               <td>
-                <a class="button secondary small"
-                   href="{% url 'ledger' %}?warehouse={{ b.warehouse_id }}&product={{ b.product_id }}">Thẻ kho</a>
+                {% if access.ledger_view %}<a class="button secondary small"
+                   href="{% url 'ledger' %}?warehouse={{ b.warehouse_id }}&product={{ b.product_id }}">Thẻ kho</a>{% endif %}
               </td>
             </tr>
           {% empty %}

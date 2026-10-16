@@ -8,9 +8,8 @@
       <p>{{ product.unit }} · {{ product.category }} · {{ product.brand }} · {{ product.model_number }}</p>
     </div>
     <div class="heading-actions">
-      <a class="button secondary"
-         href="{% url 'product_labels' %}?id={{ product.pk }}">In tem QR</a>
-      {% if perms.inventory.change_product %}
+      {% if access.tools_qr %}<a class="button secondary" href="{% url 'product_labels' %}?id={{ product.pk }}">In tem QR</a>{% endif %}
+      {% if access.products_edit %}
         <a class="button" href="{% url 'product_edit' product.pk %}">Sửa thông tin</a>
       {% endif %}
     </div>
@@ -31,7 +30,7 @@
       </div>
       <p>{{ product.specifications|linebreaksbr }}</p>
       <p>{{ product.storage_instructions|linebreaksbr }}</p>
-      {% if perms.inventory.change_product %}
+      {% if access.products_edit %}
         <details class="advanced-fields">
           <summary>Thêm ảnh (tối đa 5 ảnh / mã)</summary>
           <form method="post"
@@ -43,7 +42,7 @@
         </details>
       {% endif %}
     </section>
-    <section class="panel form-panel record-panel qr-card">
+    {% if access.tools_qr %}<section class="panel form-panel record-panel qr-card">
       <h2>QR riêng của mã hàng</h2>
       <img src="{% url 'product_qr' product.pk %}" alt="QR mã {{ product.sku }}">
       <b>{{ product.sku }}</b>
@@ -51,8 +50,9 @@
         QR tự tạo khi thêm sản phẩm. Mỗi lượt quét trong phiên kiểm kê cộng 1 đơn vị {{ product.unit }}. QR chỉ nhận diện mã hàng, không tự thay đổi tồn.
       </p>
     </section>
+    {% endif %}
   </div>
-  <section class="panel">
+  {% if access.stock_view %}<section class="panel">
     <div class="panel-title">
       <h2>Tồn tại các kho được cấp quyền</h2>
     </div>
@@ -81,6 +81,7 @@
       </table>
     </div>
   </section>
+  {% endif %}
   <section class="panel form-panel record-panel">
     <h2>Lịch sử đợt nhập & hóa đơn</h2>
     <p>
@@ -94,7 +95,7 @@
         <p>
           Kho {{ line.document.destination }} · Số nguồn {{ line.document.reference_number|default:'—' }} · Đơn giá {{ line.unit_price|money }}
         </p>
-        <ul>
+        {% if access.files_view %}<ul>
           {% for a in line.document.attachments.all %}
             <li>
               <a href="{% url 'private_file' a.file_id %}">{{ a.get_category_display }} · {{ a.invoice_number }} · {{ a.filename }}</a>
@@ -104,7 +105,7 @@
           {% empty %}
             <li>Chưa đính kèm hồ sơ.</li>
           {% endfor %}
-        </ul>
+        </ul>{% endif %}
         <a class="button secondary small"
            href="{% url 'document_detail' line.document_id %}">Mở đợt nhập / bổ sung hóa đơn</a>
       </details>

@@ -2308,6 +2308,32 @@ body:has(.sidebar-open) {
   }
 }
 
+.function-permission-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.function-permission-row {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 0;
+}
+.function-permission-row legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+.function-permission-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.function-permission-row .checkbox-line {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
 .record-panel {
   padding: 22px;
 }

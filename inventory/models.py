@@ -7,6 +7,27 @@ from uuid import uuid4
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 
 
+class FunctionAccess(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="function_access",
+    )
+    permissions = models.JSONField(default=list, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="function_access_updates",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        default_permissions = ()
+
+
 class Warehouse(models.Model):
     code = models.CharField("Mã kho", max_length=30, unique=True)
     name = models.CharField("Tên kho", max_length=150)

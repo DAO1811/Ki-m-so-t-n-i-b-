@@ -13,25 +13,25 @@
       {% icon 'grid' %}
       <h2>Tồn kho & giá trị</h2>
       <p>Số tồn khả dụng, định mức và giá bình quân theo từng kho.</p>
-      <a class="button secondary" href="{% url 'stock' %}">Xem báo cáo {% icon 'arrow' %}</a>
+      {% if access.stock_view %}<a class="button secondary" href="{% url 'stock' %}">Xem báo cáo {% icon 'arrow' %}</a>{% endif %}
     </section>
     <section class="panel report-card">
       {% icon 'history' %}
       <h2>Thẻ kho & lịch sử</h2>
       <p>Đối chiếu biến động số lượng và giá trị theo từng phiếu.</p>
-      <a class="button secondary" href="{% url 'ledger' %}">Xem thẻ kho {% icon 'arrow' %}</a>
+      {% if access.ledger_view %}<a class="button secondary" href="{% url 'ledger' %}">Xem thẻ kho {% icon 'arrow' %}</a>{% endif %}
     </section>
     <section class="panel report-card">
       {% icon 'loan' %}
       <h2>Đối chiếu mượn trả</h2>
       <p>Hàng mượn tạm, đang trả và giá trị trung gian theo lệnh gốc.</p>
-      <a class="button secondary" href="{% url 'loans' %}">Xem mượn trả {% icon 'arrow' %}</a>
+      {% if access.loans_view %}<a class="button secondary" href="{% url 'loans' %}">Xem mượn trả {% icon 'arrow' %}</a>{% endif %}
     </section>
   </div>
   <section class="panel">
     <div class="panel-title">
       <h2>Giá trị tồn theo kho</h2>
-      <a href="{% url 'stock' %}?export=1">{% icon 'download' %}Tải CSV chi tiết</a>
+      {% if access.stock_view and access.tools_export %}<a href="{% url 'stock' %}?export=1">{% icon 'download' %}Tải CSV chi tiết</a>{% endif %}
     </div>
     <table>
       <thead>
@@ -63,7 +63,7 @@
   <section class="panel">
     <div class="panel-title">
       <h2>Hàng dưới định mức</h2>
-      <a href="{% url 'stock' %}?low=1">Xem chi tiết {% icon 'arrow' %}</a>
+      {% if access.stock_view %}<a href="{% url 'stock' %}?low=1">Xem chi tiết {% icon 'arrow' %}</a>{% endif %}
     </div>
     <table>
       <thead>

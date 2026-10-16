@@ -1,6 +1,6 @@
 from io import BytesIO
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -17,7 +17,7 @@ from .models import Product, ProductPhoto, StoredFile, ReceiptAttachment, Line, 
 from .services import documents_for, warehouses_for
 
 
-from .access import may_attach
+from .access import may_attach, has_function
 
 
 @login_required
@@ -43,7 +43,9 @@ def product_detail(request, pk):
             "photo_form": ProductPhotoForm(),
             "balances": Balance.objects.filter(
                 product=product, warehouse__in=warehouses_for(request.user)
-            ).select_related("warehouse"),
+            ).select_related("warehouse")
+            if has_function(request.user, "stock_view")
+            else Balance.objects.none(),
         },
     )
 
@@ -78,7 +80,6 @@ def product_labels(request):
 
 @login_required
 @require_POST
-@permission_required("inventory.change_product", raise_exception=True)
 def product_photo_add(request, pk):
     product = get_object_or_404(Product, pk=pk)
     form = ProductPhotoForm(request.POST, request.FILES)
@@ -141,7 +142,7 @@ def receipt_attachment_void(request, pk):
             pk=pk,
             document__in=documents_for(request.user),
         )
-        if not may_attach(attachment.document, request.user):
+        if not may_attach(attachment.document, request.user, void=True):
             raise PermissionDenied
         reason = request.POST.get("reason", "").strip()
         if not reason or len(reason) > 250:
@@ -179,10 +180,18 @@ def receipt_attachment_void(request, pk):
 @login_required
 def private_file(request, pk):
     # Check linkage and warehouse permissions before selecting the large binary column.
-    photo = ProductPhoto.objects.filter(file_id=pk).first()
-    attachment = ReceiptAttachment.objects.filter(
-        file_id=pk, document__in=documents_for(request.user)
-    ).first()
+    photo = (
+        ProductPhoto.objects.filter(file_id=pk).first()
+        if has_function(request.user, "products_view")
+        else None
+    )
+    attachment = (
+        ReceiptAttachment.objects.filter(
+            file_id=pk, document__in=documents_for(request.user)
+        ).first()
+        if has_function(request.user, "files_view")
+        else None
+    )
     if not photo and not attachment:
         from django.http import Http404
 

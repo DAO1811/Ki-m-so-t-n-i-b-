@@ -99,6 +99,8 @@ def validate_line_details(doc, line):
 
 
 def warehouses_for(user):
+    if not user.is_authenticated or not user.is_active:
+        return Warehouse.objects.none()
     return (
         Warehouse.objects.all()
         if user.is_superuser
@@ -109,26 +111,32 @@ def warehouses_for(user):
 
 
 def documents_for(user):
+    from .access import KIND_MODULES, function_codes
+
+    codes = function_codes(user)
     if user.is_superuser:
-        return Document.objects.all()
+        return Document.objects.all() if user.is_active else Document.objects.none()
+    kinds = [kind for kind, module in KIND_MODULES.items() if module + "_view" in codes]
     ids = warehouses_for(user).values_list("id", flat=True)
-    return Document.objects.filter(
-        Q(source_id__in=ids)
-        | Q(destination_id__in=ids)
-        | Q(created_by=user)
-        | (
-            Q(kind__in=["COUNT", "ADJUST"])
-            if can_approve_adjustments(user)
-            else Q(pk__in=[])
+    return (
+        Document.objects.filter(
+            Q(source_id__in=ids)
+            | Q(destination_id__in=ids)
+            | (
+                Q(kind__in=["COUNT", "ADJUST"])
+                if can_approve_adjustments(user)
+                else Q(pk__in=[])
+            )
         )
-    ).distinct()
+        .filter(kind__in=kinds)
+        .distinct()
+    )
 
 
 def can_approve_adjustments(user):
-    # CEO authority is explicit, even for superusers. Never auto-granted by migration.
-    from .access import explicit_permission
+    from .access import has_function
 
-    return explicit_permission(user, "approve_inventory_adjustment")
+    return has_function(user, "adjustments_approve")
 
 
 def validate_document(doc):
@@ -183,29 +191,40 @@ def validate_document(doc):
 
 
 def approval_documents_for(user):
+    from .access import KIND_MODULES, function_codes, is_admin
+
     qs = documents_for(user).exclude(created_by=user)
-    special = (
-        qs.filter(kind__in=["COUNT", "ADJUST"], status="DRAFT")
-        if can_approve_adjustments(user)
-        else qs.none()
-    )
-    ordinary = qs.exclude(kind__in=["COUNT", "ADJUST"])
-    if user.is_superuser:
-        return (ordinary.filter(status__in=["DRAFT", "TRANSIT"]) | special).distinct()
+    if is_admin(user):
+        return qs.filter(status__in=["DRAFT", "TRANSIT"])
+    codes = function_codes(user)
     source_ids = user.issue_warehouses.values_list("id", flat=True)
     dest_ids = user.managed_warehouses.values_list("id", flat=True)
-    return (
-        ordinary.filter(
-            Q(status="TRANSIT", destination_id__in=dest_ids)
-            | Q(status="DRAFT", source_id__in=source_ids)
-            | Q(status="DRAFT", source__isnull=True, destination_id__in=dest_ids)
-        )
-        | special
-    ).distinct()
+    allowed = Q(pk__in=[])
+    for kind, module in KIND_MODULES.items():
+        if kind in ["COUNT", "ADJUST"]:
+            if "adjustments_approve" in codes:
+                allowed |= Q(kind=kind, status="DRAFT")
+            continue
+        if module + "_approve" in codes:
+            allowed |= (
+                Q(kind=kind, status="DRAFT", destination_id__in=dest_ids)
+                if kind == "IN"
+                else Q(kind=kind, status="DRAFT", source_id__in=source_ids)
+            )
+        if module + "_receive" in codes:
+            allowed |= Q(kind=kind, status="TRANSIT", destination_id__in=dest_ids)
+    return qs.filter(allowed).distinct()
 
 
 def can_approve(doc, user):
-    if doc.status not in ["DRAFT", "TRANSIT"] or doc.created_by_id == user.pk:
+    from .access import has_function, approval_key, can_view_kind
+
+    if (
+        doc.status not in ["DRAFT", "TRANSIT"]
+        or doc.created_by_id == user.pk
+        or not can_view_kind(user, doc.kind)
+        or not has_function(user, approval_key(doc))
+    ):
         return False
     if doc.kind in ["COUNT", "ADJUST"]:
         return can_approve_adjustments(user)
@@ -228,7 +247,7 @@ def require_approver(doc, user, receiving):
         )
     if not can_approve(doc, user):
         raise PermissionDenied(
-            "Chỉ Tổng giám đốc được cấp riêng quyền duyệt kiểm kê / điều chỉnh mới được cập nhật chênh lệch."
+            "Chỉ admin hoặc tài khoản được admin cấp quyền duyệt kiểm kê / điều chỉnh mới được cập nhật chênh lệch."
             if doc.kind in ["COUNT", "ADJUST"]
             else "Bạn chưa được chỉ định duyệt tại kho này."
         )
@@ -453,6 +472,13 @@ def close_document(pk, user, action, reason):
             )
         doc.status = "REJECTED"
     elif action == "CANCEL":
+        from .access import can_create_kind
+
+        if (
+            not can_create_kind(user, doc.kind)
+            or not documents_for(user).filter(pk=doc.pk).exists()
+        ):
+            raise PermissionDenied("Bạn không còn quyền xử lý phiếu này.")
         if doc.status not in ["DRAFT", "REJECTED"] or not (
             doc.created_by_id == user.pk or user.is_superuser
         ):

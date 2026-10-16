@@ -4,11 +4,11 @@
   <div class="page-heading">
     <div>
       <h1>{% icon 'count' %}Kiểm kê theo kho</h1>
-      <p>Quét QR cộng 1, đối chiếu thực đếm và lập biên bản. Tồn chỉ đổi sau khi Tổng giám đốc duyệt phiếu điều chỉnh.</p>
+      <p>Quét QR cộng 1, đối chiếu thực đếm và lập biên bản. Tồn chỉ đổi sau khi admin hoặc người được cấp quyền duyệt phiếu điều chỉnh.</p>
     </div>
-    <a class="button secondary" href="{% url 'product_labels' %}">In tem QR</a>
+    {% if access.tools_qr %}<a class="button secondary" href="{% url 'product_labels' %}">In tem QR</a>{% endif %}
   </div>
-  {% if perms.inventory.add_document %}
+  {% if access.stocktakes_create %}
     <form method="post" class="panel form-panel record-panel">
       {% csrf_token %}
       <h2>Mở phiên kiểm kê</h2>

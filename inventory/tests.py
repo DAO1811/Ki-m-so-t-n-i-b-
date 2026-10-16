@@ -1,3 +1,4 @@
+from .test_support import grant_functions
 from decimal import Decimal
 from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
@@ -34,6 +35,10 @@ class InventoryTests(TestCase):
         self.maker = get_user_model().objects.create_user("maker")
         self.staff = get_user_model().objects.create_user(
             "worker", password="test-password-not-production"
+        )
+        grant_functions(
+            self.staff,
+            {"stock_view", "receipts_view", "documents_view", "products_view"},
         )
         self.a = Warehouse.objects.create(code="A", name="Kho A")
         self.b = Warehouse.objects.create(code="B", name="Kho B")
@@ -270,6 +275,7 @@ class InventoryTests(TestCase):
             post_document(d.pk, self.maker)
 
     def test_transit_separate_source_and_destination_approval(self):
+        grant_functions(self.staff, {"transfers_approve"})
         self.doc("IN", 10, destination=self.a)
         d = self.doc("TRANSFER", 4, source=self.a, destination=self.b, post=False)
         self.a.issue_approvers.add(self.staff)
@@ -280,12 +286,22 @@ class InventoryTests(TestCase):
         with self.assertRaises(PermissionDenied):
             post_document(d.pk, self.staff)
         receiver = get_user_model().objects.create_user("receiver")
+        grant_functions(
+            receiver,
+            {
+                "loans_receive",
+                "transfers_receive",
+                "returns_receive",
+                "receipts_approve",
+            },
+        )
         self.b.managers.add(receiver)
         post_document(d.pk, receiver)
         self.assertEqual(self.qty(self.b), 4)
         self.assertEqual(Balance.objects.get(warehouse=self.b).value, 400)
 
     def test_only_destination_manager_can_receive(self):
+        grant_functions(self.staff, {"receipts_approve"})
         d = self.doc("IN", 1, destination=self.a, post=False)
         self.b.managers.add(self.staff)
         with self.assertRaises(PermissionDenied):
@@ -295,6 +311,7 @@ class InventoryTests(TestCase):
         self.assertEqual(self.qty(self.a), 1)
 
     def test_issue_requires_admin_designation(self):
+        grant_functions(self.staff, {"issues_approve"})
         self.doc("IN", 10, destination=self.a)
         d = self.doc("OUT", 2, source=self.a, post=False)
         self.a.managers.add(self.staff)
@@ -408,6 +425,7 @@ class ExcelImportTests(TestCase):
 
     def test_excel_preview_confirm_and_manager_post(self):
         self.staff.user_permissions.add(Permission.objects.get(codename="add_document"))
+        grant_functions(self.staff, {"tools_import", "documents_view"})
         self.client.force_login(self.staff)
         response = self.client.post(
             "/import/receipt/",
@@ -434,6 +452,7 @@ class ExcelImportTests(TestCase):
         self.client.post("/import/receipt/", {"confirm": "1", "import_key": key})
         self.assertEqual(Document.objects.count(), 1)
         self.a.managers.add(self.maker)
+        grant_functions(self.maker, {"receipts_approve"})
         post_document(doc.pk, self.maker)
         self.assertEqual(self.qty(self.a), 5)
         self.assertEqual(Balance.objects.get(warehouse=self.a).value, 62500)
@@ -481,6 +500,7 @@ class ExcelImportTests(TestCase):
 
     def test_excel_wrong_warehouse_denied(self):
         self.staff.user_permissions.add(Permission.objects.get(codename="add_document"))
+        grant_functions(self.staff, {"tools_import", "documents_view"})
         self.client.force_login(self.staff)
         response = self.client.post(
             "/import/receipt/",

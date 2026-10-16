@@ -3,7 +3,7 @@
 {% block content %}
   <div class="page-heading">
     <div>
-      <a class="back-link" href="{% url 'documents' %}">← Quản lý phiếu</a>
+      <a class="back-link" href="{% if access.documents_view %}{% url 'documents' %}{% else %}{% url 'dashboard' %}{% endif %}">← Quay lại</a>
       <h1>
         {% icon 'file' %}PK-{{ doc.pk|stringformat:'06d' }} <span class="badge {{ doc.status|lower }}">{{ doc.status|status_label }}</span>
       </h1>
@@ -11,7 +11,7 @@
     </div>
     <div class="heading-actions">
       <button type="button" class="button secondary" data-print>In phiếu</button>
-      {% if doc.created_by_id == user.pk and not qr_session %}
+      {% if doc.created_by_id == user.pk and can_edit_doc and not qr_session %}
         {% if doc.status == 'DRAFT' or doc.status == 'REJECTED' %}
           <a class="button secondary" href="{% url 'document_edit' doc.pk %}">{% icon 'edit' %}Sửa phiếu</a>
         {% endif %}
@@ -64,7 +64,7 @@
       Phiếu chưa làm thay đổi tồn kho.
     {% endif %}
     {% if doc.kind == 'COUNT' or doc.kind == 'ADJUST' %}
-      <b>Chờ Tổng giám đốc được cấp quyền duyệt phiếu điều chỉnh. Quản lý kho và admin không tự động có quyền này.</b>
+      <b>Chờ admin hoặc người được cấp quyền Tổng giám đốc duyệt phiếu điều chỉnh. Admin luôn có quyền này; tài khoản khác phải được admin cấp riêng.</b>
     {% else %}
       <b>Người được phân công:</b>
       {% for person in approvers %}
@@ -302,11 +302,11 @@
   <section class="panel form-panel record-panel">
     <h2>Căn cứ điều chỉnh theo kiểm kê</h2>
     <p>
-      Phiếu chỉ chứa số tăng / giảm đúng chênh lệch trong <a href="{% url 'stocktake_report' qr_session.pk %}">biên bản KK-{{ qr_session.pk|stringformat:'06d' }}</a>. Số liệu nguồn đã khóa; Tổng giám đốc duyệt phiếu này thì hệ thống mới cập nhật tồn.
+      Phiếu chỉ chứa số tăng / giảm đúng chênh lệch trong <a href="{% url 'stocktake_report' qr_session.pk %}">biên bản KK-{{ qr_session.pk|stringformat:'06d' }}</a>. Số liệu nguồn đã khóa; người có quyền duyệt phiếu này thì hệ thống mới cập nhật tồn.
     </p>
   </section>
 {% endif %}
-{% if doc.kind == 'IN' %}
+{% if doc.kind == 'IN' and access.files_view %}
   <section class="panel form-panel record-panel">
     <h2>Hóa đơn & hồ sơ đợt nhập</h2>
     <p>
@@ -318,7 +318,7 @@
           <a href="{% url 'private_file' a.file_id %}">{{ a.get_category_display }} · {{ a.invoice_number }} · {{ a.filename }}</a><small>{{ a.invoice_date|date:'d/m/Y' }} · Tải bởi {{ a.uploaded_by }} lúc {{ a.created_at|date:'d/m/Y H:i' }}</small>
           {% if a.voided_at %}
             <p class="negative">Không sử dụng: {{ a.void_reason }} · {{ a.voided_by }} · {{ a.voided_at|date:'d/m/Y H:i' }}</p>
-          {% elif can_attach %}
+          {% elif can_void_attachment %}
             <details>
               <summary>Tệp tải nhầm / không sử dụng</summary>
               <form method="post" action="{% url 'receipt_attachment_void' a.pk %}">

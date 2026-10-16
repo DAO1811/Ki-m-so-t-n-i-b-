@@ -33,7 +33,7 @@
         {% endfor %}
       </div>
     </section>
-    <section class="panel form-panel">
+    {% if access.admin %}<section class="panel form-panel">
       <div class="panel-title">
         <h2>{% icon 'users' %}Phân công tại kho này</h2>
         {% if user.is_superuser %}
@@ -50,7 +50,7 @@
         {% endfor %}
       </div>
     </section>
-    <div class="form-actions">
+    {% endif %}<div class="form-actions">
       <button class="button" type="submit">{% icon 'check' %}Lưu kho</button>
       <a class="button secondary" href="{% url 'warehouse_list' %}">Quay lại</a>
     </div>

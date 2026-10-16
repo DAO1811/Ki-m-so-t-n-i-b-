@@ -1,6 +1,6 @@
 import csv
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count
@@ -30,7 +30,16 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 from django.core.exceptions import PermissionDenied
-from .models import CustomField
+from .models import CustomField, FunctionAccess
+from .access import (
+    has_function,
+    function_codes,
+    FUNCTION_ROWS,
+    FUNCTION_KEYS,
+    normalize_permissions,
+    can_create_kind,
+    can_view_kind,
+)
 
 
 def balances(user):
@@ -89,6 +98,8 @@ def date_range(request):
 
 @login_required
 def dashboard(request):
+    if not has_function(request.user, "dashboard_view"):
+        return render(request, "access_home.html")
     b = request_balances(request)
     docs = scoped_documents(request)
     start, end = date_range(request)
@@ -256,7 +267,15 @@ def documents(request):
     return render(
         request,
         "documents.html",
-        {"documents": page, "page_obj": page, "kinds": Document.TYPES},
+        {
+            "documents": page,
+            "page_obj": page,
+            "kinds": [
+                (key, label)
+                for key, label in Document.TYPES
+                if can_view_kind(request.user, key)
+            ],
+        },
     )
 
 
@@ -322,7 +341,6 @@ def validate_available_lines(form, formset):
 
 
 @login_required
-@permission_required("inventory.add_document", raise_exception=True)
 def document_new(request, kind=None):
     fixed = kind.upper() if kind else None
     if fixed and fixed not in dict(Document.TYPES):
@@ -404,7 +422,6 @@ def document_new(request, kind=None):
 
 
 @login_required
-@permission_required("inventory.add_document", raise_exception=True)
 def document_edit(request, pk):
     doc = get_object_or_404(
         Document, pk=pk, created_by=request.user, status__in=["DRAFT", "REJECTED"]
@@ -496,10 +513,15 @@ def document_detail(request, pk):
             "attachment_form": ReceiptAttachmentForm(
                 initial={"invoice_number": doc.reference_number}
             ),
-            "attachments": doc.attachments.select_related("uploaded_by", "voided_by"),
+            "attachments": doc.attachments.select_related("uploaded_by", "voided_by")
+            if has_function(request.user, "files_view")
+            else doc.attachments.none(),
             "can_attach": may_attach(doc, request.user),
+            "can_void_attachment": may_attach(doc, request.user, void=True),
+            "can_edit_doc": can_create_kind(request.user, doc.kind),
             "qr_session": getattr(doc, "stocktake_session", None),
             "can_cancel": doc.status in ["DRAFT", "REJECTED"]
+            and can_create_kind(request.user, doc.kind)
             and (doc.created_by_id == request.user.pk or request.user.is_superuser),
             "duplicate_sources": documents_for(request.user)
             .filter(
@@ -691,7 +713,8 @@ def loans(request):
                     "holding": holding.quantity if holding else 0,
                     "value": holding.value if holding else 0,
                     "pending": pending,
-                    "can_return": doc.destination_id in warehouse_ids,
+                    "can_return": doc.destination_id in warehouse_ids
+                    and has_function(request.user, "returns_create"),
                     "overdue": bool(
                         doc.due_date
                         and doc.due_date < timezone.localdate()
@@ -727,7 +750,6 @@ def products(request):
 
 
 @login_required
-@permission_required("inventory.add_product", raise_exception=True)
 def product_new(request):
     form = ProductForm(request.POST or None)
     from .forms import ProductPhotoForm
@@ -755,7 +777,6 @@ def product_new(request):
 
 
 @login_required
-@permission_required("inventory.add_document", raise_exception=True)
 def receipt_template(request):
     from .excel import receipt_template
 
@@ -768,7 +789,6 @@ def receipt_template(request):
 
 
 @login_required
-@permission_required("inventory.add_document", raise_exception=True)
 def receipt_import(request):
     from .forms import ReceiptImportForm
     from .excel import parse_receipt
@@ -935,7 +955,6 @@ def approvals(request):
 
 
 @login_required
-@permission_required("inventory.change_product", raise_exception=True)
 def product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
     form = ProductForm(request.POST or None, instance=product)
@@ -979,13 +998,11 @@ def warehouse_list(request):
 
 
 @login_required
-@permission_required("inventory.add_warehouse", raise_exception=True)
 def warehouse_new(request):
     return warehouse_form(request)
 
 
 @login_required
-@permission_required("inventory.change_warehouse", raise_exception=True)
 def warehouse_edit(request, pk):
     return warehouse_form(
         request, get_object_or_404(warehouses_for(request.user), pk=pk)
@@ -993,10 +1010,41 @@ def warehouse_edit(request, pk):
 
 
 def warehouse_form(request, warehouse=None):
-    form = WarehouseForm(request.POST or None, instance=warehouse)
+    form = WarehouseForm(request.POST or None, instance=warehouse, actor=request.user)
     if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Đã lưu kho và phân công người duyệt.")
+        with transaction.atomic():
+            from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
+            from django.contrib.contenttypes.models import ContentType
+            import json
+
+            before = {}
+            if warehouse:
+                locked = (
+                    type(warehouse).objects.select_for_update().get(pk=warehouse.pk)
+                )
+                before = {
+                    name: list(getattr(locked, name).values_list("pk", flat=True))
+                    for name in ["members", "managers", "issue_approvers"]
+                }
+            saved = form.save()
+            if not warehouse and not request.user.is_superuser:
+                saved.members.add(request.user)
+            after = {
+                name: list(getattr(saved, name).values_list("pk", flat=True))
+                for name in ["members", "managers", "issue_approvers"]
+            }
+            LogEntry.objects.create(
+                user=request.user,
+                content_type=ContentType.objects.get_for_model(saved),
+                object_id=str(saved.pk),
+                object_repr=str(saved)[:200],
+                action_flag=CHANGE if warehouse else ADDITION,
+                change_message="Lưu kho / phân công: "
+                + json.dumps({"before": before, "after": after}, ensure_ascii=False),
+            )
+        messages.success(
+            request, "Đã lưu thông tin kho và phân công được phép thay đổi."
+        )
         return redirect("warehouse_list")
     return render(
         request, "warehouse_form.html", {"form": form, "editing": bool(warehouse)}
@@ -1014,13 +1062,13 @@ def require_admin(user):
 
 @login_required
 def team(request):
-    require_admin(request.user)
     qs = (
         get_user_model()
         .objects.all()
         .prefetch_related(
             "groups", "warehouses", "managed_warehouses", "issue_warehouses"
         )
+        .select_related("function_access")
         .order_by("username")
     )
     if request.GET.get("q"):
@@ -1034,14 +1082,11 @@ def team(request):
         "team.html",
         {
             "employees": qs,
-            "ceo_ids": set(
-                get_user_model()
-                .objects.filter(
-                    user_permissions__codename="approve_inventory_adjustment",
-                    user_permissions__content_type__app_label="inventory",
-                )
-                .values_list("id", flat=True)
-            ),
+            "ceo_ids": {
+                e.user_id
+                for e in FunctionAccess.objects.filter(user__in=qs)
+                if "adjustments_approve" in e.permissions
+            },
         },
     )
 
@@ -1050,7 +1095,7 @@ def team(request):
 def employee_form(request, pk=None):
     require_admin(request.user)
     employee = get_object_or_404(get_user_model(), pk=pk) if pk else None
-    form = EmployeeForm(request.POST or None, instance=employee)
+    form = EmployeeForm(request.POST or None, instance=employee, actor=request.user)
     if request.method == "POST" and form.is_valid():
         if (
             employee
@@ -1059,44 +1104,80 @@ def employee_form(request, pk=None):
         ):
             form.add_error("is_active", "Bạn không thể khóa tài khoản đang sử dụng.")
         else:
-            with transaction.atomic():
-                saved = form.save()
-                from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
-                from django.contrib.contenttypes.models import ContentType
-                import json
+            try:
+                with transaction.atomic():
+                    from .models import FunctionAccess
+                    from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
+                    from django.contrib.contenttypes.models import ContentType
+                    import json
 
-                details = {
-                    "active": saved.is_active,
-                    "groups": list(saved.groups.values_list("name", flat=True)),
-                    "warehouses": list(saved.warehouses.values_list("code", flat=True)),
-                    "managed_warehouses": list(
-                        saved.managed_warehouses.values_list("code", flat=True)
-                    ),
-                    "issue_warehouses": list(
-                        saved.issue_warehouses.values_list("code", flat=True)
-                    ),
-                    "ceo_adjustment_approval": bool(
-                        form.cleaned_data["approve_adjustments"]
-                    ),
-                }
-                LogEntry.objects.create(
-                    user=request.user,
-                    content_type=ContentType.objects.get_for_model(saved),
-                    object_id=str(saved.pk),
-                    object_repr=saved.username[:200],
-                    action_flag=CHANGE if employee else ADDITION,
-                    change_message="Cập nhật quyền từ giao diện công ty: "
-                    + json.dumps(details, ensure_ascii=False),
+                    previous = (
+                        FunctionAccess.objects.filter(user=employee).first()
+                        if employee
+                        else None
+                    )
+                    before = list(previous.permissions) if previous else []
+                    saved = form.save()
+                    details = {
+                        "active": saved.is_active,
+                        "warehouses": list(
+                            saved.warehouses.values_list("code", flat=True)
+                        ),
+                        "managed_warehouses": list(
+                            saved.managed_warehouses.values_list("code", flat=True)
+                        ),
+                        "issue_warehouses": list(
+                            saved.issue_warehouses.values_list("code", flat=True)
+                        ),
+                        "function_permissions_before": before,
+                        "function_permissions": sorted(function_codes(saved)),
+                    }
+                    LogEntry.objects.create(
+                        user=request.user,
+                        content_type=ContentType.objects.get_for_model(saved),
+                        object_id=str(saved.pk),
+                        object_repr=saved.username[:200],
+                        action_flag=CHANGE if employee else ADDITION,
+                        change_message="Cập nhật tài khoản / quyền chức năng: "
+                        + json.dumps(details, ensure_ascii=False),
+                    )
+                if saved.pk == request.user.pk:
+                    update_session_auth_hash(request, saved)
+                messages.success(
+                    request,
+                    "Đã lưu nhân viên và quyền chức năng. Quyền mới áp dụng từ lần truy cập tiếp theo.",
                 )
-            if saved.pk == request.user.pk:
-                update_session_auth_hash(request, saved)
-            messages.success(
-                request,
-                "Đã lưu nhân viên. Tên đăng nhập do quản trị viên quy định; người dùng tự đổi được mật khẩu.",
-            )
-            return redirect("team")
+                return redirect("team")
+            except ValidationError as exc:
+                form.add_error(None, exc)
+    selected = set(form["function_permissions"].value() or [])
+    rows = [
+        {
+            "label": title,
+            "cells": [
+                {
+                    "key": f"{module}_{action}",
+                    "label": label,
+                    "checked": f"{module}_{action}" in selected,
+                }
+                for action, label in actions
+            ],
+        }
+        for module, title, actions in FUNCTION_ROWS
+    ]
     return render(
-        request, "employee_form.html", {"form": form, "editing": bool(employee)}
+        request,
+        "employee_form.html",
+        {
+            "form": form,
+            "editing": bool(employee),
+            "editing_admin": bool(employee and employee.is_superuser),
+            "permission_rows": rows,
+            "permission_dependencies": {
+                key: sorted(set(normalize_permissions([key])) - {key})
+                for key in FUNCTION_KEYS
+            },
+        },
     )
 
 
@@ -1150,7 +1231,6 @@ def reports(request):
 
 
 @login_required
-@permission_required("inventory.add_customfield", raise_exception=True)
 def custom_fields(request):
     from django.forms import modelform_factory
 

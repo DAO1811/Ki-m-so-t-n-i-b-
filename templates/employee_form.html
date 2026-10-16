@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load ui %}
+{% load ui static %}
 {% block content %}
   <div class="page-heading">
     <div>
@@ -12,11 +12,11 @@
           Thêm nhân viên
         {% endif %}
       </h1>
-      <p>Đặt tài khoản, chọn vai trò và kho làm việc trên cùng một màn hình.</p>
+      <p>Đặt tài khoản, cấp từng quyền và chọn phạm vi kho trên cùng một màn hình.</p>
     </div>
   </div>
   <form method="post">
-    {% csrf_token %}{{ form.non_field_errors }}
+    {% csrf_token %}{{ form.non_field_errors }}{{ form.access_revision }}
     <section class="panel form-panel">
       <div class="panel-title">
         <h2>Thông tin đăng nhập</h2>
@@ -42,29 +42,32 @@
         </div>
       </div>
     </section>
-    <section class="panel form-panel">
-      <div class="panel-title">
-        <h2>Vai trò & phạm vi làm việc</h2>
+    <section class="panel form-panel record-panel" id="function-permissions">
+      <div class="panel-title"><h2>Quyền từng chức năng</h2><span id="permission-count">{{ form.function_permissions.value|length }} quyền đang chọn</span></div>
+      {% if editing_admin %}
+        <div class="notice"><span><b>Admin có toàn quyền.</b> Bảng dưới chỉ để đối chiếu; không cần cấp quyền hoặc kho cho admin.</span></div>
+      {% else %}
+        <p>Chỉ đánh dấu việc tài khoản này được làm. Chọn một thao tác sẽ chọn kèm quyền xem cần thiết; bỏ quyền xem sẽ bỏ các thao tác phụ thuộc. Không chọn mục nào nghĩa là chưa cấp quyền nghiệp vụ.</p>
+        <button type="button" class="button secondary small" id="clear-function-permissions">Bỏ toàn bộ quyền đang chọn</button>
+      {% endif %}
+      {{ form.function_permissions.errors }}
+      <div class="function-permission-list">
+        {% for row in permission_rows %}
+          <fieldset class="function-permission-row"><legend>{{ row.label }}</legend>
+            <div>{% for cell in row.cells %}<label class="checkbox-line" for="permission-{{ cell.key }}"><input type="checkbox" id="permission-{{ cell.key }}" name="function_permissions" value="{{ cell.key }}" {% if cell.checked %}checked{% endif %} {% if editing_admin %}disabled{% endif %}>{{ cell.label }}</label>{% endfor %}</div>
+          </fieldset>
+        {% endfor %}
       </div>
-      <div class="permission-grid">
-        <div class="permission-field">
-          {{ form.groups.label_tag }}<span class="helptext">Nhân viên kho được lập phiếu. Chỉ xem báo cáo không được tạo phiếu.</span>{{ form.groups }}{{ form.groups.errors }}
-        </div>
-        <div class="permission-field">
-          {{ form.access_warehouses.label_tag }}<span class="helptext">Các kho nhân viên có thể xem và làm việc.</span>{{ form.access_warehouses }}{{ form.access_warehouses.errors }}
-        </div>
-        <div class="permission-field">
-          {{ form.managed_warehouses.label_tag }}<span class="helptext">Xác nhận nhập và nhận hàng. Không bao gồm duyệt kiểm kê / điều chỉnh.</span>{{ form.managed_warehouses }}{{ form.managed_warehouses.errors }}
-          <hr>
-          {{ form.issue_warehouses.label_tag }}<span class="helptext">Được duyệt xuất, chuyển đi, cho mượn và trả hàng.</span>{{ form.issue_warehouses }}{{ form.issue_warehouses.errors }}
-        </div>
-      </div>
+      <p class="hint">Chỉ admin tạo tài khoản, cấp quyền và cấu hình kết nối Drive. Quyền duyệt kiểm kê / điều chỉnh có thể cấp cho tài khoản Tổng giám đốc; admin luôn có quyền này. Người lập không tự duyệt phiếu.</p>
     </section>
-    <section class="panel form-panel record-panel">
-      <h2>Quyền phê duyệt đặc biệt</h2>
-      <label class="checkbox-line">{{ form.approve_adjustments }} {{ form.approve_adjustments.label }}</label>
-      <p>{{ form.approve_adjustments.help_text }}</p>
-      {{ form.approve_adjustments.errors }}
+    <section class="panel form-panel">
+      <div class="panel-title"><h2>Phạm vi kho và phân công duyệt</h2></div>
+      <div class="permission-grid">
+        <div class="permission-field">{{ form.access_warehouses.label_tag }}<span class="helptext">Kho được xem và làm việc, kết hợp với quyền chức năng ở trên.</span>{{ form.access_warehouses }}{{ form.access_warehouses.errors }}</div>
+        <div class="permission-field">{{ form.managed_warehouses.label_tag }}<span class="helptext">Kho được duyệt nhập và xác nhận nhận liên kho, khi có đúng quyền chức năng.</span>{{ form.managed_warehouses }}{{ form.managed_warehouses.errors }}</div>
+        <div class="permission-field">{{ form.issue_warehouses.label_tag }}<span class="helptext">Kho được duyệt xuất / chuyển đi / cho mượn / trả, khi có đúng quyền chức năng.</span>{{ form.issue_warehouses }}{{ form.issue_warehouses.errors }}</div>
+      </div>
+      <p class="hint">Quyền duyệt kiểm kê / điều chỉnh là quyền toàn công ty của admin hoặc người được cấp riêng, không tự có từ phân công quản lý kho.</p>
     </section>
     <div class="form-actions">
       <button class="button" type="submit">{% icon 'check' %}Lưu nhân viên</button>
@@ -72,3 +75,5 @@
     </div>
   </form>
 {% endblock %}
+
+{% block scripts %}{{ permission_dependencies|json_script:'permission-dependencies' }}<script src="{% static 'permissions.js' %}" defer></script>{% endblock %}

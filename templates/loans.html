@@ -6,7 +6,7 @@
       <h1>{% icon 'loan' %}Mượn & trả giữa các kho</h1>
       <p>Hàng mượn tách khỏi tồn khả dụng. Chỉ được trả theo lệnh mượn gốc.</p>
     </div>
-    {% if perms.inventory.add_document %}
+    {% if access.loans_create %}
       <a class="button" href="{% url 'operation_new' 'loan' %}">{% icon 'plus' %}Lập lệnh cho mượn</a>
     {% endif %}
   </div>
@@ -52,7 +52,7 @@
               <td>{{ row.pending|number }}</td>
               <td>{{ row.value|money }}</td>
               <td>
-                {% if row.holding > 0 and row.can_return and perms.inventory.add_document %}
+                {% if row.holding > 0 and row.can_return and access.returns_create %}
                   <a class="button secondary small"
                      href="{% url 'operation_new' 'return' %}?loan={{ row.doc.pk }}">{% icon 'loan' %}Trả hàng</a>
                 {% elif row.outstanding == 0 %}

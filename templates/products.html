@@ -7,10 +7,10 @@
       <p>Một mã hàng dùng chung cho các kho. Số lượng và giá vốn được theo dõi riêng theo kho.</p>
     </div>
     <div class="heading-actions">
-      {% if perms.inventory.add_customfield %}
+      {% if access.custom_fields_manage %}
         <a class="button secondary" href="{% url 'custom_fields' %}">{% icon 'settings' %}Trường bổ sung</a>
       {% endif %}
-      {% if perms.inventory.add_product %}
+      {% if access.products_create %}
         <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
       {% endif %}
     </div>
@@ -62,7 +62,7 @@
               {% endfor %}
             </td>
             <td>
-              {% if perms.inventory.change_product %}
+              {% if access.products_edit %}
                 <a class="button secondary small" href="{% url 'product_edit' p.pk %}">{% icon 'edit' %}Sửa</a>
               {% endif %}
             </td>
@@ -72,7 +72,7 @@
             <td colspan="6">
               <div class="empty-state">
                 {% icon 'box' %}<strong>Chưa có hàng hóa phù hợp</strong><span>Thêm mã hàng đầu tiên để bắt đầu nhập kho.</span>
-                {% if perms.inventory.add_product %}
+                {% if access.products_create %}
                   <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
                 {% endif %}
               </div>
