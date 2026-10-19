@@ -47,6 +47,7 @@ ADMIN_VIEWS = {
     "drive_callback",
     "drive_picker_token",
     "drive_folder",
+    "drive_check",
 }
 
 

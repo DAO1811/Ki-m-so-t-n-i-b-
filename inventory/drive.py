@@ -3,15 +3,17 @@
 import base64
 import hashlib
 import json
-import urllib.request
-import urllib.parse
 import urllib.error
+import urllib.parse
+import urllib.request
 from uuid import uuid4
+
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
+
 from .models import DriveConnection
 
 SCOPE = "https://www.googleapis.com/auth/drive.file"
@@ -72,7 +74,7 @@ def exchange_token(fields):
     )
 
 
-def access_token(connection=None):
+def access_token(connection=None, *, force_refresh=False):
     connection = connection or DriveConnection.objects.first()
     if (
         not connection
@@ -84,10 +86,16 @@ def access_token(connection=None):
         )
     cache_key = (
         "drive-token:"
-        + hashlib.sha256(connection.encrypted_refresh_token.encode()).hexdigest()
+        + hashlib.sha256(
+            (
+                connection.encrypted_refresh_token
+                + settings.GOOGLE_DRIVE_CLIENT_ID
+                + settings.GOOGLE_DRIVE_CLIENT_SECRET
+            ).encode()
+        ).hexdigest()
     )
     cached = cache.get(cache_key)
-    if cached:
+    if cached and not force_refresh:
         return cached
     try:
         refresh = (
@@ -112,6 +120,45 @@ def access_token(connection=None):
         )
     cache.set(cache_key, token, max(1, int(data.get("expires_in", 3600)) - 90))
     return token
+
+
+def check_connection():
+    """Verify durable authorization and the selected folder without creating files."""
+    connection = DriveConnection.objects.first()
+    if not connection or not connection.folder_id:
+        raise ValidationError(
+            "Cần kết nối tài khoản Google rồi chọn thư mục lưu trữ trước."
+        )
+    if connection.folder_id != settings.GOOGLE_DRIVE_EXPECTED_FOLDER_ID:
+        raise ValidationError(
+            "Thư mục đang lưu khác thư mục được chỉ định. Hãy chọn lại thư mục."
+        )
+    token = access_token(connection, force_refresh=True)
+    about = google_request(
+        "https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",
+        token=token,
+    )
+    if about.get("user", {}).get("emailAddress") != connection.account_email:
+        raise ValidationError(
+            "Tài khoản Google hiện tại không khớp kết nối đã lưu. Hãy kết nối lại."
+        )
+    meta = google_request(
+        API
+        + "/"
+        + connection.folder_id
+        + "?fields=id,mimeType,trashed,ownedByMe,capabilities(canAddChildren)",
+        token=token,
+    )
+    if (
+        meta.get("id") != connection.folder_id
+        or meta.get("mimeType") != "application/vnd.google-apps.folder"
+        or meta.get("trashed")
+        or not meta.get("ownedByMe")
+        or not meta.get("capabilities", {}).get("canAddChildren")
+    ):
+        raise ValidationError(
+            "Thư mục không còn hợp lệ hoặc không có quyền thêm tệp. Hãy chọn lại thư mục."
+        )
 
 
 @transaction.atomic

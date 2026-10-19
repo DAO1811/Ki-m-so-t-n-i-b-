@@ -1,6 +1,7 @@
 import secrets
 import time
 import urllib.parse
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -10,8 +11,9 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
-from .models import DriveConnection, StoredFile
+
 from . import drive
+from .models import DriveConnection, StoredFile
 
 
 def require_owner(user):
@@ -43,6 +45,7 @@ def drive_settings(request):
             "connection": DriveConnection.objects.first(),
             "missing": missing,
             "callback_url": callback_url(request),
+            "origin_url": request.build_absolute_uri("/").rstrip("/"),
             "picker_config": {
                 "key": settings.GOOGLE_PICKER_API_KEY,
                 "appId": settings.GOOGLE_CLOUD_PROJECT_NUMBER,
@@ -144,13 +147,16 @@ def drive_callback(request):
                 if refresh
                 else old.encrypted_refresh_token
             )
+            defaults = {
+                "account_email": email,
+                "encrypted_refresh_token": encrypted,
+                "connected_by": request.user,
+            }
+            if old and old.account_email != email:
+                defaults.update(folder_id="", folder_name="")
             DriveConnection.objects.update_or_create(
                 pk=1,
-                defaults={
-                    "account_email": email,
-                    "encrypted_refresh_token": encrypted,
-                    "connected_by": request.user,
-                },
+                defaults=defaults,
             )
         messages.success(
             request,
@@ -182,6 +188,23 @@ def drive_folder(request):
         messages.success(
             request,
             "Đã chọn thư mục. Phần mềm sẽ tự tạo thư mục con khi bạn tải hồ sơ đầu tiên.",
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    return redirect("drive_settings")
+
+
+@login_required
+@require_POST
+def drive_check(request):
+    require_owner(request.user)
+    try:
+        drive.check_connection()
+        messages.success(
+            request,
+            "Google đã xác nhận tài khoản và quyền thêm tệp vào thư mục. "
+            "Tiếp theo tải một ảnh hàng hóa và một hóa đơn PDF, "
+            "rồi mở lại để kiểm tra lưu tệp thực tế.",
         )
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))

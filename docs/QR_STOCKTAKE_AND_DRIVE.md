@@ -66,8 +66,8 @@ Thực hiện trên bản thử trước, sau đó dùng cấu hình riêng củ
 
 1. Tạo/chọn Google Cloud project dưới tài khoản công ty sở hữu Drive. Trong **APIs & Services**, bật **Google Drive API** và **Google Picker API**. Việc bật API không tự thay đổi gói dung lượng Drive; lưu trữ vẫn dùng hạn mức của tài khoản được kết nối.
 2. Cấu hình OAuth consent screen: tên ứng dụng, email hỗ trợ, người dùng phù hợp và phạm vi `https://www.googleapis.com/auth/drive.file`. Với Gmail cá nhân dùng External; khi đang Testing phải thêm đúng tài khoản vào Test users. Refresh token của ứng dụng External ở Testing thường hết hạn sau 7 ngày với phạm vi Drive, nên cần xử lý trạng thái Production theo yêu cầu của Google trước khi vận hành dài hạn. Phạm vi `drive.file` được Google xếp loại non-sensitive; Google vẫn có thể yêu cầu các bước xác minh tùy cấu hình ứng dụng.
-3. Tạo OAuth client loại **Web application**. Authorized JavaScript origin là chính xác origin HTTPS của website, không có đường dẫn. Authorized redirect URI là địa chỉ hiển thị tại **Cấu hình → Google Drive**. Với domain hiện tại: `https://ki-m-so-t-n-i-b.onrender.com/settings/drive/callback/`. Domain mới cần đăng ký URI tương ứng, không tự thay thế cấu hình production khi chưa chuyển.
-4. Tạo API key cho Picker trong cùng project, giới hạn API cần dùng cho Picker và HTTP referrer của website, ví dụ `https://ki-m-so-t-n-i-b.onrender.com/*`. Lấy **Project number** dạng số, không dùng Project ID dạng chữ.
+3. Tạo OAuth client loại **Web application**. Authorized JavaScript origin là chính xác origin HTTPS của website, không có đường dẫn. Authorized redirect URI là địa chỉ hiển thị tại **Cấu hình → Google Drive**. Với domain hiện tại: `https://kiemsoatnoibolemon.onrender.com/settings/drive/callback/`. Domain mới cần đăng ký URI tương ứng, không tự thay thế cấu hình production khi chưa chuyển.
+4. Tạo API key cho Picker trong cùng project, giới hạn API cần dùng cho Picker và HTTP referrer của website, ví dụ `https://kiemsoatnoibolemon.onrender.com/*`. Lấy **Project number** dạng số, không dùng Project ID dạng chữ.
 5. Tại Environment của hosting bản thử, đặt:
 
    | Tên | Giá trị |

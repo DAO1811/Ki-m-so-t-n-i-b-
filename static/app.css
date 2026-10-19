@@ -2337,6 +2337,25 @@ body:has(.sidebar-open) {
 .record-panel {
   padding: 22px;
 }
+.drive-setup code,
+.drive-setup td {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.drive-setup table {
+  width: 100%;
+  table-layout: fixed;
+}
+.drive-setup details ol {
+  padding-left: 24px;
+  line-height: 1.7;
+}
+.drive-setup details li {
+  margin-bottom: 12px;
+}
+.drive-setup > h2:not(:first-child) {
+  margin-top: 28px;
+}
 .record-panel > h2 {
   margin: 0 0 18px;
   font-size: 16px;

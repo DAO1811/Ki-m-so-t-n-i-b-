@@ -1,6 +1,8 @@
 from django.urls import path
-from . import views
-from . import records_views as records, stocktake_views as counts, drive_views
+
+from . import drive_views, views
+from . import records_views as records
+from . import stocktake_views as counts
 
 urlpatterns = [
     path("products/labels/", records.product_labels, name="product_labels"),
@@ -45,6 +47,7 @@ urlpatterns = [
         name="drive_picker_token",
     ),
     path("settings/drive/folder/", drive_views.drive_folder, name="drive_folder"),
+    path("settings/drive/check/", drive_views.drive_check, name="drive_check"),
     path("workspace/warehouse/", views.warehouse_scope, name="warehouse_scope"),
     path("api/availability/", views.availability, name="availability"),
     path("operations/<str:kind>/", views.document_new, name="operation_new"),

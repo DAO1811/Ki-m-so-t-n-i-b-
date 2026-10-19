@@ -7,8 +7,35 @@
       <p>Chỉ quản trị viên cấu hình. Không cần chia sẻ thư mục công khai.</p>
     </div>
   </div>
-  <section class="panel form-panel record-panel">
-    <h2>Thư mục lưu trữ đã chỉ định</h2>
+  <section class="panel form-panel record-panel drive-setup">
+    <h2>1. Chuẩn bị kết nối Google một lần</h2>
+    <p>Dùng tài khoản Google đang sở hữu gói dung lượng và thư mục của bạn. Link thư mục chưa tự cấp quyền cho phần mềm lưu ảnh hoặc PDF.</p>
+    <details {% if missing %}open{% endif %}>
+      <summary>Hướng dẫn cấu hình từng bước</summary>
+      <ol>
+        <li>Mở <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, tạo hoặc chọn dự án dành cho phần mềm.</li>
+        <li>Trong APIs &amp; Services → Library, bật <strong>Google Drive API</strong> và <strong>Google Picker API</strong> cùng dự án.</li>
+        <li>Vào Google Auth Platform: khai báo tên ứng dụng, email hỗ trợ; chọn Audience → External nếu dùng Gmail cá nhân. Nếu đang Testing, thêm email của bạn vào Test users. Đưa ứng dụng sang Production khi dùng lâu dài; ở Testing, quyền truy cập dài hạn cho Drive thường hết sau 7 ngày.</li>
+        <li>Trong Clients, tạo OAuth client loại <strong>Web application</strong>. Thêm đúng hai địa chỉ bên dưới; nếu đã đổi link website, cần thêm địa chỉ mới vào client hiện có.</li>
+        <li>Tạo API key trong APIs &amp; Services → Credentials, giới hạn API là <strong>Google Picker API</strong> và Website referrer là <code>{{ origin_url }}/*</code>. Lấy <strong>Project number</strong> trong thông tin dự án (dãy số, không phải Project ID).</li>
+        <li>Trong Render → dịch vụ đang chạy → Environment, thêm bốn biến bên dưới rồi lưu và triển khai lại. Không thay SECRET_KEY hoặc DATABASE_URL.</li>
+      </ol>
+      <p>Authorized JavaScript origins:</p>
+      <code>{{ origin_url }}</code>
+      <p>Authorized redirect URIs:</p>
+      <code>{{ callback_url }}</code>
+      <table>
+        <thead><tr><th>KEY trên Render</th><th>VALUE lấy từ Google</th></tr></thead>
+        <tbody>
+          <tr><td>GOOGLE_DRIVE_CLIENT_ID</td><td>Client ID của Web application</td></tr>
+          <tr><td>GOOGLE_DRIVE_CLIENT_SECRET</td><td>Client secret của cùng client</td></tr>
+          <tr><td>GOOGLE_PICKER_API_KEY</td><td>API key đã giới hạn cho Google Picker</td></tr>
+          <tr><td>GOOGLE_CLOUD_PROJECT_NUMBER</td><td>Project number của cùng dự án</td></tr>
+        </tbody>
+      </table>
+      <p class="hint">Dán giá trị vào Render, không gửi vào chat. Kết nối này không yêu cầu tạo máy chủ hay bật dịch vụ trả phí trên Google Cloud.</p>
+    </details>
+    <h2>2. Cấp quyền và chọn thư mục</h2>
     <p>
       <a href="https://drive.google.com/drive/folders/{{ root_folder }}"
          target="_blank"
@@ -17,10 +44,8 @@
     <p>Hàng hóa / mã hàng / ảnh · Hóa đơn / năm / đợt nhập. Phần mềm không sửa hồ sơ bên ngoài thư mục gốc.</p>
     {% if missing %}
       <div class="notice warning">
-        <span>Chưa cấu hình ứng dụng Google. Cần điền bảo mật tại hosting: {{ missing|join:', ' }}. Không gửi giá trị bí mật vào chat.</span>
+        <span>Chưa đủ cấu hình trên máy chủ. Các biến còn thiếu: {{ missing|join:', ' }}. Hoàn thành bước 1 để mở nút kết nối.</span>
       </div>
-      <p>Địa chỉ chuyển hướng OAuth cần đăng ký:</p>
-      <code>{{ callback_url }}</code>
     {% endif %}
     <p>
       Kết nối:
@@ -34,6 +59,7 @@
       {% csrf_token %}
       <button class="button" {% if missing %}disabled{% endif %}>Kết nối tài khoản Google của bạn</button>
     </form>
+    <p>Đăng nhập đúng tài khoản sở hữu thư mục, đồng ý cấp quyền, rồi bấm “Chọn thư mục qua Google” và chọn thư mục đã chỉ định ở trên.</p>
     {% if connection and not missing %}
       <button id="choose-drive-folder"
               class="button secondary"
@@ -47,6 +73,13 @@
       </form>
       <p id="drive-status" role="status"></p>
     {% endif %}
+    <h2>3. Kiểm tra trước khi sử dụng</h2>
+    <p>Thông tin tài khoản đã lưu chưa chứng minh kết nối còn hoạt động. Nút dưới kiểm tra lại quyền Google và thư mục, không tạo hoặc xóa tệp.</p>
+    <form method="post" action="{% url 'drive_check' %}">
+      {% csrf_token %}
+      <button class="button secondary" {% if missing or not connection.folder_id %}disabled{% endif %}>Kiểm tra quyền truy cập Drive</button>
+    </form>
+    <p>Sau khi kiểm tra thành công, tải một ảnh tại chi tiết hàng hóa và một PDF tại phiếu nhập, rồi mở lại cả hai. Chỉ bước này mới xác nhận lưu và đọc tệp thực tế.</p>
     <p class="hint">
       Chỉ xin quyền drive.file cho tệp/thư mục được bạn chọn hoặc do phần mềm tạo. Liên kết thư mục riêng lẻ chưa cấp quyền API. Không dùng tài khoản dịch vụ để tránh vấn đề hạn mức trên Drive cá nhân.
     </p>
