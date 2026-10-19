@@ -12,8 +12,9 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from django.db import connection
 
-SNAPSHOT_SCHEMA = "dhd_backup_inventory_0016"
+SNAPSHOT_SCHEMA = "dhd_backup_inventory_0017"
 MANIFEST_TABLE = "_dhd_snapshot_manifest"
+# Stable across versions so old/new deployments cannot migrate concurrently.
 DEPLOY_LOCK = 1811000016
 
 

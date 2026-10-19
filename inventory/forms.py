@@ -1,15 +1,17 @@
-from .access import can_create_kind
 from django import forms
-from django.forms import formset_factory, BaseFormSet
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
-from .models import Document, Product, CustomField, Warehouse, Line
+
+from .access import can_create_kind
+from .models import CustomField, Document, Line, Product, Warehouse
 from .services import (
-    warehouses_for,
     documents_for,
     validate_document,
     validate_line_details,
+    warehouses_for,
 )
 
 DOCUMENT_DETAILS = [
@@ -317,6 +319,37 @@ class ProductForm(forms.ModelForm):
         return super().save(commit=commit)
 
 
+class CustomFieldForm(forms.ModelForm):
+    class Meta:
+        model = CustomField
+        fields = ["label"]
+        labels = {"label": "Tên thông tin cần thêm"}
+        widgets = {
+            "label": forms.TextInput(
+                attrs={"placeholder": "Ví dụ: Xuất xứ, Thời hạn bảo hành"}
+            )
+        }
+
+    def clean_label(self):
+        label = self.cleaned_data["label"].strip()
+        if (
+            CustomField.objects.filter(label__iexact=label)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        ):
+            raise ValidationError(
+                "Tên thông tin này đã có. Hãy dùng ô hiện tại hoặc đặt tên rõ hơn."
+            )
+        return label
+
+    def save(self, commit=True):
+        if not self.instance.pk:
+            from uuid import uuid4
+
+            self.instance.key = "cf_" + uuid4().hex[:20]
+        return super().save(commit=commit)
+
+
 class ProductPhotoForm(forms.Form):
     image = forms.FileField(
         label="Ảnh hàng hóa (nếu có)",
@@ -476,6 +509,21 @@ class EmployeeForm(forms.ModelForm):
         required=False,
         widget=forms.CheckboxSelectMultiple(),
     )
+    job_title = forms.CharField(
+        label="Chức vụ / chức danh",
+        max_length=120,
+        required=False,
+        help_text="Ví dụ: Trưởng phòng mua hàng, Leader kho, Nhân viên kho.",
+    )
+    from .hierarchy import LEVEL_CHOICES
+
+    approval_level = forms.TypedChoiceField(
+        label="Cấp duyệt",
+        choices=LEVEL_CHOICES,
+        coerce=int,
+        initial=10,
+        help_text="Nhân viên < Leader < Trưởng phòng < Admin tổng. Chức vụ không tự cấp quyền chức năng hoặc kho.",
+    )
     access_revision = forms.IntegerField(
         required=False, initial=0, min_value=0, widget=forms.HiddenInput()
     )
@@ -524,14 +572,24 @@ class EmployeeForm(forms.ModelForm):
             "password"
         ].help_text = "Mật khẩu tự chọn, không bắt buộc độ dài hay tổ hợp ký tự. Khi sửa, để trống để giữ mật khẩu hiện tại."
         if self.instance.pk:
-            from .models import FunctionAccess
             from .access import function_codes
+            from .models import FunctionAccess
 
             access = FunctionAccess.objects.filter(user=self.instance).first()
             self.initial["function_permissions"] = sorted(function_codes(self.instance))
             self.initial["access_revision"] = access.revision if access else 0
+            self.initial["job_title"] = access.job_title if access else ""
+            self.initial["approval_level"] = access.approval_level if access else 10
             if self.instance.is_superuser:
                 self.fields["function_permissions"].disabled = True
+                self.fields["approval_level"].choices = self.LEVEL_CHOICES + [
+                    (40, "Admin tổng · Toàn quyền")
+                ]
+                self.initial["approval_level"] = 40
+                self.fields["approval_level"].disabled = True
+                self.fields[
+                    "approval_level"
+                ].help_text = "Tài khoản này là Admin tổng, tự có cấp duyệt cao nhất và toàn quyền."
             self.initial["first_name"] = self.instance.get_full_name()
             for field, relation in [
                 ("access_warehouses", "warehouses"),
@@ -546,11 +604,28 @@ class EmployeeForm(forms.ModelForm):
             validate_password(password, self.instance)
         return password
 
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            not self.instance.is_superuser
+            and cleaned.get("approval_level") == 10
+            and any(
+                code.endswith(("_approve", "_receive"))
+                for code in cleaned.get("function_permissions", [])
+            )
+        ):
+            self.add_error(
+                "approval_level",
+                "Nhân viên không thể duyệt cấp thấp hơn. Chọn Leader hoặc Trưởng phòng nếu cần giao quyền duyệt.",
+            )
+        return cleaned
+
     def save(self, commit=True):
+        from django.core.exceptions import PermissionDenied, ValidationError
+        from django.db import transaction
+
         from .access import is_admin, normalize_permissions
         from .models import FunctionAccess
-        from django.db import transaction
-        from django.core.exceptions import PermissionDenied, ValidationError
 
         if not is_admin(self.actor):
             raise PermissionDenied("Chỉ admin được lưu tài khoản và phân quyền.")
@@ -583,6 +658,10 @@ class EmployeeForm(forms.ModelForm):
                 FunctionAccess.objects.update_or_create(
                     user=user,
                     defaults={
+                        "job_title": self.cleaned_data["job_title"],
+                        "approval_level": 10
+                        if user.is_superuser
+                        else self.cleaned_data["approval_level"],
                         "permissions": normalize_permissions(
                             self.cleaned_data["function_permissions"]
                         ),

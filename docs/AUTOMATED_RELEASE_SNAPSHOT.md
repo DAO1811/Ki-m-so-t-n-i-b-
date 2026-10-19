@@ -1,3 +1,5 @@
+> Cập nhật 19/10/2026: đợt cấp duyệt mới dùng snapshot `dhd_backup_inventory_0017`, health yêu cầu migration 0017. Giữ nguyên snapshot 0016 trước đó. Khóa triển khai dùng chung `1811000016` giữa các phiên bản để không chạy migration đồng thời. [Chi tiết đợt này](APPROVAL_HIERARCHY.md).
+
 # Bản chụp dữ liệu tự động trước nâng cấp
 
 Theo yêu cầu ngày 17/10/2026 chủ dự án tự động cập nhật bản chính, bước giữ dữ liệu trước migration được chuyển sang Render. Không yêu cầu chủ dự án gửi DATABASE_URL hoặc tạo nhánh Neon thủ công để thực hiện đợt này.
@@ -20,7 +22,7 @@ Chỉ sau khi sao chép và đối chiếu số dòng thành công, transaction 
 - Không sao lưu bí mật hosting, vai trò PostgreSQL, views/functions tùy chỉnh hoặc tệp Google Drive. Ứng dụng hiện tại dùng các bảng Django và kiểu PostgreSQL chuẩn. Không hỗ trợ bảng partition/custom schema trong cơ chế này.
 - Khóa triển khai không khóa thao tác người dùng; bản chụp có mốc dữ liệu nhất quán nhờ MVCC. Phục hồi sẽ trở về mốc chụp, nên phải xác định và đối soát mọi giao dịch phát sinh sau đó.
 - Các migration cần DDL locks trong khoảng chuyển đổi. Không khẳng định hai phiên bản đều ghi dữ liệu an toàn trong lúc đổi schema. Website hiện tại giữ nguyên suốt thời gian phát triển/kiểm tra, bản mới chỉ đưa lên sau khi push main.
-- Snapshot này dành cho target inventory 0016. Đợt có migration mới cần đổi tên/schema/khóa target và điều kiện health, thử lại từ schema production thật tương ứng; không dùng snapshot 0016 như bản sao lưu mới cho mọi đợt tương lai.
+- Snapshot này dành cho target inventory 0016. Đợt có migration mới cần đổi tên/schema target và điều kiện health, giữ khóa triển khai dùng chung giữa các phiên bản, thử lại từ schema production thật tương ứng; không dùng snapshot 0016 như bản sao lưu mới cho mọi đợt tương lai.
 
 ## Phục hồi có kiểm soát
 

@@ -7,7 +7,7 @@
         <th>Nghiệp vụ</th>
         <th>Kho xuất → Kho nhận</th>
         <th>Người lập</th>
-        <th>Trạng thái</th>
+        <th>Trạng thái{% if show_review_reason %} / Xử lý{% endif %}</th>
         <th></th>
       </tr>
     </thead>
@@ -26,6 +26,7 @@
           <td>{{ d.created_by.get_full_name|default:d.created_by.username }}</td>
           <td>
             <span class="badge {{ d.status|lower }}">{{ d.status|status_label }}</span>
+            {% if show_review_reason %}<small>{% if d.review_reason %}{{ d.review_reason }}{% else %}Đủ quyền duyệt{% if d.created_by_id == user.pk %} · Cần xác nhận tự duyệt{% endif %}{% endif %}</small>{% endif %}
           </td>
           <td>
             <a class="table-action"

@@ -1,3 +1,5 @@
+> Đợt 19/10/2026: quy tắc cấp duyệt, ngoại lệ admin tự duyệt kèm xác nhận và migration 0017 ở [APPROVAL_HIERARCHY.md](APPROVAL_HIERARCHY.md). Website chính là https://kiemsoatnoibolemon.onrender.com; snapshot mới giữ trạng thái trước migration 0017, không dùng lại snapshot 0016.
+
 # Tách bản đang dùng và bản đang sửa
 
 Theo yêu cầu của chủ dự án, website phải tiếp tục hoạt động khi phát triển bản mới.

@@ -38,7 +38,12 @@ MANAGER = set(FUNCTION_KEYS) - {
 }
 
 
-def grant_functions(user, codes):
+def grant_functions(user, codes, *, level=None):
+    if level is None:
+        level = (
+            30 if any(code.endswith(("_approve", "_receive")) for code in codes) else 10
+        )
     FunctionAccess.objects.update_or_create(
-        user=user, defaults={"permissions": normalize_permissions(codes)}
+        user=user,
+        defaults={"permissions": normalize_permissions(codes), "approval_level": level},
     )

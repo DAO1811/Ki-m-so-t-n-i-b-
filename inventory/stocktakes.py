@@ -1,25 +1,27 @@
-from decimal import Decimal
-from uuid import UUID
-import re
 import hashlib
 import json
+import re
+from decimal import Decimal
+from uuid import UUID
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
+
+from .access import has_function
 from .models import (
     Balance,
     Document,
     Line,
     Movement,
     Product,
-    StocktakeSession,
-    StocktakeItem,
     StocktakeEvent,
+    StocktakeItem,
+    StocktakeSession,
     Warehouse,
 )
-from .services import warehouses_for, audit_document
-from .access import has_function
+from .services import audit_document, warehouses_for
 
 
 def product_from_scan(raw):
@@ -227,6 +229,7 @@ def submit_session(pk, user, note):
         StocktakeEvent.objects.create(session=session, actor=user, action="SUBMIT")
         return None
     doc = Document.objects.create(
+        creator_level=session.creator_level,
         kind="ADJUST",
         destination=session.warehouse,
         created_by=user,

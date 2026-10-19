@@ -1,50 +1,17 @@
 {% extends 'base.html' %}
 {% load ui %}
 {% block content %}
-  <div class="page-heading">
-    <div>
-      <h1>{% icon 'settings' %}Trường bổ sung cho hàng hóa</h1>
-      <p>Thêm thông tin như thương hiệu, xuất xứ hoặc vị trí sử dụng.</p>
-    </div>
-  </div>
+  <div class="page-heading"><div><h1>{% icon 'settings' %}Thông tin tự thêm cho hàng hóa</h1><p>Tạo thêm ô nhập khi danh mục hàng hóa cần thông tin riêng của công ty.</p></div><a class="button secondary" href="{% url 'products' %}">Về danh mục hàng hóa</a></div>
+  <div class="notice"><span><b>Cách dùng:</b> Đặt tên thông tin tại đây → mở Thêm / Sửa hàng hóa → nhập giá trị riêng cho từng mã tại phần “Định mức & thông tin bổ sung”. Ví dụ tạo ô “Xuất xứ”, hàng A nhập “Việt Nam”, hàng B nhập “Nhật Bản”.</span></div>
   <div class="lower-grid">
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Các trường đã khai báo</h2>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Mã trường</th>
-            <th>Tên hiển thị</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for field in fields %}
-            <tr>
-              <td>{{ field.key }}</td>
-              <td>{{ field.label }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="2" class="empty">Chưa có trường bổ sung.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <section class="panel record-panel"><h2>Các ô đang có trong hồ sơ hàng hóa</h2>
+      {% for field in fields %}<div class="custom-field-preview"><label>{{ field.label }}</label><input type="text" disabled placeholder="Nhập {{ field.label|lower }} khi thêm hoặc sửa hàng hóa"><a class="button secondary small" href="?edit={{ field.pk }}">Đổi tên</a></div>
+      {% empty %}<div class="empty-state"><strong>Chưa có ô tự thêm</strong><span>Điền tên ở khung bên cạnh để tạo ô đầu tiên.</span></div>{% endfor %}
+      <p class="hint">Các ô này dùng chung cho danh mục, giá trị tùy từng mã hàng. Đổi tên giữ nguyên dữ liệu đã nhập. Hiện hỗ trợ nội dung văn bản.</p>
     </section>
-    <form method="post" class="panel form-panel">
-      {% csrf_token %}
-      <div class="panel-title">
-        <h2>Thêm trường</h2>
-      </div>
-      <div class="fields-body">
-        {{ form.as_p }}
-        <p class="hint">
-          Mã viết không dấu, dùng chữ, số và dấu gạch dưới. Ví dụ: <b>thuong_hieu</b>. Giá trị nhập là văn bản.
-        </p>
-        <button class="button" type="submit">{% icon 'plus' %}Thêm trường</button>
-      </div>
+    <form method="post" class="panel form-panel">{% csrf_token %}{% if editing %}<input type="hidden" name="field_id" value="{{ editing.pk }}">{% endif %}
+      <div class="panel-title"><h2>{% if editing %}Đổi tên “{{ editing.label }}”{% else %}Thêm ô thông tin{% endif %}</h2></div>
+      <div class="fields-body">{{ form.as_p }}<p class="hint">Gợi ý: Xuất xứ, Thời hạn bảo hành, Vị trí trên kệ. Thương hiệu và quy cách đã có sẵn trong hồ sơ hàng hóa.</p><button class="button" type="submit">{% icon 'check' %}{% if editing %}Lưu tên mới{% else %}Tạo ô thông tin{% endif %}</button>{% if editing %}<a class="button secondary" href="{% url 'custom_fields' %}">Hủy đổi tên</a>{% endif %}</div>
     </form>
   </div>
 {% endblock %}

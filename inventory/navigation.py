@@ -55,13 +55,6 @@ def navigation(request, access):
                 "warehouse_list",
                 ("warehouse_list", "warehouse_new", "warehouse_edit"),
             ),
-            item(
-                "team_view",
-                "Nhân viên & quyền" if access["admin"] else "Nhân viên",
-                "users",
-                "team",
-                ("team", "employee_new", "employee_edit"),
-            ),
         ],
     )
     group(
@@ -80,7 +73,12 @@ def navigation(request, access):
                 ("stocktakes", "stocktake_detail", "stocktake_report"),
             ),
             operation("adjustments", "ADJUST", "Điều chỉnh tồn", "count"),
-            item("any_approve", "Duyệt phiếu", "shield", "approvals"),
+            item(
+                "any_approve",
+                "Duyệt & xử lý phiếu" if access["admin"] else "Phiếu chờ duyệt",
+                "shield",
+                "approvals",
+            ),
             item("documents_view", "Quản lý phiếu", "file", "documents"),
             item("stock_view", "Tồn kho", "grid", "stock"),
         ],
@@ -95,16 +93,30 @@ def navigation(request, access):
     group(
         "V. TIỆN ÍCH",
         [
-            item("admin", "Kết nối Google Drive", "file", "drive_settings"),
             item("tools_import", "Nhập từ Excel", "upload", "receipt_import"),
             item("tools_qr", "In tem QR", "box", "product_labels"),
-            item("custom_fields_manage", "Trường bổ sung", "settings", "custom_fields"),
             {
                 "label": "Đổi mật khẩu",
                 "icon": "lock",
                 "url": reverse("password_change"),
                 "active": route == "password_change",
             },
+        ],
+    )
+    group(
+        "VI. QUẢN TRỊ",
+        [
+            item(
+                "team_view",
+                "Tài khoản & phân quyền" if access["admin"] else "Nhân viên",
+                "users",
+                "team",
+                ("team", "employee_new", "employee_edit"),
+            ),
+            item(
+                "custom_fields_manage", "Thông tin tự thêm", "settings", "custom_fields"
+            ),
+            item("admin", "Lưu trữ Google Drive", "file", "drive_settings"),
         ],
     )
     return sections

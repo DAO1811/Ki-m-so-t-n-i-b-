@@ -77,6 +77,7 @@ class FunctionAccessTests(TestCase):
             "is_active": "on",
             "password": "",
             "access_revision": revision,
+            "approval_level": 30 if any(code.endswith(("_approve", "_receive")) for code in codes) else 10,
             "access_warehouses": [self.a.pk],
             "function_permissions": list(codes),
             **extra,
@@ -111,10 +112,11 @@ class FunctionAccessTests(TestCase):
         post_document(self.adjustment.pk, self.admin)
         self.assertEqual(Balance.objects.get(warehouse=self.a).quantity, 4)
 
-    def test_admin_full_access_does_not_bypass_maker_review_separation(self):
+    def test_admin_self_approval_requires_explicit_confirmation(self):
         self.receipt.created_by = self.admin
         self.receipt.save()
-        with self.assertRaises(PermissionDenied):
+        from django.core.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
             post_document(self.receipt.pk, self.admin)
         self.assertEqual(Balance.objects.get(warehouse=self.a).quantity, 5)
 

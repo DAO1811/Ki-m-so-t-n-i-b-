@@ -1,13 +1,20 @@
+from decimal import ROUND_HALF_UP, Decimal, localcontext
+from uuid import uuid4
+
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
-from django.core.validators import MinValueValidator
 from django.utils import timezone
-from uuid import uuid4
-from decimal import Decimal, ROUND_HALF_UP, localcontext
 
 
 class FunctionAccess(models.Model):
+    from .hierarchy import LEVEL_CHOICES
+
+    job_title = models.CharField("Chức vụ / chức danh", max_length=120, blank=True)
+    approval_level = models.PositiveSmallIntegerField(
+        "Cấp duyệt", choices=LEVEL_CHOICES, default=10
+    )
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -26,6 +33,12 @@ class FunctionAccess(models.Model):
 
     class Meta:
         default_permissions = ()
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(approval_level__in=[10, 20, 30]),
+                name="valid_approval_level",
+            )
+        ]
 
 
 class Warehouse(models.Model):
@@ -177,6 +190,7 @@ class Balance(models.Model):
 
 
 class Document(models.Model):
+    creator_level = models.PositiveSmallIntegerField(default=10, editable=False)
     TYPES = [
         ("IN", "Nhập kho"),
         ("OUT", "Xuất kho"),
@@ -240,7 +254,7 @@ class Document(models.Model):
         max_length=10,
         default="DRAFT",
         choices=[
-            ("DRAFT", "Nháp"),
+            ("DRAFT", "Chờ duyệt"),
             ("TRANSIT", "Đang chuyển / chờ nhận"),
             ("POSTED", "Đã ghi sổ"),
             ("REJECTED", "Yêu cầu sửa"),
@@ -296,6 +310,15 @@ class Document(models.Model):
             "COUNT": "Duyệt kiểm kê",
             "ADJUST": "Duyệt điều chỉnh",
         }.get(self.kind, "Duyệt phiếu")
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            from .hierarchy import approval_level
+
+            self.creator_level = max(
+                self.creator_level, approval_level(self.created_by)
+            )
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"PK-{self.pk:06d} · {self.get_kind_display()}"
@@ -463,6 +486,7 @@ class ReceiptAttachment(models.Model):
 
 
 class StocktakeSession(models.Model):
+    creator_level = models.PositiveSmallIntegerField(default=10, editable=False)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -489,6 +513,15 @@ class StocktakeSession(models.Model):
 
     class Meta:
         ordering = ["-id"]
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            from .hierarchy import approval_level
+
+            self.creator_level = max(
+                self.creator_level, approval_level(self.created_by)
+            )
+        return super().save(*args, **kwargs)
 
     @property
     def workflow_status(self):

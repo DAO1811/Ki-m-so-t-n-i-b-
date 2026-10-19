@@ -1,9 +1,11 @@
-from decimal import Decimal, ROUND_HALF_UP, localcontext
-from django.core.exceptions import ValidationError, PermissionDenied
+from decimal import ROUND_HALF_UP, Decimal, localcontext
+
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Sum, Q, Max
+from django.db.models import Max, Q, Sum
 from django.utils import timezone
-from .models import Warehouse, Document, Balance, Movement, LoanHolding, DocumentEvent
+
+from .models import Balance, Document, DocumentEvent, LoanHolding, Movement, Warehouse
 
 
 @transaction.atomic
@@ -30,6 +32,8 @@ def capture_lines(doc, rows):
 
 
 def audit_document(doc, actor, action, extra=None):
+    from .hierarchy import approval_level
+
     fields = [
         "kind",
         "source_id",
@@ -52,6 +56,15 @@ def audit_document(doc, actor, action, extra=None):
     snapshot = {
         k: str(getattr(doc, k)) if getattr(doc, k) is not None else None for k in fields
     }
+    snapshot.update(
+        creator_level=doc.creator_level,
+        actor_level=approval_level(actor),
+        admin_self_approved=bool(
+            action in ["POST", "DISPATCH"]
+            and actor.is_superuser
+            and doc.created_by_id == actor.pk
+        ),
+    )
     snapshot["lines"] = [
         {
             k: str(getattr(line, k)) if getattr(line, k) is not None else None
@@ -193,9 +206,28 @@ def validate_document(doc):
 def approval_documents_for(user):
     from .access import KIND_MODULES, function_codes, is_admin
 
-    qs = documents_for(user).exclude(created_by=user)
+    qs = documents_for(user)
     if is_admin(user):
         return qs.filter(status__in=["DRAFT", "TRANSIT"])
+    from django.db.models import Case, IntegerField, Value, When
+    from django.db.models.functions import Coalesce
+
+    from .hierarchy import approval_level
+
+    level = approval_level(user)
+    qs = (
+        qs.exclude(created_by=user)
+        .annotate(
+            _maker_level=Case(
+                When(created_by__is_superuser=True, then=Value(40)),
+                default=Coalesce(
+                    "created_by__function_access__approval_level", Value(10)
+                ),
+                output_field=IntegerField(),
+            )
+        )
+        .filter(creator_level__lt=level, _maker_level__lt=level)
+    )
     codes = function_codes(user)
     source_ids = user.issue_warehouses.values_list("id", flat=True)
     dest_ids = user.managed_warehouses.values_list("id", flat=True)
@@ -216,41 +248,43 @@ def approval_documents_for(user):
     return qs.filter(allowed).distinct()
 
 
-def can_approve(doc, user):
-    from .access import has_function, approval_key, can_view_kind
+def approval_block_reason(doc, user):
+    from .access import approval_key, can_view_kind, has_function, is_admin
+    from .hierarchy import approval_level, maker_level
 
-    if (
-        doc.status not in ["DRAFT", "TRANSIT"]
-        or doc.created_by_id == user.pk
-        or not can_view_kind(user, doc.kind)
-        or not has_function(user, approval_key(doc))
-    ):
-        return False
+    if not user.is_authenticated or not user.is_active:
+        return "Tài khoản không hoạt động."
+    if doc.status not in ["DRAFT", "TRANSIT"]:
+        return "Phiếu không ở trạng thái chờ duyệt hoặc chờ nhận."
+    if is_admin(user):
+        return ""
+    if doc.created_by_id == user.pk:
+        return "Người lập phiếu không được tự duyệt. Chỉ Admin tổng có ngoại lệ tự duyệt kèm xác nhận."
+    if approval_level(user) <= maker_level(doc):
+        return "Người duyệt phải có cấp cao hơn người lập; không duyệt ngang cấp hoặc ngược cấp."
+    if not can_view_kind(user, doc.kind) or not has_function(user, approval_key(doc)):
+        return "Bạn chưa được cấp quyền duyệt chức năng này."
     if doc.kind in ["COUNT", "ADJUST"]:
-        return can_approve_adjustments(user)
-    if user.is_superuser:
-        return True
+        return ""
     receiving = doc.status == "TRANSIT" or not doc.source_id
     warehouse = doc.destination if receiving else doc.source
-    return bool(
+    assigned = bool(
         warehouse
         and (warehouse.managers if receiving else warehouse.issue_approvers)
         .filter(pk=user.pk)
         .exists()
     )
+    return "" if assigned else "Bạn chưa được phân công duyệt tại kho này."
+
+
+def can_approve(doc, user):
+    return not approval_block_reason(doc, user)
 
 
 def require_approver(doc, user, receiving):
-    if doc.created_by_id == user.pk:
-        raise PermissionDenied(
-            "Người lập phiếu không được tự xác nhận. Hãy nhờ người được chỉ định duyệt."
-        )
-    if not can_approve(doc, user):
-        raise PermissionDenied(
-            "Chỉ admin hoặc tài khoản được admin cấp quyền duyệt kiểm kê / điều chỉnh mới được cập nhật chênh lệch."
-            if doc.kind in ["COUNT", "ADJUST"]
-            else "Bạn chưa được chỉ định duyệt tại kho này."
-        )
+    reason = approval_block_reason(doc, user)
+    if reason:
+        raise PermissionDenied(reason)
 
 
 def record(doc, line, wid, delta, value_delta):
@@ -279,8 +313,11 @@ def record(doc, line, wid, delta, value_delta):
 
 
 @transaction.atomic
-def post_document(pk, user):
+def post_document(pk, user, *, confirm_self_approval=False):
     doc = Document.objects.select_for_update().get(pk=pk)
+    from .hierarchy import lock_approval_accounts
+
+    user = lock_approval_accounts(doc, user)
     if doc.status == "POSTED":
         raise ValidationError("Phiếu đã ghi sổ trước đó.")
     if doc.status not in ["DRAFT", "TRANSIT"]:
@@ -288,6 +325,10 @@ def post_document(pk, user):
     transfer = doc.kind in ["TRANSFER", "LOAN", "RETURN"]
     receiving = doc.status == "TRANSIT" or not doc.source_id
     require_approver(doc, user, receiving)
+    if user.is_superuser and doc.created_by_id == user.pk and not confirm_self_approval:
+        raise ValidationError(
+            "Bạn đang tự duyệt phiếu do chính mình lập. Hãy đánh dấu xác nhận tự duyệt trước khi tiếp tục."
+        )
     validate_document(doc)
     lines = list(doc.lines.select_related("product").order_by("product_id"))
     if not lines:
@@ -466,6 +507,9 @@ def close_document(pk, user, action, reason):
     if not reason or len(reason) > 1000:
         raise ValidationError("Ghi lý do từ 1 đến 1000 ký tự.")
     if action == "REJECT":
+        from .hierarchy import lock_approval_accounts
+
+        user = lock_approval_accounts(doc, user)
         if doc.status != "DRAFT" or not can_approve(doc, user):
             raise PermissionDenied(
                 "Chỉ người được duyệt mới được yêu cầu sửa phiếu đang chờ."

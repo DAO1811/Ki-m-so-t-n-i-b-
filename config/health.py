@@ -18,7 +18,7 @@ def health(request):
         ready = (
             ready
             and MigrationRecorder.Migration.objects.filter(
-                app="inventory", name="0016_preserve_assigned_function_access"
+                app="inventory", name="0017_approval_hierarchy"
             ).exists()
         )
         snapshot = snapshot_status()

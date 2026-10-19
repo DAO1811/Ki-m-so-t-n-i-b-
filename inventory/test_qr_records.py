@@ -614,6 +614,7 @@ class RecordMediaTests(TestCase):
         data = {
             "username": self.manager.username,
             "first_name": "Người duyệt",
+            "approval_level": 30,
             "is_active": "on",
             "function_permissions": ["adjustments_approve"],
             "access_revision": "1",

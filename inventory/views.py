@@ -1,45 +1,55 @@
 import csv
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.db.models import Q, F, Sum, Count
-from django.db.models.functions import TruncDate
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.views.decorators.http import require_POST
-from .models import Document, Line, Product, Balance, Movement, LoanHolding
-from .forms import DocumentForm, LineFormSet, ProductForm, WarehouseForm, EmployeeForm
-from .services import (
-    warehouses_for,
-    documents_for,
-    post_document,
-    can_approve,
-    approval_documents_for,
-    capture_lines,
-    audit_document,
-    close_document,
-)
-from .workspace import selected_warehouse, scoped_documents
-from django.utils import timezone
-from django.core.paginator import Paginator
-from django.contrib.auth import get_user_model, update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
-from django.utils.http import url_has_allowed_host_and_scheme
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
-from django.core.exceptions import PermissionDenied
-from .models import CustomField, FunctionAccess
+
+from django.contrib import messages
+from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Count, F, Q, Sum
+from django.db.models.functions import TruncDate
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
+
 from .access import (
-    has_function,
-    function_codes,
-    FUNCTION_ROWS,
     FUNCTION_KEYS,
-    normalize_permissions,
+    FUNCTION_ROWS,
     can_create_kind,
     can_view_kind,
+    function_codes,
+    has_function,
+    is_admin,
+    normalize_permissions,
 )
+from .forms import DocumentForm, EmployeeForm, LineFormSet, ProductForm, WarehouseForm
+from .models import (
+    Balance,
+    CustomField,
+    Document,
+    FunctionAccess,
+    Line,
+    LoanHolding,
+    Movement,
+    Product,
+)
+from .services import (
+    approval_documents_for,
+    audit_document,
+    can_approve,
+    capture_lines,
+    close_document,
+    documents_for,
+    post_document,
+    warehouses_for,
+)
+from .workspace import scoped_documents, selected_warehouse
 
 
 def balances(user):
@@ -415,7 +425,7 @@ def document_new(request, kind=None):
                 )
                 audit_document(doc, request.user, "CREATE")
         messages.success(
-            request, "Đã lưu phiếu nháp. Kiểm tra rồi bấm Ghi sổ để cập nhật tồn."
+            request, "Đã lưu phiếu chờ duyệt. Người đủ cấp và quyền kiểm tra, duyệt để cập nhật tồn."
         )
         return redirect("document_detail", pk=doc.pk)
     return document_form_response(request, form, formset, operation)
@@ -493,14 +503,18 @@ def document_edit(request, pk):
 @login_required
 def document_detail(request, pk):
     doc = get_object_or_404(documents_for(request.user), pk=pk)
-    from .forms import ReceiptAttachmentForm
     from .access import may_attach
+    from .forms import ReceiptAttachmentForm
 
     can_post = can_approve(doc, request.user)
     receiving = doc.status == "TRANSIT" or not doc.source_id
-    approvers = (
+    candidates = (
         doc.destination.managers if receiving else doc.source.issue_approvers
     ).all()
+    from .hierarchy import LEVEL_LABELS, maker_level
+    from .services import approval_block_reason
+
+    approvers = [person for person in candidates if can_approve(doc, person)]
     return render(
         request,
         "document_detail.html",
@@ -508,6 +522,11 @@ def document_detail(request, pk):
             "doc": doc,
             "lines": doc.lines.select_related("product"),
             "can_post": can_post,
+            "self_approval": can_post
+            and is_admin(request.user)
+            and doc.created_by_id == request.user.pk,
+            "approval_block_reason": approval_block_reason(doc, request.user),
+            "maker_level_label": LEVEL_LABELS.get(maker_level(doc), "Nhân viên"),
             "approvers": approvers,
             "events": doc.events.select_related("actor"),
             "attachment_form": ReceiptAttachmentForm(
@@ -550,7 +569,11 @@ def document_detail(request, pk):
 def document_post(request, pk):
     get_object_or_404(documents_for(request.user), pk=pk)
     try:
-        result = post_document(pk, request.user)
+        result = post_document(
+            pk,
+            request.user,
+            confirm_self_approval=request.POST.get("confirm_self_approval") == "yes",
+        )
         messages.success(
             request,
             "Đã xuất kho, đang chờ kho nhận xác nhận."
@@ -790,9 +813,10 @@ def receipt_template(request):
 
 @login_required
 def receipt_import(request):
-    from .forms import ReceiptImportForm
-    from .excel import parse_receipt
     import uuid
+
+    from .excel import parse_receipt
+    from .forms import ReceiptImportForm
 
     form = ReceiptImportForm(
         request.POST or None, request.FILES or None, user=request.user
@@ -940,17 +964,48 @@ def availability(request):
 
 @login_required
 def approvals(request):
-    qs = approval_documents_for(request.user).select_related(
+    actionable = approval_documents_for(request.user)
+    monitoring = is_admin(request.user) and request.GET.get("scope") != "actionable"
+    qs = (documents_for(request.user) if monitoring else actionable).select_related(
         "source", "destination", "created_by"
     )
+    status = request.GET.get("status", "")
+    if status in dict(Document._meta.get_field("status").choices):
+        qs = qs.filter(status=status)
+    elif monitoring:
+        qs = qs.filter(status__in=["DRAFT", "TRANSIT", "REJECTED"])
+    kind = request.GET.get("kind", "")
+    if kind in dict(Document.TYPES):
+        qs = qs.filter(kind=kind)
+    if request.GET.get("q"):
+        query = request.GET["q"].strip()
+        search = Q(created_by__username__icontains=query) | Q(
+            reference_number__icontains=query
+        )
+        number = query.upper().removeprefix("PK-")
+        if number.isdigit() and len(number) <= 18:
+            search |= Q(pk=int(number))
+        qs = qs.filter(search)
     warehouse = selected_warehouse(request)
     if warehouse:
         qs = qs.filter(Q(source=warehouse) | Q(destination=warehouse))
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    from .services import approval_block_reason
+
+    for doc in page:
+        doc.review_reason = approval_block_reason(doc, request.user)
     return render(
         request,
         "approvals.html",
-        {"documents": page, "page_obj": page, "approval_total": qs.count()},
+        {
+            "documents": page,
+            "page_obj": page,
+            "approval_total": qs.count(),
+            "monitoring": monitoring,
+            "show_review_reason": True,
+            "kinds": Document.TYPES,
+            "statuses": Document._meta.get_field("status").choices,
+        },
     )
 
 
@@ -1013,9 +1068,10 @@ def warehouse_form(request, warehouse=None):
     form = WarehouseForm(request.POST or None, instance=warehouse, actor=request.user)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
-            from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
-            from django.contrib.contenttypes.models import ContentType
             import json
+
+            from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
+            from django.contrib.contenttypes.models import ContentType
 
             before = {}
             if warehouse:
@@ -1106,10 +1162,12 @@ def employee_form(request, pk=None):
         else:
             try:
                 with transaction.atomic():
-                    from .models import FunctionAccess
-                    from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
-                    from django.contrib.contenttypes.models import ContentType
                     import json
+
+                    from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
+                    from django.contrib.contenttypes.models import ContentType
+
+                    from .models import FunctionAccess
 
                     previous = (
                         FunctionAccess.objects.filter(user=employee).first()
@@ -1117,9 +1175,20 @@ def employee_form(request, pk=None):
                         else None
                     )
                     before = list(previous.permissions) if previous else []
+                    before_role = (
+                        {
+                            "job_title": previous.job_title,
+                            "approval_level": previous.approval_level,
+                        }
+                        if previous
+                        else {}
+                    )
                     saved = form.save()
                     details = {
                         "active": saved.is_active,
+                        "role_before": before_role,
+                        "job_title": saved.function_access.job_title,
+                        "approval_level": saved.function_access.approval_level,
                         "warehouses": list(
                             saved.warehouses.values_list("code", flat=True)
                         ),
@@ -1232,18 +1301,35 @@ def reports(request):
 
 @login_required
 def custom_fields(request):
-    from django.forms import modelform_factory
+    from .forms import CustomFieldForm
 
-    Form = modelform_factory(CustomField, fields=["key", "label"])
-    form = Form(request.POST or None)
+    editing = None
+    field_id = (
+        request.POST.get("field_id")
+        if request.method == "POST"
+        else request.GET.get("edit")
+    )
+    if field_id:
+        editing = get_object_or_404(
+            CustomField,
+            pk=field_id if str(field_id).isdigit() and len(str(field_id)) <= 18 else 0,
+        )
+    form = CustomFieldForm(request.POST or None, instance=editing)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        saved = form.save()
         messages.success(
-            request, "Đã thêm trường. Trường mới sẽ hiện trên biểu mẫu hàng hóa."
+            request,
+            "Đã đổi tên thông tin; dữ liệu hàng hóa được giữ nguyên."
+            if editing
+            else f"Đã thêm ô {saved.label}. Mở Thêm / Sửa hàng hóa để nhập giá trị cho từng mã.",
         )
         return redirect("custom_fields")
     return render(
         request,
         "custom_fields.html",
-        {"form": form, "fields": CustomField.objects.order_by("id")},
+        {
+            "form": form,
+            "fields": CustomField.objects.order_by("id"),
+            "editing": editing,
+        },
     )

@@ -307,6 +307,7 @@ class WorkspaceTests(TestCase):
             "/team/new/",
             {
                 "username": "NV001",
+                "approval_level": 10,
                 "first_name": "Nguyễn Văn A",
                 "email": "",
                 "password": "1",
@@ -376,6 +377,7 @@ class WorkspaceTests(TestCase):
             f"/team/{self.worker.pk}/edit/",
             {
                 "username": "worker",
+                "approval_level": 10,
                 "access_revision": "1",
                 "first_name": "Nhân viên",
                 "email": "",
@@ -442,8 +444,8 @@ class WorkspaceTests(TestCase):
             ).status_code,
             302,
         )
-        self.assertTrue(CustomField.objects.filter(key="brand").exists())
-        self.assertContains(self.client.get("/products/new/"), "extra_brand")
+        field = CustomField.objects.get(label="Thương hiệu")
+        self.assertContains(self.client.get("/products/new/"), "extra_" + field.key)
 
     def test_excessive_transaction_value_is_rejected_atomically(self):
         d = self.doc(qty=Decimal("9999999999999"), price=Decimal("99999999999999"))

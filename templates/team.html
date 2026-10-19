@@ -25,6 +25,7 @@
           <tr>
             <th>Tên đăng nhập</th>
             <th>Họ và tên</th>
+            <th>Chức vụ / Cấp duyệt</th>
             <th>Quyền chức năng</th>
             <th>Duyệt nhập</th>
             <th>Duyệt xuất</th>
@@ -39,6 +40,7 @@
                 <b>{{ e.username }}</b>
               </td>
               <td>{{ e.get_full_name|default:'Chưa đặt tên' }}</td>
+              <td>{{ e.function_access.job_title|default:'Chưa ghi chức danh' }}<small>{% if e.is_superuser %}Admin tổng{% else %}{{ e.function_access.get_approval_level_display|default:'Nhân viên' }}{% endif %}</small></td>
               <td>
                 {% if e.is_superuser %}
                   <span class="badge posted">Admin · Toàn quyền</span>
@@ -76,7 +78,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="7" class="empty">Chưa có nhân viên phù hợp.</td>
+              <td colspan="8" class="empty">Chưa có nhân viên phù hợp.</td>
             </tr>
           {% endfor %}
         </tbody>

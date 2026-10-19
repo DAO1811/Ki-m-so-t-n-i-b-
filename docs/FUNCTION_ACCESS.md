@@ -17,7 +17,7 @@ Ví dụ chỉ cấp **Nhập kho → Lập/sửa phiếu của mình**, chọn 
 ## Các nguyên tắc giữ nguyên
 
 - Admin không cần đánh dấu từng quyền hay phân công từng kho; mọi chức năng hiện tại và chức năng được bổ sung vào danh mục quyền sau này đều thuộc quyền admin.
-- Toàn quyền không bỏ các ràng buộc nghiệp vụ: không tự duyệt phiếu mình lập, không âm tồn, không sửa số đã ghi sổ và không xóa lịch sử bằng thao tác thông thường.
+- Theo thay đổi ngày 19/10/2026, admin được tự duyệt sau cảnh báo và xác nhận, có ghi lịch sử riêng. Tài khoản thường cần cấp cao hơn người lập và không tự duyệt/ngang cấp/ngược cấp. Mọi tài khoản vẫn không được âm tồn, sửa số đã ghi sổ hoặc xóa lịch sử. Xem [cấp duyệt và cơ cấu mới](APPROVAL_HIERARCHY.md).
 - Tài khoản khác muốn duyệt điều chỉnh kiểm kê phải được admin cấp **Điều chỉnh tồn → Duyệt kiểm kê/điều chỉnh (Tổng giám đốc)**. Đây là quyền duyệt toàn công ty; không tự có từ vai trò quản lý kho. Chốt biên bản vẫn chỉ tạo phiếu chênh lệch; phiếu được người đủ quyền duyệt mới cập nhật tồn.
 - Quyền sửa thông tin kho của tài khoản thường không cho sửa người được truy cập/duyệt kho. Những phân công này chỉ admin thay đổi. Tài khoản được cấp xem nhân viên chỉ xem danh sách, không cấp quyền hay sửa tài khoản.
 - Quản lý tài khoản/phân quyền, kết nối Google Drive và khu vực quản trị hệ thống dành cho admin. Cờ kỹ thuật `is_staff` hoặc các quyền Django cũ không mở đường vòng cho tài khoản thường.

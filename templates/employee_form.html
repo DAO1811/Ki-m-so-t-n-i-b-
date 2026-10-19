@@ -12,7 +12,7 @@
           Thêm nhân viên
         {% endif %}
       </h1>
-      <p>Đặt tài khoản, cấp từng quyền và chọn phạm vi kho trên cùng một màn hình.</p>
+      <p>Thiết lập tài khoản → chức vụ và cấp duyệt → quyền công việc → phạm vi kho.</p>
     </div>
   </div>
   <form method="post">
@@ -42,6 +42,14 @@
         </div>
       </div>
     </section>
+    <section class="panel form-panel">
+      <div class="panel-title"><h2>Chức vụ và cấp duyệt</h2></div>
+      <div class="form-grid">
+        <div class="field">{{ form.job_title.label_tag }}{{ form.job_title }}{{ form.job_title.errors }}<small>{{ form.job_title.help_text }}</small></div>
+        <div class="field">{{ form.approval_level.label_tag }}{{ form.approval_level }}{{ form.approval_level.errors }}<small>{{ form.approval_level.help_text }}</small></div>
+      </div>
+      <p class="hint">Mọi cấp đều có thể lập phiếu khi được cấp quyền lập. Một người có cấp cao hơn, đúng quyền và đúng kho duyệt là đủ. Admin tổng có thể tự duyệt sau cảnh báo và xác nhận.</p>
+    </section>
     <section class="panel form-panel record-panel" id="function-permissions">
       <div class="panel-title"><h2>Quyền từng chức năng</h2><span id="permission-count">{{ form.function_permissions.value|length }} quyền đang chọn</span></div>
       {% if editing_admin %}
@@ -58,7 +66,7 @@
           </fieldset>
         {% endfor %}
       </div>
-      <p class="hint">Chỉ admin tạo tài khoản, cấp quyền và cấu hình kết nối Drive. Quyền duyệt kiểm kê / điều chỉnh có thể cấp cho tài khoản Tổng giám đốc; admin luôn có quyền này. Người lập không tự duyệt phiếu.</p>
+      <p class="hint">Chỉ admin tạo tài khoản, cấp quyền và cấu hình Drive. Duyệt kiểm kê / điều chỉnh vẫn phải được cấp riêng; tài khoản thường không tự duyệt phiếu mình lập.</p>
     </section>
     <section class="panel form-panel">
       <div class="panel-title"><h2>Phạm vi kho và phân công duyệt</h2></div>

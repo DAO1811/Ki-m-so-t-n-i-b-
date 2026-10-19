@@ -3,19 +3,28 @@
 {% block content %}
   <div class="page-heading">
     <div>
-      <h1>{% icon 'shield' %}Phiếu đang chờ bạn duyệt</h1>
-      <p>Chỉ hiển thị phiếu bạn có quyền xử lý tại kho được phân công.</p>
+      <h1>{% icon 'shield' %}{% if access.admin %}Duyệt & xử lý phiếu{% else %}Phiếu chờ tôi duyệt{% endif %}</h1>
+      <p>{% if access.admin %}Theo dõi toàn bộ phiếu, gồm cả phiếu admin lập, phiếu yêu cầu sửa và phiếu đã hoàn tất.{% else %}Phiếu của cấp dưới, đúng quyền chức năng và phạm vi kho được giao.{% endif %}</p>
     </div>
-    <span class="count-chip">{{ approval_total }} phiếu cần xử lý</span>
+    <span class="count-chip">{{ approval_total }} phiếu trong danh sách</span>
   </div>
   <div class="notice">
-    {% icon 'shield' %}<span>Nhập / kiểm kê / điều chỉnh do quản lý kho xác nhận. Xuất và chuyển đi do người được admin chỉ định. Người lập không tự duyệt phiếu của mình.</span>
+    {% icon 'shield' %}<span>Nhân viên → Leader → Trưởng phòng → Admin tổng. Một người cấp cao hơn đủ quyền duyệt là đủ. Admin tổng có ngoại lệ tự duyệt, phải xác nhận cảnh báo và được ghi lịch sử.</span>
   </div>
+  {% if access.admin %}
+    <nav class="document-tabs" aria-label="Phạm vi xử lý"><a href="?scope=all&amp;warehouse=" {% if monitoring %}class="active"{% endif %}>Theo dõi toàn công ty</a><a href="?scope=actionable&amp;warehouse=" {% if not monitoring %}class="active"{% endif %}>Có thể duyệt ngay</a><a href="{% url 'documents' %}?warehouse=">Tra cứu tất cả phiếu</a></nav>
+  {% endif %}
+  {% if active_warehouse %}<div class="notice warning"><span>Đang lọc theo kho {{ active_warehouse.code }}. <a href="?warehouse=">Xem tất cả kho được cấp quyền</a></span></div>{% endif %}
+  <form class="filters">
+    <input type="hidden" name="scope" value="{{ request.GET.scope|default:'all' }}">
+    <div class="search-box">{% icon 'search' %}<input name="q" value="{{ request.GET.q }}" placeholder="Mã phiếu, người lập, chứng từ nguồn" aria-label="Tìm phiếu"></div>
+    <select name="kind" aria-label="Loại phiếu"><option value="">Tất cả loại phiếu</option>{% for value,label in kinds %}<option value="{{ value }}" {% if request.GET.kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="status" aria-label="Trạng thái"><option value="">{% if monitoring %}Đang chờ / cần xử lý{% else %}Chờ duyệt / chờ nhận{% endif %}</option>{% for value,label in statuses %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <button class="button secondary">Lọc phiếu</button>
+  </form>
   <section class="panel">
     {% include 'document_table.html' %}
     {% include 'pagination.html' %}
   </section>
-  <div class="hint">
-    Nếu bạn là người lập, xem trạng thái tại <a href="{% url 'documents' %}?mine=1">Phiếu tôi lập</a>. Quản trị viên phân công người duyệt tại <a href="{% url 'warehouse_list' %}">Kho hàng</a>.
-  </div>
+  <p class="hint">Mở phiếu để duyệt, yêu cầu sửa hoặc hủy phiếu chưa ghi sổ theo quyền. Phiếu đã ghi sổ giữ nguyên lịch sử; sai lệch xử lý bằng phiếu điều chỉnh được duyệt.</p>
 {% endblock %}
