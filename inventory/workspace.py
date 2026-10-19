@@ -52,6 +52,8 @@ def workspace_context(request):
         "stock": "Tồn kho",
         "ledger": "Thẻ kho",
         "loans": "Mượn & trả",
+        "loan_return": "Trả hàng theo lệnh mượn",
+        "loan_return_edit": "Sửa phiếu trả hàng",
         "products": "Hàng hóa",
         "product_new": "Thêm hàng hóa",
         "product_edit": "Sửa hàng hóa",

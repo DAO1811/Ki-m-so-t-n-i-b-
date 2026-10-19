@@ -3,80 +3,134 @@
 {% block content %}
   <div class="page-heading">
     <div>
-      <h1>{% icon 'loan' %}Mượn & trả giữa các kho</h1>
-      <p>Hàng mượn tách khỏi tồn khả dụng. Chỉ được trả theo lệnh mượn gốc.</p>
+      <h1>{% icon 'loan' %}Mượn & trả hàng</h1>
+      <p>Chọn lệnh mượn, nhập số lượng cần trả và theo dõi đến khi kho cho mượn nhận lại hàng.</p>
     </div>
     {% if access.loans_create %}
       <a class="button" href="{% url 'operation_new' 'loan' %}">{% icon 'plus' %}Lập lệnh cho mượn</a>
     {% endif %}
   </div>
-  <div class="notice">
-    {% icon 'lock' %}<span><b>Tồn mượn tạm bị khóa:</b> không được xuất dùng, luân chuyển hoặc cho mượn tiếp. Bấm <b>Trả hàng</b> ngay tại lệnh cần trả; hệ thống tự điền kho và các hàng còn mượn.</span>
+
+  <div class="loan-guide" aria-label="Các bước trả hàng">
+    <span><b>1</b> Chọn lệnh & lập phiếu trả</span>
+    <span><b>2</b> Người có quyền duyệt chuyển trả</span>
+    <span><b>3</b> Kho cho mượn xác nhận nhận lại</span>
   </div>
-  <section class="panel">
-    <div class="panel-title">
-      <h2>Lệnh đã nhận & đối chiếu trả hàng</h2>
-    </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Lệnh mượn</th>
-            <th>Kho cho → kho mượn</th>
-            <th>Hàng hóa</th>
-            <th>Đã mượn</th>
-            <th>Đã trả</th>
-            <th>Tồn mượn tạm</th>
-            <th>Đang trả</th>
-            <th>Giá trị trung gian</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-            <tr>
-              <td>
-                <a class="document-code" href="{% url 'document_detail' row.doc.pk %}">PK-{{ row.doc.pk|stringformat:'06d' }}</a>
-                <small>Ngày mượn: {{ row.doc.business_date|date:'d/m/Y' }}</small><small>Hạn trả: {{ row.doc.due_date|date:'d/m/Y'|default:'Chưa ghi' }}</small>
-                {% if row.overdue %}<span class="badge rejected">Quá hạn trả</span>{% endif %}
-              </td>
-              <td>{{ row.doc.source.code }} → {{ row.doc.destination.code }}</td>
-              <td>
-                <b>{{ row.product.sku }}</b><small>{{ row.product.name }}</small>
-              </td>
-              <td>{{ row.quantity|number }}</td>
-              <td>{{ row.returned|number }}</td>
-              <td>
-                <span class="badge {% if row.holding == 0 %}posted{% endif %}">{{ row.holding|number }} {{ row.product.unit }}</span>
-              </td>
-              <td>{{ row.pending|number }}</td>
-              <td>{{ row.value|money }}</td>
-              <td>
-                {% if row.holding > 0 and row.can_return and access.returns_create %}
-                  <a class="button secondary small"
-                     href="{% url 'operation_new' 'return' %}?loan={{ row.doc.pk }}">{% icon 'loan' %}Trả hàng</a>
-                {% elif row.outstanding == 0 %}
-                  <span class="badge posted">Đã trả hết</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="9">
-                <div class="empty-state">
-                  {% icon 'loan' %}<strong>Chưa có lệnh mượn đã nhận</strong><span>Lập lệnh cho mượn, duyệt chuyển đi và xác nhận nhận hàng để theo dõi tại đây.</span>
-                </div>
-              </td>
-            </tr>
+
+  <form method="get" class="filters loan-filters" aria-label="Tìm lệnh mượn">
+    <label class="loan-search" for="loan-search">
+      <span>Tìm lệnh mượn</span>
+      <input type="search" id="loan-search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Mã phiếu, kho, mã hoặc tên hàng">
+    </label>
+    <label for="loan-state">
+      <span>Trạng thái</span>
+      <select name="state" id="loan-state">
+        <option value="outstanding" {% if not request.GET.state or request.GET.state == 'outstanding' %}selected{% endif %}>Còn hàng chưa trả</option>
+        <option value="pending" {% if request.GET.state == 'pending' %}selected{% endif %}>Có phiếu trả đang xử lý</option>
+        <option value="completed" {% if request.GET.state == 'completed' %}selected{% endif %}>Đã trả hết</option>
+        <option value="all" {% if request.GET.state == 'all' %}selected{% endif %}>Tất cả lệnh đã nhận</option>
+      </select>
+    </label>
+    <button type="submit" class="button secondary">{% icon 'search' %}Tìm kiếm</button>
+    {% if request.GET.q or request.GET.state %}<a class="text-link" href="{% url 'loans' %}">Bỏ lọc</a>{% endif %}
+  </form>
+
+  <div class="loan-list">
+    {% for group in loan_groups %}
+      <article class="panel loan-card" aria-labelledby="loan-title-{{ group.loan.pk }}">
+        <div class="loan-card-heading">
+          <div>
+            <div class="loan-card-title">
+              <h2 id="loan-title-{{ group.loan.pk }}"><a href="{% url 'document_detail' group.loan.pk %}">PK-{{ group.loan.pk|stringformat:'06d' }}</a></h2>
+              {% if group.overdue %}<span class="badge rejected">Quá hạn trả</span>{% endif %}
+            </div>
+            <p>Mượn ngày {{ group.loan.business_date|date:'d/m/Y' }} · Hạn trả: {{ group.loan.due_date|date:'d/m/Y'|default:'Chưa ghi' }}</p>
+          </div>
+          {% if group.can_start_return and group.has_available %}
+            <a class="button" href="{% url 'loan_return' group.loan.pk %}">{% icon 'loan' %}Trả hàng</a>
+          {% endif %}
+        </div>
+
+        <div class="loan-warehouses">
+          <div><small>Kho cho mượn</small><strong>{{ group.loan.source.code }} · {{ group.loan.source.name }}</strong></div>
+          <span class="loan-direction" aria-hidden="true">{% icon 'arrow' %}</span>
+          <div><small>Kho đang mượn</small><strong>{{ group.loan.destination.code }} · {{ group.loan.destination.name }}</strong></div>
+        </div>
+
+        <div class="loan-items">
+          {% for item in group.items %}
+            <div class="loan-item">
+              <div class="loan-product"><strong>{{ item.product.sku }}</strong><span>{{ item.product.name }}</span><small>Đơn vị: {{ item.product.unit }}</small></div>
+              <dl class="loan-item-metrics">
+                <div><dt>Đã mượn</dt><dd>{{ item.borrowed|number }}</dd></div>
+                <div><dt>Đã nhận lại</dt><dd>{{ item.returned|number }}</dd></div>
+                <div class="loan-pending-metric"><dt>Đang xử lý trả</dt><dd>{{ item.pending_draft|number }} <small>chờ duyệt</small></dd><small>{{ item.in_transit|number }} chờ nhận</small></div>
+                <div class="loan-available"><dt>Có thể lập trả</dt><dd>{{ item.available|number }}</dd></div>
+              </dl>
+            </div>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-  <section class="panel">
-    <div class="panel-title">
-      <h2>Đang chờ bên mượn nhận hàng</h2>
-    </div>
-    {% include 'document_table.html' with documents=transit_loans %}
-  </section>
+        </div>
+
+        {% if group.returns %}
+          <details class="loan-returns" {% if group.has_pending %}open{% endif %}>
+            <summary>Phiếu trả của lệnh này <span>{{ group.returns|length }}</span></summary>
+            <div class="loan-return-list">
+              {% for ret in group.returns %}
+                <div class="loan-return-status">
+                  <div class="loan-return-ref"><a href="{% url 'document_detail' ret.document.pk %}">PK-{{ ret.document.pk|stringformat:'06d' }}</a><span class="badge {{ ret.document.status|lower }}">{{ ret.document.status|status_label }}</span><small>{{ ret.document.business_date|date:'d/m/Y' }}</small></div>
+                  <div class="loan-next-step">
+                    {% if ret.document.status == 'DRAFT' %}
+                      <strong>Bước tiếp theo: duyệt chuyển trả</strong>
+                      <p>{% if ret.can_approve %}Bạn có quyền xử lý. Mở phiếu để kiểm tra và duyệt.{% else %}{{ ret.reason|default:'Chờ người đủ cấp và quyền duyệt phiếu.' }}{% endif %}</p>
+                    {% elif ret.document.status == 'TRANSIT' %}
+                      <strong>Bước tiếp theo: kho cho mượn nhận lại</strong>
+                      <p>{% if ret.can_approve %}Bạn có quyền xác nhận. Chỉ xác nhận sau khi nhận đủ hàng thực tế.{% else %}{{ ret.reason|default:'Chờ người có quyền tại kho cho mượn xác nhận nhận hàng.' }}{% endif %}</p>
+                    {% elif ret.document.status == 'REJECTED' %}
+                      <strong>Người lập cần sửa phiếu trả</strong>
+                      <p>{{ ret.document.closure_reason|default:'Mở phiếu để xem yêu cầu sửa.' }}</p>
+                    {% elif ret.document.status == 'POSTED' %}
+                      <strong>Kho cho mượn đã nhận lại hàng</strong>
+                      <p>Đã cập nhật số lượng trả và tồn khả dụng.</p>
+                    {% else %}
+                      <p>{{ ret.document.closure_reason|default:'Phiếu không làm thay đổi tồn kho.' }}</p>
+                    {% endif %}
+                  </div>
+                  <div class="loan-return-actions">
+                    {% if ret.can_edit %}<a class="button secondary small" href="{% url 'document_edit' ret.document.pk %}">{% icon 'edit' %}Sửa phiếu trả</a>{% endif %}
+                    <a class="button {% if not ret.can_approve %}secondary{% endif %} small" href="{% url 'document_detail' ret.document.pk %}">{% if ret.can_approve and ret.document.status == 'DRAFT' %}Mở để duyệt{% elif ret.can_approve and ret.document.status == 'TRANSIT' %}Mở để nhận hàng{% else %}Xem phiếu{% endif %}{% icon 'chevron' %}</a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+        {% if not group.has_available %}
+          <div class="loan-card-note">{% icon 'shield' %}<span>Không còn số lượng có thể lập trả thêm. Nếu đang có phiếu chờ duyệt hoặc chờ nhận, hãy hoàn tất phiếu đó trước.</span></div>
+        {% elif not group.can_start_return %}
+          <div class="loan-card-note">{% icon 'lock' %}<span>Bạn đang xem đối chiếu. Người được cấp quyền lập phiếu trả tại kho đang mượn có thể tạo phiếu trả.</span></div>
+        {% endif %}
+      </article>
+    {% empty %}
+      <section class="panel">
+        <div class="empty-state">
+          {% icon 'loan' %}<strong>Không có lệnh mượn phù hợp</strong><span>Thử chọn “Tất cả lệnh đã nhận” hoặc bỏ bộ lọc. Lệnh đang chuyển đến kho mượn được theo dõi bên dưới.</span>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+  {% include 'pagination.html' %}
+
+  {% if return_documents %}
+    <section class="panel loan-transit">
+      <div class="panel-title"><div><h2>{% icon 'file' %}Phiếu trả cần theo dõi</h2><p>Mở phiếu để xem bước tiếp theo và xử lý theo quyền được cấp.</p></div></div>
+      {% include 'document_table.html' with documents=return_documents %}
+    </section>
+  {% endif %}
+  {% if transit_loans %}
+    <section class="panel loan-transit">
+      <div class="panel-title"><div><h2>{% icon 'transfer' %}Lệnh cho mượn đang xử lý</h2><p>Mở phiếu để duyệt chuyển đi hoặc xác nhận nhận hàng. Chỉ lập trả sau khi kho mượn đã nhận hàng.</p></div></div>
+      {% include 'document_table.html' with documents=transit_loans %}
+    </section>
+  {% endif %}
+  <div class="notice loan-lock-note">{% icon 'lock' %}<span>Hàng đang mượn được theo dõi riêng và không được xuất dùng, chuyển kho hoặc cho mượn tiếp. Hàng chỉ trở lại tồn khả dụng của kho cho mượn sau khi xác nhận nhận lại.</span></div>
 {% endblock %}

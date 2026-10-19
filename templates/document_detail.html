@@ -10,6 +10,7 @@
       <p>{{ doc.get_kind_display }} · Tạo ngày {{ doc.created_at|date:'d/m/Y H:i' }}</p>
     </div>
     <div class="heading-actions">
+      {% if can_return_loan %}<a class="button" href="{% url 'loan_return' doc.pk %}">{% icon 'loan' %}Trả hàng đã mượn</a>{% endif %}
       <button type="button" class="button secondary" data-print>In phiếu</button>
       {% if doc.created_by_id == user.pk and can_edit_doc and not qr_session %}
         {% if doc.status == 'DRAFT' or doc.status == 'REJECTED' %}
@@ -22,11 +23,17 @@
               action="{% url 'document_post' doc.pk %}"
               data-confirm="{% if self_approval %}CẢNH BÁO: Bạn đang tự duyệt phiếu do chính mình lập. Thao tác này sẽ được ghi rõ trong lịch sử. {% endif %}{{ doc.action_label }} cho phiếu PK-{{ doc.pk|stringformat:'06d' }}? Số tồn sẽ được cập nhật.">
           {% csrf_token %}
+          <input type="hidden" name="expected_status" value="{{ doc.status }}">
+          <input type="hidden" name="expected_revision" value="{{ doc.revision }}">
           <button class="button">{% icon 'check' %}{{ doc.action_label }}</button>
         </form>
       {% endif %}
     </div>
   </div>
+  {% if doc.kind == 'RETURN' %}
+    <div class="notice"><span><strong>Trả hàng theo lệnh PK-{{ doc.loan_id|stringformat:'06d' }}.</strong> Trả từ {{ doc.source.code }} về {{ doc.destination.code }}. {% if doc.status == 'DRAFT' %}Tiếp theo: người đủ cấp và quyền duyệt chuyển trả.{% elif doc.status == 'TRANSIT' %}Tiếp theo: kho cho mượn xác nhận đã nhận lại; tồn kho chưa được cộng về.{% endif %} {% if can_view_return_loan %}<a href="{% url 'document_detail' doc.loan_id %}">Xem lệnh mượn gốc</a> · {% endif %}<a href="{% url 'loans' %}?state=all">Theo dõi mượn & trả</a></span></div>
+  {% endif %}
+  {% if related_returns %}<section class="panel record-panel"><h2>Các lần trả của lệnh này</h2>{% for ret in related_returns %}<p><a href="{% url 'document_detail' ret.pk %}">PK-{{ ret.pk|stringformat:'06d' }}</a> · {{ ret.status|status_label }} · {{ ret.business_date|date:'d/m/Y' }}</p>{% endfor %}</section>{% endif %}
   {% if self_approval %}
     <div class="notice warning"><span><strong>Bạn đang tự duyệt phiếu của mình.</strong> Kiểm tra kho, hàng, số lượng và đơn giá trước khi xác nhận. Lịch sử sẽ ghi rõ Admin tổng tự duyệt.<label class="checkbox-line"><input type="checkbox" form="document-approve-form" name="confirm_self_approval" value="yes" required> Tôi đã kiểm tra và xác nhận tự duyệt phiếu này.</label></span></div>
   {% endif %}

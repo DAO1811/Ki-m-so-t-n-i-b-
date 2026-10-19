@@ -2528,3 +2528,463 @@ body:has(.sidebar-open) {
 .custom-field-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .custom-field-preview label { grid-column: 1 / -1; font-weight: 600; }
 .custom-field-preview input { min-width: 0; width: 100%; }
+
+/* Loan and return workspace: one original loan, one clear return action. */
+.loan-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 20px;
+}
+.loan-guide > span {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.loan-guide b {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--green-soft);
+  color: var(--green-deep);
+}
+.loan-guide .current {
+  border-color: var(--green);
+}
+.loan-filters {
+  gap: 12px;
+  align-items: flex-end;
+}
+.loan-filters > label {
+  display: grid;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}
+.loan-filters .loan-search {
+  flex: 1;
+  min-width: 220px;
+}
+.loan-filters .loan-search input {
+  max-width: none;
+  width: 100%;
+}
+.loan-filters > .text-link {
+  padding: 7px 0;
+}
+.loan-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+.loan-card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.loan-card-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.loan-card-heading p {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.loan-warehouses {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 15px 20px;
+  background: var(--surface-alt);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.loan-warehouses > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.loan-warehouses small,
+.loan-return-limit > small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.loan-warehouses strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 650;
+}
+.loan-direction {
+  color: var(--green);
+}
+.loan-item {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr);
+  gap: 22px;
+  align-items: center;
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.loan-product {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.loan-product > strong {
+  font-size: 12px;
+}
+.loan-product > span {
+  font-size: 11px;
+}
+.loan-product > small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.loan-item-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.loan-item-metrics > div {
+  min-width: 0;
+}
+.loan-item-metrics dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+.loan-item-metrics dd {
+  margin: 3px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.loan-item-metrics small {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.loan-pending-metric dd {
+  font-size: 12px;
+}
+.loan-pending-metric dd small {
+  display: inline;
+}
+.loan-item-metrics .loan-available dd {
+  color: var(--green-deep);
+}
+.loan-returns {
+  padding: 0 20px;
+}
+.loan-returns summary {
+  padding: 15px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.loan-returns summary > span {
+  margin-left: 6px;
+  border-radius: 5px;
+  background: var(--surface-alt);
+  padding: 2px 6px;
+  color: var(--ink);
+}
+.loan-return-status {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.loan-return-ref {
+  display: flex;
+  gap: 5px 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.loan-return-ref > a {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+}
+.loan-return-ref small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.loan-next-step {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.loan-next-step strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.loan-next-step p {
+  font-size: 10px;
+}
+.loan-return-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.loan-card-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 20px;
+  background: var(--surface-alt);
+  border-radius: 0 0 var(--radius) var(--radius);
+  color: var(--muted);
+  font-size: 10px;
+}
+.loan-card-note > .icon {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+}
+.loan-transit {
+  margin-top: 22px;
+}
+.loan-transit .panel-title p {
+  font-size: 11px;
+  margin-top: 5px;
+}
+.loan-lock-note {
+  margin-top: 20px;
+}
+.loan-return-context .loan-warehouses {
+  border-top: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.loan-return-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  padding: 13px 20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.loan-return-meta strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.loan-return-products > .panel-title {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.loan-return-products .panel-title p {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.loan-return-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(170px, 0.75fr);
+  gap: 24px;
+  align-items: start;
+  padding: 20px;
+  border-top: 1px solid var(--line);
+}
+.loan-return-row.has-error {
+  background: var(--red-soft);
+}
+.loan-return-limit {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.loan-return-limit strong {
+  color: var(--green-deep);
+  font-size: 20px;
+  line-height: 1.4;
+}
+.loan-return-limit strong span {
+  font-size: 11px;
+  font-weight: 500;
+}
+.loan-return-quantity {
+  min-width: 0;
+}
+.loan-return-quantity label {
+  margin: 0 0 6px;
+  font-size: 11px;
+}
+.loan-quantity-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.loan-quantity-input input {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.loan-quantity-input > span {
+  flex-shrink: 0;
+  max-width: 65px;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  color: var(--muted);
+}
+.loan-return-note {
+  padding: 20px;
+  border-top: 1px solid var(--line);
+}
+.loan-return-note label {
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.loan-return-note textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+}
+.loan-return-submit {
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.loan-return-summary {
+  flex: 1;
+  min-width: 160px;
+  font-size: 11px;
+  color: var(--muted);
+}
+@media (max-width: 1100px) {
+  .loan-guide {
+    gap: 8px;
+  }
+  .loan-guide > span {
+    padding: 10px;
+    font-size: 10px;
+  }
+  .loan-item {
+    grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr);
+    gap: 16px;
+  }
+  .loan-item-metrics {
+    gap: 10px;
+  }
+  .loan-return-status {
+    grid-template-columns: 120px minmax(0, 1fr);
+  }
+  .loan-return-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .loan-return-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .loan-return-row .loan-product {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 650px) {
+  .loan-guide {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .loan-guide > span {
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+  .loan-guide b {
+    width: 23px;
+    height: 23px;
+    border-radius: 6px;
+  }
+  .loan-filters > label,
+  .loan-filters .loan-search {
+    width: 100%;
+    min-width: 0;
+  }
+  .loan-filters select {
+    width: 100%;
+    max-width: none;
+  }
+  .loan-card-heading {
+    padding: 16px;
+  }
+  .loan-card-heading > .button {
+    padding: 8px 10px;
+  }
+  .loan-warehouses {
+    gap: 10px;
+    padding: 13px 16px;
+  }
+  .loan-warehouses strong {
+    font-size: 11px;
+  }
+  .loan-item {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+    gap: 13px;
+  }
+  .loan-item-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px 20px;
+  }
+  .loan-return-status {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .loan-return-ref > a {
+    width: auto;
+  }
+  .loan-return-actions {
+    grid-column: 1;
+  }
+  .loan-returns {
+    padding: 0 16px;
+  }
+  .loan-return-row {
+    padding: 16px;
+    gap: 16px 12px;
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 0.85fr);
+  }
+  .loan-return-meta,
+  .loan-return-note,
+  .loan-card-note {
+    padding: 13px 16px;
+  }
+  .loan-return-submit {
+    bottom: 6px;
+    padding: 12px;
+    gap: 10px;
+  }
+  .loan-return-summary {
+    order: -1;
+    flex-basis: 100%;
+  }
+  .loan-return-submit > .button:last-child {
+    flex: 1;
+    white-space: normal;
+  }
+}
+@media print {
+  .loan-filters,
+  .loan-guide,
+  .loan-return-actions,
+  .loan-return-submit {
+    display: none;
+  }
+}

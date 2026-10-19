@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <a class="back-link" href="{% url 'loans' %}">← Mượn & trả hàng</a>
+      <h1>{% icon 'loan' %}{% if editing %}Sửa phiếu trả hàng{% else %}Trả hàng đã mượn{% endif %}</h1>
+      <p>Chỉ nhập số lượng thực trả. Kho, hàng hóa và giá vốn được lấy từ lệnh mượn gốc.</p>
+    </div>
+    <a class="button secondary" href="{% url 'document_detail' loan.pk %}">{% icon 'file' %}Xem lệnh mượn PK-{{ loan.pk|stringformat:'06d' }}</a>
+  </div>
+
+  <div class="loan-guide" aria-label="Các bước trả hàng">
+    <span class="current"><b>1</b> Lập phiếu trả</span>
+    <span><b>2</b> Duyệt chuyển trả</span>
+    <span><b>3</b> Kho cho mượn nhận lại</span>
+  </div>
+
+  <form method="post" class="loan-return-form" id="loan-return-form">
+    {% csrf_token %}
+    {{ form.submission_key }}{{ form.revision }}
+    {% if form.non_field_errors %}<div class="message error" role="alert"><span>{{ form.non_field_errors }}</span></div>{% endif %}
+    {% if form.submission_key.errors or form.revision.errors %}<div class="message error" role="alert"><span>{{ form.submission_key.errors }}{{ form.revision.errors }}</span></div>{% endif %}
+    <section class="panel loan-return-context">
+      <div class="loan-warehouses">
+        <div><small>Trả từ kho đang mượn</small><strong>{{ loan.destination.code }} · {{ loan.destination.name }}</strong></div>
+        <span class="loan-direction" aria-hidden="true">{% icon 'arrow' %}</span>
+        <div><small>Trả về kho cho mượn</small><strong>{{ loan.source.code }} · {{ loan.source.name }}</strong></div>
+      </div>
+      <div class="loan-return-meta"><span>Ngày trả: <strong>{{ today|date:'d/m/Y' }}</strong></span><span>Lệnh gốc: <strong>PK-{{ loan.pk|stringformat:'06d' }}</strong></span>{% if editing %}<span>Đang sửa: <strong>PK-{{ editing.pk|stringformat:'06d' }}</strong></span>{% endif %}</div>
+    </section>
+
+    <section class="panel loan-return-products">
+      <div class="panel-title">
+        <div><h2>Chọn số lượng trả</h2><p>Hàng chưa trả lần này để 0. Có thể trả một phần và trả tiếp vào lần sau.</p></div>
+        <div class="heading-actions"><button type="button" class="button secondary small" data-return-fill>Điền số có thể trả</button><button type="button" class="button ghost small" data-return-clear>Xóa số đã nhập</button></div>
+      </div>
+      <div class="loan-return-rows">
+        {% for row in return_rows %}
+          <div class="loan-return-row {% if row.field.errors %}has-error{% endif %}">
+            <div class="loan-product"><strong>{{ row.item.product.sku }}</strong><span>{{ row.item.product.name }}</span><small>Đã mượn {{ row.item.borrowed|number }} · Đã nhận lại {{ row.item.returned|number }} {{ row.item.product.unit }}</small></div>
+            <div class="loan-return-limit"><small>Có thể trả lần này</small><strong>{{ row.item.available|number }} <span>{{ row.item.product.unit }}</span></strong><small>Đã giữ cho phiếu khác: chờ duyệt {{ row.item.pending_draft|number }} · chờ nhận {{ row.item.in_transit|number }}</small></div>
+            <div class="loan-return-quantity"><label for="{{ row.field.id_for_label }}">Số lượng trả <span class="sr-only">{{ row.item.product.sku }}</span></label><div class="loan-quantity-input">{{ row.field }}<span>{{ row.item.product.unit }}</span></div>{{ row.field.errors }}</div>
+          </div>
+        {% empty %}
+          <div class="empty-state">{% icon 'check' %}<strong>Không còn hàng để lập phiếu trả</strong><span>Quay lại lệnh mượn để xem các phiếu đã lập hoặc đang chờ nhận.</span></div>
+        {% endfor %}
+      </div>
+      <div class="loan-return-note"><label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>{{ form.note }}{{ form.note.errors }}<p class="hint">Ghi tình trạng hàng hoặc thông tin bàn giao cần đối chiếu, nếu có.</p></div>
+    </section>
+
+    <div class="notice">{% icon 'shield' %}<span>Lưu phiếu <strong>chưa cộng hàng về kho cho mượn</strong>. Phiếu cần được duyệt chuyển trả, sau đó kho cho mượn kiểm đếm và xác nhận nhận lại.</span></div>
+    <div class="form-actions sticky-actions loan-return-submit">
+      <a class="button secondary" href="{% url 'loans' %}">Quay lại</a>
+      <span class="loan-return-summary" data-return-summary role="status" aria-live="polite">Nhập số lượng các hàng cần trả.</span>
+      {% if return_rows %}<button type="submit" class="button">{% icon 'check' %}{% if editing %}Lưu phiếu trả{% else %}Tạo phiếu trả & chờ duyệt{% endif %}</button>{% endif %}
+    </div>
+  </form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'loan-return.js' %}" defer></script>{% endblock %}

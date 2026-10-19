@@ -109,7 +109,7 @@ class WorkspaceTests(TestCase):
             "/operations/adjust/",
         ]:
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 200)
+                self.assertEqual(self.client.get(path, follow=True).status_code, 200)
 
     def test_warehouse_scope_persists_and_limits_financial_reports(self):
         self.doc(qty=10, post=True)
@@ -174,7 +174,11 @@ class WorkspaceTests(TestCase):
         self.assertNotIn(own.pk, ids)
         self.assertNotIn(foreign.pk, ids)
         self.assertEqual(
-            self.client.post(f"/documents/{good.pk}/post/").status_code, 302
+            self.client.post(
+                f"/documents/{good.pk}/post/",
+                {"expected_status": "DRAFT", "expected_revision": good.revision},
+            ).status_code,
+            302,
         )
         self.assertEqual(
             Balance.objects.get(warehouse=self.a, product=self.p).quantity, 10
@@ -278,13 +282,17 @@ class WorkspaceTests(TestCase):
             kind="LOAN", qty=6, source=self.a, destination=self.b, post=True
         )
         self.client.force_login(self.admin)
-        response = self.client.get("/operations/return/", {"loan": loan.pk})
+        response = self.client.get(
+            "/operations/return/", {"loan": loan.pk}, follow=True
+        )
         form = response.context["form"]
-        lines = response.context["formset"]
-        self.assertTrue(form.fields["source"].disabled)
-        self.assertEqual(form.initial["source"], self.b.pk)
-        self.assertEqual(lines.initial[0]["product"], self.p.pk)
-        self.assertEqual(lines.initial[0]["quantity"], 6)
+        self.assertNotIn("source", form.fields)
+        self.assertNotIn("destination", form.fields)
+        self.assertEqual(response.context["loan"].destination_id, self.b.pk)
+        self.assertEqual(
+            response.context["return_rows"][0]["item"]["product"].pk, self.p.pk
+        )
+        self.assertEqual(response.context["return_rows"][0]["item"]["available"], 6)
         response = self.client.post(
             "/operations/return/",
             self.payload(

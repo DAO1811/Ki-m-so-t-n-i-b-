@@ -38,6 +38,8 @@ VIEW_KEYS = {
     "stocktake_count": "stocktakes_create",
     "stocktake_submit": "stocktakes_create",
     "stocktake_cancel": "stocktakes_create",
+    "loan_return": "returns_create",
+    "loan_return_edit": "returns_create",
 }
 ADMIN_VIEWS = {
     "employee_new",

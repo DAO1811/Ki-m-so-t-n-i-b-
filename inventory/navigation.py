@@ -63,8 +63,22 @@ def navigation(request, access):
             operation("receipts", "IN", "Nhập kho", "in"),
             operation("issues", "OUT", "Xuất kho", "out"),
             operation("transfers", "TRANSFER", "Chuyển kho", "transfer"),
-            item("loans_view", "Mượn & trả", "loan", "loans"),
-            operation("returns", "RETURN", "Trả hàng mượn", "loan"),
+            item(
+                "loans_view",
+                "Mượn & trả",
+                "loan",
+                "loans",
+                ("loans", "loan_return", "loan_return_edit"),
+            ),
+            item(
+                "returns_view",
+                "Phiếu trả hàng",
+                "loan",
+                "documents",
+                query="?kind=RETURN",
+            )
+            if not access.get("loans_view")
+            else None,
             item(
                 "stocktakes_view",
                 "Kiểm kê · QR",

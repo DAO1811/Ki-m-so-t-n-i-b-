@@ -105,16 +105,33 @@ class HierarchyTests(TestCase):
         page = self.client.get(f"/documents/{doc.pk}/")
         self.assertContains(page, 'name="confirm_self_approval"')
         self.assertContains(page, "Bạn đang tự duyệt phiếu của mình.")
-        self.client.post(f"/documents/{doc.pk}/post/")
+        self.client.post(
+            f"/documents/{doc.pk}/post/",
+            {"expected_status": "DRAFT", "expected_revision": 1},
+        )
         self.assertFalse(Balance.objects.exists())
-        self.client.post(f"/documents/{doc.pk}/post/", {"confirm_self_approval": "yes"})
+        self.client.post(
+            f"/documents/{doc.pk}/post/",
+            {
+                "confirm_self_approval": "yes",
+                "expected_status": "DRAFT",
+                "expected_revision": 1,
+            },
+        )
         doc.refresh_from_db()
         self.assertEqual(doc.status, "POSTED")
         self.assertEqual(Balance.objects.get().quantity, 1)
         event = doc.events.get(action="POST")
         self.assertTrue(event.snapshot["admin_self_approved"])
         self.assertEqual(event.snapshot["actor_level"], 40)
-        self.client.post(f"/documents/{doc.pk}/post/", {"confirm_self_approval": "yes"})
+        self.client.post(
+            f"/documents/{doc.pk}/post/",
+            {
+                "confirm_self_approval": "yes",
+                "expected_status": "DRAFT",
+                "expected_revision": 1,
+            },
+        )
         self.assertEqual(Balance.objects.get().quantity, 1)
         self.assertEqual(doc.events.filter(action="POST").count(), 1)
         self.assertContains(

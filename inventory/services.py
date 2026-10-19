@@ -313,7 +313,14 @@ def record(doc, line, wid, delta, value_delta):
 
 
 @transaction.atomic
-def post_document(pk, user, *, confirm_self_approval=False):
+def post_document(
+    pk,
+    user,
+    *,
+    confirm_self_approval=False,
+    expected_status=None,
+    expected_revision=None,
+):
     doc = Document.objects.select_for_update().get(pk=pk)
     from .hierarchy import lock_approval_accounts
 
@@ -325,6 +332,20 @@ def post_document(pk, user, *, confirm_self_approval=False):
     transfer = doc.kind in ["TRANSFER", "LOAN", "RETURN"]
     receiving = doc.status == "TRANSIT" or not doc.source_id
     require_approver(doc, user, receiving)
+    if expected_status is not None and (
+        expected_status not in ["DRAFT", "TRANSIT"] or doc.status != expected_status
+    ):
+        raise ValidationError(
+            "Phiếu đã được xử lý hoặc chuyển sang bước khác. Hãy tải lại phiếu và kiểm tra trước khi tiếp tục."
+        )
+    if expected_revision is not None and (
+        type(expected_revision) is not int
+        or expected_revision < 1
+        or doc.revision != expected_revision
+    ):
+        raise ValidationError(
+            "Nội dung phiếu đã thay đổi. Hãy tải lại phiếu và kiểm tra bản mới trước khi duyệt."
+        )
     if user.is_superuser and doc.created_by_id == user.pk and not confirm_self_approval:
         raise ValidationError(
             "Bạn đang tự duyệt phiếu do chính mình lập. Hãy đánh dấu xác nhận tự duyệt trước khi tiếp tục."

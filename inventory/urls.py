@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import drive_views, views
+from . import drive_views, loan_views, views
 from . import records_views as records
 from . import stocktake_views as counts
 
@@ -78,6 +78,12 @@ urlpatterns = [
     path("stock/", views.stock, name="stock"),
     path("ledger/", views.ledger, name="ledger"),
     path("loans/", views.loans, name="loans"),
+    path("loans/<int:pk>/return/", loan_views.loan_return, name="loan_return"),
+    path(
+        "loans/returns/<int:pk>/edit/",
+        loan_views.loan_return_edit,
+        name="loan_return_edit",
+    ),
     path("products/", views.products, name="products"),
     path("products/new/", views.product_new, name="product_new"),
 ]

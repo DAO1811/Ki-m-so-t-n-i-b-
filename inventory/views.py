@@ -358,6 +358,13 @@ def document_new(request, kind=None):
     operation = fixed or request.POST.get("kind") or request.GET.get("kind", "IN")
     if operation not in dict(Document.TYPES):
         operation = "IN"
+    if operation == "RETURN" and request.method == "GET":
+        loan_id = request.GET.get("loan", "")
+        if loan_id.isdigit() and len(loan_id) <= 18:
+            return redirect("loan_return", pk=int(loan_id))
+        if loan_id:
+            raise Http404("Lệnh mượn không hợp lệ.")
+        return redirect("loans")
     accessible = warehouses_for(request.user)
     warehouse = selected_warehouse(request) or (
         accessible.first() if accessible.count() == 1 else None
@@ -395,6 +402,25 @@ def document_new(request, kind=None):
         and formset.is_valid()
         and validate_available_lines(form, formset)
     ):
+        if operation == "RETURN":
+            from .loan_returns import save_return
+
+            try:
+                doc = save_return(
+                    form.cleaned_data["loan"].pk,
+                    request.user,
+                    {
+                        row.cleaned_data["product"].pk: row.cleaned_data["quantity"]
+                        for row in formset
+                        if row.cleaned_data and not row.cleaned_data.get("DELETE")
+                    },
+                    note=form.cleaned_data.get("note", ""),
+                    submission_key=form.cleaned_data.get("submission_key") or uuid4(),
+                )
+                return redirect("document_detail", pk=doc.pk)
+            except ValidationError as exc:
+                form.add_error(None, exc)
+                return document_form_response(request, form, formset, operation)
         with transaction.atomic():
             key = form.cleaned_data.get("submission_key") or uuid4()
             values = {k: form.cleaned_data.get(k) for k in DocumentForm.Meta.fields}
@@ -425,7 +451,8 @@ def document_new(request, kind=None):
                 )
                 audit_document(doc, request.user, "CREATE")
         messages.success(
-            request, "Đã lưu phiếu chờ duyệt. Người đủ cấp và quyền kiểm tra, duyệt để cập nhật tồn."
+            request,
+            "Đã lưu phiếu chờ duyệt. Người đủ cấp và quyền kiểm tra, duyệt để cập nhật tồn.",
         )
         return redirect("document_detail", pk=doc.pk)
     return document_form_response(request, form, formset, operation)
@@ -436,6 +463,8 @@ def document_edit(request, pk):
     doc = get_object_or_404(
         Document, pk=pk, created_by=request.user, status__in=["DRAFT", "REJECTED"]
     )
+    if doc.kind == "RETURN" and request.method == "GET":
+        return redirect("loan_return_edit", pk=doc.pk)
     if hasattr(doc, "stocktake_session"):
         raise PermissionDenied(
             "Phiếu điều chỉnh kiểm kê khóa theo biên bản gốc. Nếu cần sửa, hủy phiếu rồi mở phiên kiểm kê mới."
@@ -463,6 +492,28 @@ def document_edit(request, pk):
         and formset.is_valid()
         and validate_available_lines(form, formset)
     ):
+        if doc.kind == "RETURN":
+            from .loan_returns import save_return
+
+            try:
+                saved = save_return(
+                    form.cleaned_data["loan"].pk,
+                    request.user,
+                    {
+                        row.cleaned_data["product"].pk: row.cleaned_data["quantity"]
+                        for row in formset
+                        if row.cleaned_data and not row.cleaned_data.get("DELETE")
+                    },
+                    note=form.cleaned_data.get("note", ""),
+                    editing_id=doc.pk,
+                    revision=form.cleaned_data["revision"],
+                )
+                return redirect("document_detail", pk=saved.pk)
+            except ValidationError as exc:
+                form.add_error(None, exc)
+                return document_form_response(
+                    request, form, formset, doc.kind, editing=True
+                )
         with transaction.atomic():
             locked = Document.objects.select_for_update().get(pk=pk)
             if locked.status not in ["DRAFT", "REJECTED"]:
@@ -515,11 +566,30 @@ def document_detail(request, pk):
     from .services import approval_block_reason
 
     approvers = [person for person in candidates if can_approve(doc, person)]
+    can_return_loan = False
+    if (
+        doc.kind == "LOAN"
+        and doc.status == "POSTED"
+        and has_function(request.user, "returns_create")
+    ):
+        from .loan_returns import return_items
+
+        can_return_loan = warehouses_for(request.user).filter(
+            pk=doc.destination_id
+        ).exists() and any(item["available"] > 0 for item in return_items(doc))
     return render(
         request,
         "document_detail.html",
         {
             "doc": doc,
+            "can_return_loan": can_return_loan,
+            "related_returns": documents_for(request.user).filter(
+                kind="RETURN", loan=doc
+            )
+            if doc.kind == "LOAN"
+            else [],
+            "can_view_return_loan": doc.kind == "RETURN"
+            and documents_for(request.user).filter(pk=doc.loan_id).exists(),
             "lines": doc.lines.select_related("product"),
             "can_post": can_post,
             "self_approval": can_post
@@ -567,18 +637,44 @@ def document_detail(request, pk):
 @login_required
 @require_POST
 def document_post(request, pk):
-    get_object_or_404(documents_for(request.user), pk=pk)
+    doc = get_object_or_404(documents_for(request.user), pk=pk)
+    if doc.status in ["DRAFT", "TRANSIT"] and not can_approve(doc, request.user):
+        raise PermissionDenied(
+            "Bạn chưa đủ cấp, quyền hoặc phân công kho để duyệt phiếu này."
+        )
     try:
+        expected_status = request.POST.get("expected_status", "")
+        raw_revision = request.POST.get("expected_revision", "")
+        if (
+            expected_status not in ["DRAFT", "TRANSIT"]
+            or not raw_revision.isascii()
+            or not raw_revision.isdigit()
+            or len(raw_revision) > 10
+            or not 1 <= int(raw_revision) <= 2147483647
+        ):
+            raise ValidationError(
+                "Thông tin xác nhận phiếu chưa hợp lệ. Hãy tải lại phiếu và thực hiện lại thao tác."
+            )
         result = post_document(
             pk,
             request.user,
             confirm_self_approval=request.POST.get("confirm_self_approval") == "yes",
+            expected_status=expected_status,
+            expected_revision=int(raw_revision),
         )
         messages.success(
             request,
-            "Đã xuất kho, đang chờ kho nhận xác nhận."
+            (
+                "Đã duyệt chuyển trả. Chờ kho cho mượn xác nhận nhận lại hàng."
+                if result.kind == "RETURN"
+                else "Đã xuất kho, đang chờ kho nhận xác nhận."
+            )
             if result.status == "TRANSIT"
-            else "Đã ghi sổ và cập nhật tồn kho.",
+            else (
+                "Đã xác nhận nhận lại hàng và cộng tồn về kho cho mượn."
+                if result.kind == "RETURN"
+                else "Đã ghi sổ và cập nhật tồn kho."
+            ),
         )
     except ValidationError as e:
         messages.error(request, " ".join(e.messages))
@@ -704,57 +800,9 @@ def ledger(request):
 
 @login_required
 def loans(request):
-    rows = []
-    warehouse_ids = set(warehouses_for(request.user).values_list("id", flat=True))
-    for doc in (
-        scoped_documents(request)
-        .filter(kind="LOAN", status="POSTED")
-        .select_related("source", "destination")
-        .prefetch_related("lines__product")
-    ):
-        for line in doc.lines.all():
-            returned = (
-                Movement.objects.filter(
-                    document__loan=doc, warehouse=doc.source, product=line.product
-                ).aggregate(n=Sum("delta"))["n"]
-                or 0
-            )
-            holding = LoanHolding.objects.filter(loan_line=line).first()
-            pending = (
-                Line.objects.filter(
-                    document__loan=doc, document__status="TRANSIT", product=line.product
-                ).aggregate(n=Sum("quantity"))["n"]
-                or 0
-            )
-            rows.append(
-                {
-                    "doc": doc,
-                    "product": line.product,
-                    "quantity": line.quantity,
-                    "returned": returned,
-                    "outstanding": line.quantity - returned,
-                    "holding": holding.quantity if holding else 0,
-                    "value": holding.value if holding else 0,
-                    "pending": pending,
-                    "can_return": doc.destination_id in warehouse_ids
-                    and has_function(request.user, "returns_create"),
-                    "overdue": bool(
-                        doc.due_date
-                        and doc.due_date < timezone.localdate()
-                        and line.quantity > returned
-                    ),
-                }
-            )
-    return render(
-        request,
-        "loans.html",
-        {
-            "rows": rows,
-            "transit_loans": scoped_documents(request)
-            .filter(kind="LOAN", status="TRANSIT")
-            .select_related("source", "destination"),
-        },
-    )
+    from .loan_views import loan_dashboard
+
+    return loan_dashboard(request)
 
 
 @login_required
