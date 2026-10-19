@@ -38,7 +38,7 @@ def drive_settings(request):
         ]
         if not getattr(settings, name)
     ]
-    return render(
+    response = render(
         request,
         "drive_settings.html",
         {
@@ -54,6 +54,12 @@ def drive_settings(request):
             "provider": settings.PRIVATE_MEDIA_PROVIDER,
         },
     )
+    # Picker's website-restricted developer key needs the originating website.
+    # Django's default same-origin policy strips Referer on requests to Google.
+    # Share only the origin cross-site, never the path/query; keep the default
+    # policy on every other page, including the OAuth callback.
+    response["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 @login_required

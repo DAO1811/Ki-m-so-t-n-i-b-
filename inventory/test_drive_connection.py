@@ -50,6 +50,17 @@ class DriveConnectionTests(TestCase):
         self.assertNotContains(response, "review-secret")
         self.assertNotContains(response, "review-refresh")
 
+    def test_picker_can_send_origin_without_relaxing_other_pages(self):
+        response = self.client.get("/settings/drive/", secure=True)
+        self.assertEqual(
+            response.headers["Referrer-Policy"], "strict-origin-when-cross-origin"
+        )
+        for path in ["/login/", "/settings/drive/callback/?code=private-review-code"]:
+            self.assertEqual(
+                self.client.get(path, secure=True).headers["Referrer-Policy"],
+                "same-origin",
+            )
+
     @patch("inventory.drive.google_request")
     @patch("inventory.drive.exchange_token")
     def test_check_refreshes_cached_token_and_only_reads_metadata(
