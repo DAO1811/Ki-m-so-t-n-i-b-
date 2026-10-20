@@ -808,6 +808,14 @@ def loans(request):
 @login_required
 def products(request):
     qs = Product.objects.all().order_by("sku")
+    import_result = None
+    if request.GET.get("batch"):
+        result = request.session.get("product_import_result", {})
+        if result.get("owner") == request.user.pk and result.get("key") == request.GET["batch"]:
+            import_result = result
+            qs = qs.filter(pk__in=result["ids"])
+        else:
+            messages.info(request, "Lượt nhập này không còn trong phiên làm việc. Đang hiển thị toàn bộ hàng hóa.")
     if request.GET.get("q"):
         qs = qs.filter(
             Q(name__icontains=request.GET["q"])
@@ -817,7 +825,11 @@ def products(request):
             | Q(model_number__icontains=request.GET["q"])
         )
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
-    return render(request, "products.html", {"products": page, "page_obj": page})
+    return render(
+        request,
+        "products.html",
+        {"products": page, "page_obj": page, "import_result": import_result},
+    )
 
 
 @login_required

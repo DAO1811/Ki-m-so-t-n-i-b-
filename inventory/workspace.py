@@ -2,8 +2,9 @@
 
 from django.db.models import Q
 from django.http import Http404
-from .services import warehouses_for, documents_for, can_approve_adjustments
+
 from .access import access_context
+from .services import can_approve_adjustments, documents_for, warehouses_for
 
 
 def selected_warehouse(request):
@@ -56,6 +57,7 @@ def workspace_context(request):
         "loan_return_edit": "Sửa phiếu trả hàng",
         "products": "Hàng hóa",
         "product_new": "Thêm hàng hóa",
+        "product_import": "Thêm hàng hóa từ Excel",
         "product_edit": "Sửa hàng hóa",
         "product_detail": "Hồ sơ hàng hóa",
         "product_labels": "In tem QR",

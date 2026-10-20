@@ -46,7 +46,13 @@ def navigation(request, access):
                 "Hàng hóa",
                 "box",
                 "products",
-                ("products", "product_detail", "product_new", "product_edit"),
+                (
+                    "products",
+                    "product_detail",
+                    "product_new",
+                    "product_edit",
+                    "product_import",
+                ),
             ),
             item(
                 "warehouses_view",

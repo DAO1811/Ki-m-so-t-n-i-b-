@@ -279,12 +279,15 @@ class ProductForm(forms.ModelForm):
             "storage_instructions": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, custom_fields=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.custom_fields = tuple(
+            CustomField.objects.all() if custom_fields is None else custom_fields
+        )
         self.fields[
             "minimum"
         ].help_text = "Cảnh báo khi tồn khả dụng tại một kho thấp hơn mức này."
-        for field in CustomField.objects.all():
+        for field in self.custom_fields:
             self.fields["extra_" + field.key] = forms.CharField(
                 label=field.label,
                 required=False,
@@ -313,7 +316,7 @@ class ProductForm(forms.ModelForm):
             **self.instance.extra,
             **{
                 f.key: self.cleaned_data.get("extra_" + f.key, "")
-                for f in CustomField.objects.all()
+                for f in self.custom_fields
             },
         }
         return super().save(commit=commit)

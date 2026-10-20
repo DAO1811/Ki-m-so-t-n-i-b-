@@ -1,10 +1,16 @@
 from django.urls import path
 
-from . import drive_views, loan_views, views
+from . import drive_views, loan_views, product_import_views, views
 from . import records_views as records
 from . import stocktake_views as counts
 
 urlpatterns = [
+    path("products/import/", product_import_views.product_import, name="product_import"),
+    path(
+        "products/import/template/",
+        product_import_views.product_import_template,
+        name="product_import_template",
+    ),
     path("products/labels/", records.product_labels, name="product_labels"),
     path("products/<int:pk>/", records.product_detail, name="product_detail"),
     path("products/<int:pk>/qr.png", records.product_qr, name="product_qr"),

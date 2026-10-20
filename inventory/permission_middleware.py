@@ -2,13 +2,14 @@
 
 from django.core.exceptions import PermissionDenied
 from django.utils.deprecation import MiddlewareMixin
+
 from .access import (
-    is_admin,
-    KIND_MODULES,
-    CREATE_KEYS,
     APPROVE_KEYS,
-    function_codes,
+    CREATE_KEYS,
+    KIND_MODULES,
     approval_key,
+    function_codes,
+    is_admin,
 )
 
 VIEW_KEYS = {
@@ -16,6 +17,8 @@ VIEW_KEYS = {
     "product_detail": "products_view",
     "qr_landing": "products_view",
     "product_new": "products_create",
+    "product_import": "products_create",
+    "product_import_template": "products_create",
     "product_edit": "products_edit",
     "product_photo_add": "products_edit",
     "product_qr": "tools_qr",

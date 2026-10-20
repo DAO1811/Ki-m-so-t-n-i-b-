@@ -11,11 +11,16 @@
         <a class="button secondary" href="{% url 'custom_fields' %}">{% icon 'settings' %}Trường bổ sung</a>
       {% endif %}
       {% if access.products_create %}
+        <a class="button secondary" href="{% url 'product_import' %}">{% icon 'upload' %}Nhập hàng hóa từ Excel</a>
         <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
       {% endif %}
     </div>
   </div>
-  <form class="filters">
+  {% if import_result %}
+    <div class="notice"><span>Đang xem <strong>{{ import_result.ids|length }} mã vừa thêm từ Excel</strong> · {{ import_result.filename }}. <a href="{% url 'products' %}">Xem toàn bộ hàng hóa</a></span></div>
+    <input type="hidden" form="product-search" name="batch" value="{{ import_result.key }}">
+  {% endif %}
+  <form class="filters" id="product-search">
     <div class="search-box">
       {% icon 'search' %}
       <input name="q"
