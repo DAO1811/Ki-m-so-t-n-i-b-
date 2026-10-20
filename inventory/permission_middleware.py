@@ -39,6 +39,8 @@ VIEW_KEYS = {
     "stocktake_lookup": "stocktakes_view",
     "stocktake_report": "stocktakes_view",
     "stocktake_count": "stocktakes_create",
+    "stocktake_begin": "stocktakes_create",
+    "stocktake_paper": "stocktakes_create",
     "stocktake_submit": "stocktakes_create",
     "stocktake_cancel": "stocktakes_create",
     "loan_return": "returns_create",

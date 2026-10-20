@@ -6,7 +6,7 @@ from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from .access import has_function
@@ -26,6 +26,9 @@ from .services import audit_document, warehouses_for
 
 def product_from_scan(raw):
     text = str(raw).strip()
+    product = Product.objects.filter(qr_code=text).first()
+    if product:
+        return product
     match = re.search(r"(?:/q/items/|DHD:ITEM:)([a-fA-F0-9-]{36})(?:/|$)", text)
     if match:
         try:
@@ -42,8 +45,10 @@ def product_from_scan(raw):
 
 
 def require_open(session, user):
-    if session.created_by_id != user.pk:
-        raise PermissionDenied("Chỉ người mở phiên được ghi số đếm hoặc gửi duyệt.")
+    if session.counter_id != user.pk and not user.is_superuser:
+        raise PermissionDenied(
+            "Chỉ người nhận kiểm hoặc Admin tổng được ghi số đếm và gửi duyệt."
+        )
     if not warehouses_for(user).filter(
         pk=session.warehouse_id
     ).exists() or not has_function(user, "stocktakes_create"):
@@ -56,14 +61,25 @@ def require_open(session, user):
         )
 
 
+def active_sessions():
+    return StocktakeSession.objects.filter(
+        Q(status__in=["READY", "OPEN"])
+        | Q(status="SUBMITTED", document__status="DRAFT")
+    )
+
+
 @transaction.atomic
-def start_session(warehouse, user):
+def freeze_session(warehouse, user):
     if (
         not has_function(user, "stocktakes_create")
         or not warehouses_for(user).filter(pk=warehouse.pk).exists()
     ):
         raise PermissionDenied
     Warehouse.objects.select_for_update().get(pk=warehouse.pk)
+    if active_sessions().filter(warehouse=warehouse).exists():
+        raise ValidationError(
+            "Kho đã có biên bản đang xử lý. Hoàn tất hoặc hủy phiên cũ có lý do trước khi chốt tồn mới."
+        )
     versions = dict(
         Movement.objects.filter(warehouse=warehouse)
         .values("product_id")
@@ -74,6 +90,8 @@ def start_session(warehouse, user):
         warehouse=warehouse,
         created_by=user,
         cutoff_id=max(versions.values(), default=0),
+        status="READY",
+        locks_inventory=True,
     )
     StocktakeItem.objects.bulk_create(
         [
@@ -92,8 +110,62 @@ def start_session(warehouse, user):
             ).select_related("product")
         ]
     )
-    StocktakeEvent.objects.create(session=session, actor=user, action="START")
+    StocktakeEvent.objects.create(session=session, actor=user, action="FREEZE")
     return session
+
+
+@transaction.atomic
+def begin_session(pk, user, method):
+    session = StocktakeSession.objects.select_for_update().get(pk=pk)
+    if (
+        not has_function(user, "stocktakes_create")
+        or not warehouses_for(user).filter(pk=session.warehouse_id).exists()
+    ):
+        raise PermissionDenied
+    if method not in {"QR", "PAPER"}:
+        raise ValidationError("Chọn kiểm kê bằng giấy hoặc quét QR.")
+    if session.status == "OPEN":
+        if session.counter_id != user.pk and not user.is_superuser:
+            raise PermissionDenied(
+                "Phiên đã có người nhận kiểm. Admin tổng có thể hỗ trợ xử lý."
+            )
+        if session.method == method:
+            return session
+        raise ValidationError(
+            "Phiên đã bắt đầu; không đổi cách kiểm để tránh đếm trùng."
+        )
+    if session.status != "READY" or session.business_date != timezone.localdate():
+        raise ValidationError(
+            "Chỉ bắt đầu từ mốc tồn đã chốt hôm nay. Phiên cũ cần hủy và chốt lại."
+        )
+    Warehouse.objects.select_for_update().get(pk=session.warehouse_id)
+    latest = (
+        Movement.objects.filter(warehouse_id=session.warehouse_id).aggregate(
+            v=Max("id")
+        )["v"]
+        or 0
+    )
+    if latest > session.cutoff_id:
+        raise ValidationError(
+            "Mốc tồn đã biến động; hủy và chốt tồn mới trước khi kiểm."
+        )
+    session.status, session.method, session.started_at = "OPEN", method, timezone.now()
+    from .hierarchy import approval_level
+
+    session.counted_by = user
+    session.creator_level = approval_level(user)
+    session.save(
+        update_fields=["status", "method", "started_at", "counted_by", "creator_level"]
+    )
+    StocktakeEvent.objects.create(session=session, actor=user, action="BEGIN")
+    return session
+
+
+@transaction.atomic
+def start_session(warehouse, user):
+    """Internal convenience; the web workflow freezes then explicitly starts."""
+    session = freeze_session(warehouse, user)
+    return begin_session(session.pk, user, "QR")
 
 
 @transaction.atomic
@@ -153,6 +225,10 @@ def save_count(
         )
     before = item.counted_quantity
     if mode == "ADD":
+        if session.method != "QR":
+            raise ValidationError(
+                "Phiên kiểm bằng giấy: ghi tổng số thực đếm, không quét cộng thêm."
+            )
         quantity = (before or Decimal(0)) + 1
     elif mode != "SET":
         raise ValidationError("Chế độ đếm không hợp lệ.")
@@ -185,9 +261,13 @@ def save_count(
 @transaction.atomic
 def submit_session(pk, user, note):
     session = StocktakeSession.objects.select_for_update().get(pk=pk)
-    if session.status == "COMPLETED" and session.created_by_id == user.pk:
+    if session.status == "COMPLETED" and (
+        session.counter_id == user.pk or user.is_superuser
+    ):
         return None
-    if session.status == "SUBMITTED" and session.created_by_id == user.pk:
+    if session.status == "SUBMITTED" and (
+        session.counter_id == user.pk or user.is_superuser
+    ):
         return session.document
     require_open(session, user)
     Warehouse.objects.select_for_update().get(pk=session.warehouse_id)
@@ -232,7 +312,7 @@ def submit_session(pk, user, note):
         creator_level=session.creator_level,
         kind="ADJUST",
         destination=session.warehouse,
-        created_by=user,
+        created_by_id=session.counter_id,
         note=f"Căn cứ biên bản KK-{session.pk:06d}: " + note.strip(),
     )
     Line.objects.bulk_create(
@@ -265,10 +345,13 @@ def submit_session(pk, user, note):
 def cancel_session(pk, user, reason):
     session = StocktakeSession.objects.select_for_update().get(pk=pk)
     if not user.is_active or (
-        session.created_by_id != user.pk and not user.is_superuser
+        user.pk not in {session.created_by_id, session.counter_id}
+        and not user.is_superuser
     ):
         raise PermissionDenied
-    if session.status != "OPEN" or not reason.strip():
+    if not has_function(user, "stocktakes_create"):
+        raise PermissionDenied
+    if session.status not in ["READY", "OPEN"] or not reason.strip():
         raise ValidationError("Chỉ hủy phiên đang mở và phải ghi lý do.")
     session.status = "CANCELLED"
     session.note = reason.strip()

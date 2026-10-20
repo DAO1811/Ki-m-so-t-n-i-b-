@@ -87,10 +87,10 @@ def navigation(request, access):
             else None,
             item(
                 "stocktakes_view",
-                "Kiểm kê · QR",
+                "Kiểm kê kho",
                 "count",
                 "stocktakes",
-                ("stocktakes", "stocktake_detail", "stocktake_report"),
+                ("stocktakes", "stocktake_detail", "stocktake_report", "stocktake_paper"),
             ),
             operation("adjustments", "ADJUST", "Điều chỉnh tồn", "count"),
             item(

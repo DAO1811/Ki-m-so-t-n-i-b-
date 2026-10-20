@@ -31,6 +31,8 @@ urlpatterns = [
     ),
     path("stocktakes/", counts.stocktakes, name="stocktakes"),
     path("stocktakes/<int:pk>/", counts.stocktake_detail, name="stocktake_detail"),
+    path("stocktakes/<int:pk>/start/", counts.stocktake_begin, name="stocktake_begin"),
+    path("stocktakes/<int:pk>/paper/", counts.stocktake_paper, name="stocktake_paper"),
     path(
         "stocktakes/<int:pk>/lookup/", counts.stocktake_lookup, name="stocktake_lookup"
     ),

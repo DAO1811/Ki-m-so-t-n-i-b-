@@ -2,10 +2,13 @@ from decimal import ROUND_HALF_UP, Decimal, localcontext
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+
+from .product_codes import new_qr_code
 
 
 class FunctionAccess(models.Model):
@@ -86,6 +89,10 @@ class CustomField(models.Model):
 
 class Product(models.Model):
     qr_token = models.UUIDField(default=uuid4, unique=True, editable=False)
+    qr_auto = models.BooleanField("Tự động tạo mã QR", default=True, db_default=True)
+    qr_code = models.CharField(
+        "Mã QR", max_length=120, unique=True, null=True, default=new_qr_code
+    )
     sku = models.CharField("Mã hàng", max_length=50, unique=True)
     name = models.CharField("Tên hàng", max_length=200)
     unit = models.CharField("Đơn vị tính", max_length=30, default="Cái")
@@ -111,6 +118,48 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.sku} · {self.name}"
+
+    @property
+    def qr_value(self):
+        return self.qr_code or f"DHD:ITEM:{self.qr_token}"
+
+    def save(self, *args, **kwargs):
+        from .product_codes import (
+            lock_product_codes,
+            validate_identity,
+            validate_manual_qr,
+        )
+
+        with transaction.atomic():
+            lock_product_codes()
+            if self.pk:
+                previous = (
+                    Product.objects.filter(pk=self.pk)
+                    .values("qr_code", "qr_auto", "qr_token")
+                    .first()
+                )
+                if previous:
+                    previous_code = (
+                        previous["qr_code"] or f"DHD:ITEM:{previous['qr_token']}"
+                    )
+                    if self.qr_code is None and previous["qr_code"] is None:
+                        self.qr_code = previous_code
+                    if (
+                        self.qr_code != previous_code
+                        or self.qr_auto != previous["qr_auto"]
+                        or self.qr_token != previous["qr_token"]
+                    ):
+                        raise ValidationError(
+                            {
+                                "qr_code": "Mã QR gắn với hàng hóa suốt vòng đời, không được thay đổi sau khi tạo."
+                            }
+                        )
+            if not self.qr_code and self.qr_auto:
+                self.qr_code = new_qr_code()
+            if not self.qr_auto:
+                validate_manual_qr(self.qr_code or "")
+            validate_identity(self.sku, self.qr_code, exclude_pk=self.pk)
+            return super().save(*args, **kwargs)
 
 
 class StoredFile(models.Model):
@@ -486,6 +535,22 @@ class ReceiptAttachment(models.Model):
 
 
 class StocktakeSession(models.Model):
+    counted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="counted_stocktakes",
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    method = models.CharField(
+        "Cách kiểm kê",
+        max_length=8,
+        default="QR",
+        db_default="QR",
+        choices=[("QR", "Quét QR"), ("PAPER", "Kiểm bằng giấy")],
+    )
+    locks_inventory = models.BooleanField(default=False, db_default=False)
     creator_level = models.PositiveSmallIntegerField(default=10, editable=False)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
@@ -496,6 +561,7 @@ class StocktakeSession(models.Model):
         max_length=12,
         default="OPEN",
         choices=[
+            ("READY", "Đã chốt tồn, chờ kiểm kê"),
             ("OPEN", "Đang đếm"),
             ("SUBMITTED", "Đã lập phiếu điều chỉnh"),
             ("COMPLETED", "Hoàn tất, không chênh lệch"),
@@ -513,6 +579,13 @@ class StocktakeSession(models.Model):
 
     class Meta:
         ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["warehouse"],
+                condition=Q(locks_inventory=True, status__in=["READY", "OPEN"]),
+                name="one_locked_count_per_warehouse",
+            )
+        ]
 
     def save(self, *args, **kwargs):
         if self._state.adding:
@@ -522,6 +595,14 @@ class StocktakeSession(models.Model):
                 self.creator_level, approval_level(self.created_by)
             )
         return super().save(*args, **kwargs)
+
+    @property
+    def counter(self):
+        return self.counted_by or self.created_by
+
+    @property
+    def counter_id(self):
+        return self.counted_by_id or self.created_by_id
 
     @property
     def workflow_status(self):
@@ -612,6 +693,8 @@ class StocktakeEvent(models.Model):
     action = models.CharField(
         max_length=12,
         choices=[
+            ("FREEZE", "Chốt tồn và khóa kho"),
+            ("BEGIN", "Bắt đầu kiểm đếm"),
             ("START", "Mở phiên"),
             ("SET", "Ghi số đếm"),
             ("ADD", "Quét cộng 1"),

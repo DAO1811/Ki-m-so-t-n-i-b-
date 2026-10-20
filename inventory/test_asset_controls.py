@@ -216,10 +216,35 @@ class AssetControlTests(TestCase):
     def test_stocktake_snapshot_reports_difference_and_updates_after_recount(self):
         self.doc(post=True)
         self.client.force_login(self.maker)
-        self.client.post(
+        response = self.client.post(
             "/operations/count/", self.payload(kind="COUNT", **{"form-0-quantity": "8"})
         )
-        count = Document.objects.get(kind="COUNT")
+        self.assertRedirects(response, "/stocktakes/")
+        self.assertFalse(Document.objects.filter(kind="COUNT").exists())
+        from uuid import uuid4
+        from decimal import Decimal
+        from .stocktakes import (
+            begin_session,
+            freeze_session,
+            save_count,
+            submit_session,
+        )
+
+        session = begin_session(
+            freeze_session(self.a, self.maker).pk, self.maker, "PAPER"
+        )
+        save_count(
+            session.pk,
+            self.maker,
+            self.p,
+            "SET",
+            Decimal(8),
+            None,
+            "Kiểm lại",
+            uuid4(),
+            1,
+        )
+        count = submit_session(session.pk, self.maker, "Thiếu 2, đã kiểm lại")
         line = count.lines.get()
         self.assertEqual(line.stocktake_quantity, 10)
         self.assertEqual(line.count_difference, -2)

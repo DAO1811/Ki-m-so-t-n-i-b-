@@ -375,6 +375,16 @@ def post_document(
         .filter(pk__in=sorted(filter(None, [doc.source_id, doc.destination_id])))
         .order_by("pk")
     )
+    from .stocktakes import active_sessions
+
+    blocked = active_sessions().filter(
+        locks_inventory=True,
+        warehouse_id__in=list(filter(None, [doc.source_id, doc.destination_id])),
+    ).exclude(document_id=doc.pk).select_related("warehouse").first()
+    if blocked:
+        raise ValidationError(
+            f"Kho {blocked.warehouse.code} đang khóa kiểm kê theo KK-{blocked.pk:06d}. Hoàn tất duyệt điều chỉnh hoặc hủy phiên có lý do trước khi ghi sổ giao dịch."
+        )
     if doc.kind in ["COUNT", "ADJUST"]:
         from .models import StocktakeSession
 

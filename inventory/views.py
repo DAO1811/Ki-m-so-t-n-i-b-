@@ -358,6 +358,13 @@ def document_new(request, kind=None):
     operation = fixed or request.POST.get("kind") or request.GET.get("kind", "IN")
     if operation not in dict(Document.TYPES):
         operation = "IN"
+    if operation == "COUNT":
+        if request.method == "POST":
+            messages.info(
+                request,
+                "Kiểm kê mới cần chốt tồn kho trước, sau đó chọn kiểm bằng giấy hoặc QR.",
+            )
+        return redirect("stocktakes")
     if operation == "RETURN" and request.method == "GET":
         loan_id = request.GET.get("loan", "")
         if loan_id.isdigit() and len(loan_id) <= 18:
@@ -807,15 +814,35 @@ def loans(request):
 
 @login_required
 def products(request):
-    qs = Product.objects.all().order_by("sku")
+    from django.db.models import Prefetch
+
+    from .models import ProductPhoto
+
+    qs = (
+        Product.objects.all()
+        .order_by("sku")
+        .prefetch_related(
+            Prefetch(
+                "photos",
+                queryset=ProductPhoto.objects.order_by("pk"),
+                to_attr="catalog_photos",
+            )
+        )
+    )
     import_result = None
     if request.GET.get("batch"):
         result = request.session.get("product_import_result", {})
-        if result.get("owner") == request.user.pk and result.get("key") == request.GET["batch"]:
+        if (
+            result.get("owner") == request.user.pk
+            and result.get("key") == request.GET["batch"]
+        ):
             import_result = result
             qs = qs.filter(pk__in=result["ids"])
         else:
-            messages.info(request, "Lượt nhập này không còn trong phiên làm việc. Đang hiển thị toàn bộ hàng hóa.")
+            messages.info(
+                request,
+                "Lượt nhập này không còn trong phiên làm việc. Đang hiển thị toàn bộ hàng hóa.",
+            )
     if request.GET.get("q"):
         qs = qs.filter(
             Q(name__icontains=request.GET["q"])
@@ -1095,7 +1122,12 @@ def product_edit(request, pk):
     return render(
         request,
         "product_form.html",
-        {"form": form, "editing": True, "photo_form": photo_form},
+        {
+            "form": form,
+            "editing": True,
+            "photo_form": photo_form,
+            "photos": product.photos.select_related("file"),
+        },
     )
 
 

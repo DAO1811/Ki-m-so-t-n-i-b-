@@ -1,0 +1,6 @@
+<div class="count-steps" aria-label="Quy trình kiểm kê">
+  <span class="{% if not session %}current{% else %}complete{% endif %}"><b>1</b>Chốt tồn</span>
+  <span class="{% if session.status == 'READY' %}current{% elif session %}complete{% endif %}"><b>2</b>Chọn cách kiểm</span>
+  <span class="{% if session.status == 'OPEN' %}current{% elif session.status == 'SUBMITTED' or session.status == 'COMPLETED' %}complete{% endif %}"><b>3</b>Kiểm đếm</span>
+  <span class="{% if session.status == 'SUBMITTED' or session.status == 'COMPLETED' %}current{% endif %}"><b>4</b>Đối chiếu & duyệt</span>
+</div>

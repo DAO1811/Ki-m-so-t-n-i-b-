@@ -14,7 +14,7 @@ from . import release_backup as backup
 class AssetMigrationTests(TransactionTestCase):
     def test_existing_stock_values_users_and_historical_dates_survive_upgrade(self):
         old = [("inventory", "0007_balance_nonnegative_stock_value")]
-        latest = [("inventory", "0017_approval_hierarchy")]
+        latest = [("inventory", "0018_product_qr_stocktake_workflow")]
         executor = MigrationExecutor(connection)
         try:
             executor.migrate(old)

@@ -39,6 +39,7 @@
         <thead>
           <tr>
             <th>Mã hàng</th>
+            <th>Hình ảnh</th>
             <th>Tên hàng</th>
             <th>Đơn vị</th>
             <th>Mức tồn tối thiểu</th>
@@ -52,6 +53,7 @@
               <td>
                 <a href="{% url 'product_detail' p.pk %}"><b>{{ p.sku }}</b></a>
               </td>
+              <td><a class="catalog-photo" href="{% if access.products_edit %}{% url 'product_edit' p.pk %}#photos{% else %}{% url 'product_detail' p.pk %}{% endif %}" aria-label="{% if access.products_edit %}Cập nhật ảnh{% else %}Xem ảnh{% endif %} {{ p.sku }}">{% if p.catalog_photos %}<img src="{% url 'private_file' p.catalog_photos.0.file_id %}" alt="{{ p.name }}" loading="lazy">{% else %}{% icon 'box' %}{% endif %}</a>{% if access.products_edit %}<a class="text-link small" href="{% url 'product_edit' p.pk %}#photos">Cập nhật ảnh</a>{% endif %}</td>
               <td>
                 {{ p.name }}<small>{{ p.category }}
                 {% if p.brand %}· {{ p.brand }}{% endif %}
@@ -74,7 +76,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6">
+              <td colspan="7">
               <div class="empty-state">
                 {% icon 'box' %}<strong>Chưa có hàng hóa phù hợp</strong><span>Thêm mã hàng đầu tiên để bắt đầu nhập kho.</span>
                 {% if access.products_create %}

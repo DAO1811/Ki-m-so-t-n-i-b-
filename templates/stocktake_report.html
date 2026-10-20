@@ -12,8 +12,9 @@
     <p>
       <b>Kho:</b> {{ session.warehouse }} · {{ session.warehouse.address }}
     </p>
+    <p><b>Mốc tồn:</b> {{ session.created_at|date:'d/m/Y H:i:s' }} · <b>Cách kiểm:</b> {{ session.get_method_display }} · <b>Bắt đầu:</b> {{ session.started_at|date:'d/m/Y H:i'|default:'Chưa bắt đầu' }}</p>
     <p>
-      <b>Người kiểm kê:</b> {{ session.created_by.get_full_name|default:session.created_by.username }}
+      <b>Người kiểm kê:</b> {{ session.counter.get_full_name|default:session.counter.username }}
     </p>
     <p>
       <b>Trạng thái:</b> {{ session.workflow_status }} · Đã đếm {{ counted }}/{{ items|length }} mã.

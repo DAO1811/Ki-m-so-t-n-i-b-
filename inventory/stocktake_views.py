@@ -1,23 +1,29 @@
+from urllib.parse import urlencode
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import Sum
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
-from .forms import StocktakeCountForm
 from .access import has_function
-from .models import StocktakeSession, LoanHolding
-from .services import warehouses_for, can_approve_adjustments
+from .forms import StocktakeCountForm
+from .models import LoanHolding, StocktakeSession
+from .services import can_approve_adjustments, warehouses_for
 from .stocktakes import (
-    product_from_scan,
-    save_count,
-    start_session,
-    submit_session,
+    begin_session,
     cancel_session,
+    freeze_session,
+    product_from_scan,
+    require_open,
+    save_count,
+    submit_session,
 )
 from .workspace import selected_warehouse
 
@@ -31,7 +37,9 @@ def session_for(request, pk):
         else warehouses_for(request.user)
     )
     return get_object_or_404(
-        StocktakeSession.objects.select_related("warehouse", "created_by", "document"),
+        StocktakeSession.objects.select_related(
+            "warehouse", "created_by", "counted_by", "document"
+        ),
         pk=pk,
         warehouse__in=scope,
     )
@@ -48,7 +56,11 @@ def stocktakes(request):
             and len(request.POST.get("warehouse", "")) <= 18
             else 0,
         )
-        session = start_session(warehouse, request.user)
+        try:
+            session = freeze_session(warehouse, request.user)
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+            return redirect("stocktakes")
         request.session["warehouse_scope"] = str(warehouse.pk)
         return redirect("stocktake_detail", pk=session.pk)
     sessions = (
@@ -56,14 +68,21 @@ def stocktakes(request):
         if can_approve_adjustments(request.user)
         else StocktakeSession.objects.filter(warehouse__in=warehouses)
     )
-    sessions = sessions.select_related("warehouse", "created_by")
+    sessions = sessions.select_related(
+        "warehouse", "created_by", "counted_by", "document"
+    )
+    ready = sessions.filter(status="READY")
     current = selected_warehouse(request)
     if current:
         sessions = sessions.filter(warehouse=current)
     return render(
         request,
         "stocktakes.html",
-        {"sessions": sessions[:100], "warehouses": warehouses},
+        {
+            "sessions": sessions.exclude(status="READY")[:100],
+            "ready_sessions": ready,
+            "warehouses": warehouses,
+        },
     )
 
 
@@ -75,15 +94,23 @@ def stocktake_detail(request, pk):
         "stocktake_detail.html",
         {
             "session": session,
+            "expired": session.business_date != timezone.localdate(),
             "items": session.items.select_related("product"),
             "events": session.events.select_related("item__product", "actor")[:100],
-            "can_edit": session.created_by_id == request.user.pk
+            "can_manage": has_function(request.user, "stocktakes_create")
+            and warehouses_for(request.user).filter(pk=session.warehouse_id).exists(),
+            "can_edit": (
+                session.counter_id == request.user.pk or request.user.is_superuser
+            )
             and session.status == "OPEN"
             and has_function(request.user, "stocktakes_create")
             and session.business_date == timezone.localdate(),
-            "can_cancel": session.status == "OPEN"
+            "can_cancel": session.status in ["READY", "OPEN"]
             and has_function(request.user, "stocktakes_create")
-            and (session.created_by_id == request.user.pk or request.user.is_superuser),
+            and (
+                request.user.pk in {session.created_by_id, session.counter_id}
+                or request.user.is_superuser
+            ),
             "counted": session.items.filter(counted_quantity__isnull=False).count(),
             "item_count": session.items.count(),
         },
@@ -206,11 +233,137 @@ def stocktake_report(request, pk):
     items = list(session.items.select_related("product"))
     return render(
         request,
-        "stocktake_report.html",
+        "stocktake_worksheet.html"
+        if request.GET.get("worksheet") == "1"
+        else "stocktake_report.html",
         {
             "session": session,
             "items": items,
             "counted": sum(item.counted_quantity is not None for item in items),
             "company_name": settings.INVENTORY_COMPANY_NAME,
+        },
+    )
+
+
+@login_required
+@require_POST
+def stocktake_begin(request, pk):
+    session_for(request, pk)
+    try:
+        session = begin_session(pk, request.user, request.POST.get("method", ""))
+        request.session["warehouse_scope"] = str(session.warehouse_id)
+        return redirect(
+            "stocktake_paper" if session.method == "PAPER" else "stocktake_detail",
+            pk=pk,
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect("stocktake_detail", pk=pk)
+
+
+@login_required
+def stocktake_paper(request, pk):
+    from uuid import uuid4
+
+    from django.urls import reverse
+
+    from .stocktake_forms import PaperCountFormSet
+
+    session = session_for(request, pk)
+    try:
+        require_open(session, request.user)
+    except ValidationError as exc:
+        messages.info(request, " ".join(exc.messages))
+        return redirect("stocktake_detail", pk=pk)
+    if session.method != "PAPER":
+        messages.info(
+            request, "Phiên này kiểm bằng QR. Ghi số tại màn hình kiểm kê của phiên."
+        )
+        return redirect("stocktake_detail", pk=pk)
+    items = session.items.select_related("product").order_by("sku_snapshot", "pk")
+    query = request.GET.get("q", "").strip()
+    if query:
+        items = items.filter(
+            Q(sku_snapshot__icontains=query) | Q(name_snapshot__icontains=query)
+        )
+    if request.GET.get("remaining") == "1":
+        items = items.filter(counted_quantity__isnull=True)
+    page = Paginator(items, 25).get_page(request.GET.get("page"))
+    visible_ids = [item.pk for item in page]
+    visible = (
+        session.items.filter(pk__in=visible_ids)
+        .select_related("product")
+        .order_by("sku_snapshot", "pk")
+    )
+    action = request.POST.get("action", "save")
+    formset = PaperCountFormSet(
+        request.POST if request.method == "POST" and action == "save" else None,
+        queryset=visible,
+    )
+    for form in formset:
+        form.fields["id"].queryset = visible
+    extra_errors = []
+    if request.method == "POST" and action == "extra":
+        data = request.POST.copy()
+        data.update(mode="SET", request_id=str(uuid4()), revision="1")
+        extra = StocktakeCountForm(data)
+        if extra.is_valid():
+            try:
+                cleaned = extra.cleaned_data
+                product = product_from_scan(cleaned.pop("code"))
+                if session.items.filter(product=product).exists():
+                    raise ValidationError(
+                        "Mã đã có trong bảng. Tìm mã đó và ghi số tại dòng tương ứng để tránh đếm hai lần."
+                    )
+                save_count(pk, request.user, product, **cleaned)
+                return redirect(
+                    reverse("stocktake_paper", args=[pk])
+                    + "?"
+                    + urlencode({"q": product.sku})
+                )
+            except ValidationError as exc:
+                extra_errors = exc.messages
+        else:
+            extra_errors = [
+                error for errors in extra.errors.values() for error in errors
+            ]
+    elif request.method == "POST" and action == "save" and formset.is_valid():
+        try:
+            with transaction.atomic():
+                locked = StocktakeSession.objects.select_for_update().get(pk=pk)
+                require_open(locked, request.user)
+                saved = 0
+                for form in formset:
+                    data = form.cleaned_data
+                    if form.has_changed() and data.get("counted_quantity") is not None:
+                        item = data["id"]
+                        save_count(
+                            pk,
+                            request.user,
+                            item.product,
+                            "SET",
+                            data["counted_quantity"],
+                            data.get("unit_price"),
+                            data.get("note", ""),
+                            uuid4(),
+                            data["revision"],
+                        )
+                        saved += 1
+            messages.success(
+                request, f"Đã ghi số kiểm đếm cho {saved} mã. Tồn kho chưa thay đổi."
+            )
+            return redirect(request.get_full_path())
+        except ValidationError as exc:
+            extra_errors = exc.messages
+    return render(
+        request,
+        "stocktake_paper.html",
+        {
+            "session": session,
+            "formset": formset,
+            "page_obj": page,
+            "counted": session.items.filter(counted_quantity__isnull=False).count(),
+            "total": session.items.count(),
+            "extra_errors": extra_errors,
         },
     )

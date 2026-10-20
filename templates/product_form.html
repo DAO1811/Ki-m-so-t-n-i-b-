@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load ui %}
+{% load static ui %}
 {% block content %}
   <div class="page-heading">
     <div>
@@ -36,7 +36,7 @@
         </summary>
         <div class="form-grid">
           {% for field in form %}
-            {% if field.name != 'sku' and field.name != 'name' and field.name != 'unit' %}
+            {% if field.name != 'sku' and field.name != 'name' and field.name != 'unit' and field.name != 'qr_auto' and field.name != 'qr_code' %}
               <div class="field">
                 {{ field.label_tag }}{{ field }}{{ field.errors }}
                 {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
@@ -45,9 +45,17 @@
           {% endfor %}
         </div>
       </details>
-      <div class="form-grid">
+      <section class="product-qr-settings" aria-labelledby="qr-settings-title">
+        <h2 id="qr-settings-title">Mã QR nhận diện hàng hóa <span class="required">*</span></h2>
+        {% if editing %}<p>Mã QR cố định suốt vòng đời. Tem đã cấp tiếp tục nhận diện đúng hàng hóa.</p>{% else %}<p>Có QR sẵn trên hàng: bỏ chọn tự động rồi nhập nội dung mã đó. Chưa có: tự đặt mã hoặc để phần mềm tạo.</p>{% endif %}
+        <input type="hidden" name="qr_auto" value="False">
+        <label class="checkbox-line">{{ form.qr_auto }} Tự động tạo mã QR</label>{{ form.qr_auto.errors }}
+        <div class="field">{{ form.qr_code.label_tag }}{{ form.qr_code }}{{ form.qr_code.errors }}<small id="qr-code-help">{{ form.qr_code.help_text }}</small></div>
+      </section>
+      <div class="form-grid product-photo-editor" id="photos">
+        <div class="field full-width"><h2>Hình ảnh hàng hóa <span class="caption">Có thể thêm sau</span></h2>{% if photos %}<div class="photo-gallery">{% for photo in photos %}<figure><img src="{% url 'private_file' photo.file_id %}" alt="{{ photo.caption|default:'Ảnh hàng hóa' }}"><figcaption>{{ photo.caption }}</figcaption></figure>{% endfor %}</div>{% endif %}</div>
         <div class="field">
-          {{ photo_form.image.label_tag }}{{ photo_form.image }}{{ photo_form.image.errors }}<small>Ảnh tùy chọn. QR được tạo tự động dù chưa có ảnh.</small>
+          {{ photo_form.image.label_tag }}{{ photo_form.image }}{{ photo_form.image.errors }}<small>Ảnh không bắt buộc; có thể thêm khi tạo hoặc cập nhật sau tại Hàng hóa.</small>
         </div>
         <div class="field">{{ photo_form.caption.label_tag }}{{ photo_form.caption }}{{ photo_form.caption.errors }}</div>
       </div>
@@ -58,3 +66,4 @@
     </div>
   </form>
 {% endblock %}
+{% block scripts %}<script src="{% static 'product-form.js' %}" defer></script>{% endblock %}

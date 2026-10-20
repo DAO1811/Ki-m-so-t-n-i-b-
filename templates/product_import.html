@@ -88,6 +88,7 @@
                         <div><dt>Thương hiệu</dt><dd>{{ row.brand|default:'—' }}</dd></div>
                         <div><dt>Model / quy cách</dt><dd>{{ row.model_number|default:'—' }}</dd></div>
                         <div><dt>Tồn tối thiểu</dt><dd>{{ row.minimum|default_if_none:'0' }}</dd></div>
+                        <div><dt>QR</dt><dd>{% if row.qr_auto == 'False' %}{{ row.qr_code }} · Tự nhập{% else %}Tự động khi lưu{% endif %}</dd></div>
                         <div><dt>Thông số kỹ thuật</dt><dd>{{ row.specifications|default:'—' }}</dd></div>
                         <div><dt>Hướng dẫn bảo quản</dt><dd>{{ row.storage_instructions|default:'—' }}</dd></div>
                         {% if row.extra_display %}

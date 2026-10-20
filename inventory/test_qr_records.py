@@ -209,6 +209,11 @@ class QRStocktakeTests(TestCase):
         session = start_session(self.a, self.maker)
         self.count(session, quantity=2, mode="SET")
         doc = submit_session(session.pk, self.maker, "Thiếu 1")
+        with self.assertRaises(ValidationError):
+            self.receipt(product=self.q)
+        # Pre-upgrade sessions are not silently locked. Their original cutoff
+        # protection still rejects changes made while those sessions were open.
+        StocktakeSession.objects.filter(pk=session.pk).update(locks_inventory=False)
         self.receipt(product=self.q)
         with self.assertRaises(ValidationError):
             post_document(doc.pk, self.ceo)

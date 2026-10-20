@@ -261,12 +261,17 @@ LineFormSet = formset_factory(
 
 
 class ProductForm(forms.ModelForm):
+    qr_code = forms.CharField(label="Nội dung / mã QR", required=False, max_length=120)
+    validate_identity = True
+
     class Meta:
         model = Product
         fields = [
             "sku",
             "name",
             "unit",
+            "qr_auto",
+            "qr_code",
             "category",
             "brand",
             "model_number",
@@ -280,7 +285,28 @@ class ProductForm(forms.ModelForm):
         }
 
     def __init__(self, *args, custom_fields=None, **kwargs):
+        instance = kwargs.get("instance")
+        supplied = args[0] if args else kwargs.get("data")
+        if supplied is not None and "qr_auto" not in supplied:
+            supplied = supplied.copy()
+            supplied["qr_auto"] = instance.qr_auto if instance else True
+            if instance:
+                supplied.setdefault("qr_code", instance.qr_value)
+            if args:
+                args = (supplied, *args[1:])
+            else:
+                kwargs["data"] = supplied
         super().__init__(*args, **kwargs)
+        self.fields[
+            "qr_code"
+        ].help_text = "Bỏ chọn tự động để nhập mã sẵn trên nhãn hoặc tự đặt mã duy nhất. Mã được giữ cố định sau khi lưu."
+        if self.instance.pk:
+            self.initial["qr_code"] = self.instance.qr_value
+            self.fields["qr_auto"].disabled = True
+            self.fields["qr_code"].disabled = True
+        else:
+            self.initial["qr_auto"] = True
+            self.initial["qr_code"] = ""
         self.custom_fields = tuple(
             CustomField.objects.all() if custom_fields is None else custom_fields
         )
@@ -296,6 +322,27 @@ class ProductForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        from .product_codes import new_qr_code, validate_identity, validate_manual_qr
+
+        if self.instance.pk:
+            code = self.instance.qr_value
+            data["qr_auto"] = self.instance.qr_auto
+        elif data.get("qr_auto", True):
+            code = self.instance.qr_code or new_qr_code()
+        else:
+            code = (data.get("qr_code") or "").strip()
+            try:
+                validate_manual_qr(code)
+            except ValidationError as exc:
+                self.add_error("qr_code", exc)
+        if "qr_code" not in self.errors:
+            data["qr_code"] = code
+            if self.validate_identity and data.get("sku"):
+                try:
+                    validate_identity(data["sku"], code, exclude_pk=self.instance.pk)
+                except ValidationError as exc:
+                    for field, errors in exc.message_dict.items():
+                        self.add_error(field, errors)
         from .models import StocktakeItem
 
         if self.instance.pk and (

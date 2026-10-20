@@ -3400,3 +3400,55 @@ body:has(.sidebar-open) {
     margin: 2px 0 0;
   }
 }
+
+/* Product identity, photos and a single warehouse stocktake workflow. */
+.product-qr-settings { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-alt, #f8fafc); }
+.product-qr-settings p { color: var(--muted); margin-bottom: .8rem; }
+.product-qr-settings .field { margin-top: .8rem; max-width: 650px; }
+.product-qr-settings input[readonly], .product-qr-settings input:disabled { background: var(--surface-alt, #f1f5f9); }
+.product-photo-editor { border-top: 1px solid var(--line); padding-top: 1.25rem; }
+.catalog-photo { display: flex; width: 56px; height: 56px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-alt, #f8fafc); margin-bottom: .4rem; overflow: hidden; }
+.catalog-photo img { width: 100%; height: 100%; object-fit: cover; }
+.count-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin: 1.25rem 0; }
+.count-steps span { display: flex; align-items: center; gap: .6rem; color: var(--muted); background: var(--surface, #fff); border: 1px solid var(--line); border-radius: 12px; padding: .9rem; font-size: .88rem; }
+.count-steps b { display: grid; place-items: center; min-width: 26px; height: 26px; border-radius: 50%; background: var(--surface-alt, #edf2f7); }
+.count-steps .current { color: var(--green-deep); border-color: var(--green-deep); font-weight: 700; }
+.count-steps .current b { color: white; background: var(--green-deep); }
+.count-steps .complete { color: var(--green-deep); }
+.count-freeze, .count-method, .count-ready { margin-bottom: 1.25rem; }
+.count-freeze p, .count-method p, .count-ready p { color: var(--muted); }
+.count-freeze .filters { margin-bottom: 0; }
+.count-ready-grid, .count-method-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+.count-ready-card { padding: 1.3rem; }
+.count-ready-card h3 { margin: .75rem 0; }
+.count-method-grid form { border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; }
+.count-method-grid h3 { display: flex; gap: .5rem; align-items: center; }
+.count-method-grid p { min-height: 3.2rem; }
+.count-paper-form .count-quantity { min-width: 155px; }
+.count-paper-form input[type=number] { max-width: 180px; }
+.count-line-details { display: grid; gap: .7rem; min-width: 230px; padding: .8rem 0; }
+.count-line-details label { display: grid; gap: .3rem; }
+.count-found { padding: 1.25rem; margin-top: 1.25rem; }
+.count-found summary { font-weight: 650; cursor: pointer; }
+.count-found .form-grid { margin: 1rem 0; }
+.count-found label { display: grid; gap: .4rem; }
+.count-handwriting { height: 45px; min-width: 80px; }
+.count-worksheet table { width: 100%; border-collapse: collapse; }
+.count-worksheet th, .count-worksheet td { border: 1px solid #a6afbd; white-space: normal; }
+.qr-card strong { overflow-wrap: anywhere; }
+@media (max-width: 760px) { .count-steps { grid-template-columns: repeat(2, minmax(0,1fr)); } .count-steps span { padding: .65rem; font-size: .8rem; } .count-ready-grid, .count-method-grid { grid-template-columns: minmax(0,1fr); } .count-freeze .filters { align-items: stretch; flex-direction: column; } .count-freeze select { width: 100%; } .count-method-grid p { min-height: 0; } }
+@media print { .count-steps { display: none; } .count-worksheet .count-handwriting { height: 38px; } .count-worksheet thead { display: table-header-group; } .count-worksheet tr { break-inside: avoid; } }
+.qr-label-code { display: block; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .count-paper-form .table-scroll { overflow: visible; }
+  .count-paper-form table, .count-paper-form tbody, .count-paper-form tr, .count-paper-form td { display: block; width: 100%; min-width: 0; }
+  .count-paper-form thead { display: none; }
+  .count-paper-form tr { padding: 14px; border-bottom: 1px solid var(--line); }
+  .count-paper-form td { padding: 6px 0; border: 0; white-space: normal; }
+  .count-paper-form td[data-label]:before { content: attr(data-label) ': '; color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .count-paper-form td:nth-child(2), .count-paper-form td:nth-child(3) { display: inline-flex; width: 49%; align-items: center; }
+  .count-paper-form .count-quantity { display: flex; justify-content: space-between; align-items: center; }
+  .count-paper-form .count-quantity input { width: 46%; max-width: 180px; }
+  .count-paper-form .count-line-details { min-width: 0; }
+}
+.count-paper-form td:first-child { overflow-wrap: anywhere; }

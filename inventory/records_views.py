@@ -1,4 +1,6 @@
 from io import BytesIO
+
+import qrcode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -6,18 +8,14 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-import qrcode
 
+from .access import has_function, may_attach
 from .forms import ProductPhotoForm, ReceiptAttachmentForm
 from .media import add_product_photo, add_receipt_attachment
-from .models import Product, ProductPhoto, StoredFile, ReceiptAttachment, Line, Balance
+from .models import Balance, Line, Product, ProductPhoto, ReceiptAttachment, StoredFile
 from .services import documents_for, warehouses_for
-
-
-from .access import may_attach, has_function
 
 
 @login_required
@@ -58,7 +56,7 @@ def qr_landing(request, token):
 @login_required
 def product_qr(request, pk):
     product = get_object_or_404(Product, pk=pk)
-    target = request.build_absolute_uri(reverse("qr_landing", args=[product.qr_token]))
+    target = product.qr_value
     output = BytesIO()
     qrcode.make(target).save(output, format="PNG")
     response = HttpResponse(output.getvalue(), content_type="image/png")

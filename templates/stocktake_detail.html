@@ -7,16 +7,24 @@
       <h1>KK-{{ session.pk|stringformat:'06d' }} · {{ session.warehouse.code }}</h1>
       <p>{{ session.warehouse.name }} · {{ session.business_date|date:'d/m/Y' }} · {{ session.workflow_status }}</p>
     </div>
+    {% if session.status == 'READY' or session.status == 'OPEN' %}<a class="button secondary" href="{% url 'stocktake_report' session.pk %}?worksheet=1" target="_blank" rel="noopener">In bảng kiểm đếm</a>{% endif %}
+    {% if can_edit and session.method == 'PAPER' %}<a class="button" href="{% url 'stocktake_paper' session.pk %}">Nhập kết quả kiểm kê giấy</a>{% endif %}
     <a class="button secondary"
        href="{% url 'stocktake_report' session.pk %}">Biên bản & in</a>
     {% if session.document %}
       <a class="button" href="{% url 'document_detail' session.document_id %}">Phiếu điều chỉnh</a>
     {% endif %}
   </div>
+  {% include 'stocktake_steps.html' %}
   <div class="notice">
-    <span><b>Hàng mượn tạm không tính vào tồn thường.</b> Mỗi lần quét cộng 1 đơn vị của mã hàng. Tồn sổ được giữ tại mốc mở phiên; kho biến động thì không được duyệt điều chỉnh theo mốc cũ.</span>
+    <span><b>Mốc tồn: {{ session.created_at|date:'d/m/Y H:i:s' }}.</b> {% if session.locks_inventory %}Kho tạm khóa giao dịch trong khi kiểm và chờ duyệt điều chỉnh.{% else %}Phiên cũ chưa khóa giao dịch: nếu tồn biến động thì phải hủy và kiểm lại.{% endif %} Hàng mượn tạm không tính vào tồn thường; chưa kiểm không được coi là 0.</span>
   </div>
-  {% if can_edit %}
+  {% if session.status == 'READY' %}
+    <section class="panel form-panel count-method"><h2>Chọn cách tiến hành kiểm kê</h2><p>Danh sách đã chốt: {{ item_count }} mã tại {{ session.warehouse }}. Hai cách cùng đối chiếu mốc tồn này. Người có quyền tại kho nhận kiểm; chỉ người nhận và Admin tổng được ghi số sau khi bắt đầu.</p>
+      {% if can_manage and not expired %}<div class="count-method-grid"><form method="post" action="{% url 'stocktake_begin' session.pk %}">{% csrf_token %}<input type="hidden" name="method" value="PAPER"><h3>{% icon 'file' %}Kiểm bằng giấy</h3><p>In bảng kiểm đếm, đi kiểm thực tế và nhập kết quả trở lại đúng biên bản.</p><button class="button secondary" type="submit">Chọn kiểm bằng giấy</button></form><form method="post" action="{% url 'stocktake_begin' session.pk %}">{% csrf_token %}<input type="hidden" name="method" value="QR"><h3>{% icon 'count' %}Kiểm bằng QR</h3><p>Camera hoặc máy quét; mỗi lượt quét một QR cộng 1 đơn vị của mã hàng.</p><button class="button" type="submit">Chọn quét QR</button></form></div>{% else %}<p>Người có quyền kiểm kê tại kho nhận kiểm trong ngày đã chốt. Nếu đã qua ngày, hủy phiên và chốt tồn mới.</p>{% endif %}
+    </section>
+  {% endif %}
+  {% if can_edit and session.method == 'QR' %}
     <section class="panel form-panel record-panel"
              id="stocktake-scanner"
              data-lookup="{% url 'stocktake_lookup' session.pk %}"
@@ -122,7 +130,7 @@
                 {% endif %}
               </td>
               <td>
-                {% if can_edit %}
+                {% if can_edit and session.method == 'QR' %}
                   <button type="button"
                           class="button secondary small select-count-item"
                           data-code="{{ i.sku_snapshot }}">Ghi số / xác nhận 0</button>
@@ -163,7 +171,7 @@
   {% endif %}
   <section class="panel">
     <div class="panel-title">
-      <h2>Lịch sử kiểm đếm</h2>
+    <h2>Lịch sử chốt tồn & kiểm đếm</h2>
       <span class="caption">100 lượt mới nhất</span>
     </div>
     <div class="table-scroll">
@@ -203,7 +211,7 @@
   {% endif %}
 {% endblock %}
 {% block scripts %}
-  {% if can_edit %}
+  {% if can_edit and session.method == 'QR' %}
     <script src="{% static 'vendor/html5-qrcode.min.js' %}" defer></script><script src="{% static 'stocktake.js' %}" defer></script>
   {% endif %}
 {% endblock %}

@@ -47,7 +47,7 @@
       <img src="{% url 'product_qr' product.pk %}" alt="QR mã {{ product.sku }}">
       <b>{{ product.sku }}</b>
       <p>
-        QR tự tạo khi thêm sản phẩm. Mỗi lượt quét trong phiên kiểm kê cộng 1 đơn vị {{ product.unit }}. QR chỉ nhận diện mã hàng, không tự thay đổi tồn.
+        <strong>{{ product.qr_value }}</strong><br>Mã {% if product.qr_auto %}tự động{% else %}tự nhập{% endif %}, giữ cố định suốt vòng đời hàng hóa. Mỗi lượt quét kiểm kê cộng 1 đơn vị {{ product.unit }}.
       </p>
     </section>
     {% endif %}

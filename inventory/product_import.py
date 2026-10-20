@@ -65,11 +65,15 @@ BASE_COLUMNS = (
         "Mức tồn tối thiểu mỗi kho",
         ("minimum", "ton toi thieu", "muc ton toi thieu", "min_stock"),
     ),
+    ("qr_auto", "QR tự động", ("qr_auto", "tu dong qr")),
+    ("qr_code", "Mã QR", ("qr_code", "noi dung qr", "ma qr")),
 )
 REQUIRED_COLUMNS = {"sku", "name", "unit"}
 
 
 class ProductImportForm(ProductForm):
+    validate_identity = False
+
     def validate_unique(self):
         # One batch query below replaces one uniqueness round-trip per product.
         pass
@@ -163,6 +167,7 @@ def build_product_template():
         "8. Cột Bổ sung là thông tin hàng hóa đã được quản trị viên cấu hình, có thể để trống.",
         "9. Tải tệp để xem trước, sửa mọi lỗi trong Excel rồi tải lại trước khi xác nhận.",
         "10. Ảnh hàng hóa và hóa đơn được thêm ở trang chi tiết/phiếu nhập sau khi tạo mã.",
+        "11. QR tự động: bỏ trống hoặc Có. Nếu dùng QR sẵn/tự đặt, điền Không và nhập Mã QR. QR cố định suốt vòng đời hàng hóa.",
     ):
         instructions.append([text])
     stream = BytesIO()
@@ -270,6 +275,7 @@ def _validate_rows(rows, fields):
             # Decimal zero must remain explicit, and no ModelForm defaults may
             # accidentally fill the required unit of an incomplete source row.
             row["data"]["minimum"] = str(form.cleaned_data["minimum"])
+            row["data"]["qr_auto"] = "True" if form.cleaned_data["qr_auto"] else "False"
             row["instance"] = instance
         else:
             for key, errors in form.errors.items():
@@ -282,6 +288,41 @@ def _validate_rows(rows, fields):
     existing = set(
         Product.objects.filter(sku__in=candidates).values_list("sku", flat=True)
     )
+    code_rows = {}
+    for row in rows:
+        instance = row.get("instance")
+        if instance:
+            code_rows.setdefault(instance.qr_code, []).append(row)
+    codes = set(code_rows)
+    reserved_codes = set(
+        Product.objects.filter(qr_code__in=candidates | codes).values_list(
+            "qr_code", flat=True
+        )
+    )
+    occupied_skus = set(
+        Product.objects.filter(sku__in=codes).values_list("sku", flat=True)
+    )
+    for row in rows:
+        instance = row.get("instance")
+        if not instance:
+            continue
+        code = instance.qr_code
+        if (
+            len(code_rows[code]) > 1
+            or code in reserved_codes
+            or code in occupied_skus
+            or any(other is not row for other in seen.get(code, []))
+        ):
+            _error(
+                row,
+                "qr_code",
+                "Mã QR",
+                "Mã QR trùng với QR hoặc mã hàng khác. Mỗi mã QR chỉ gắn với một hàng hóa.",
+            )
+        if instance.sku in reserved_codes:
+            _error(
+                row, "sku", "Mã hàng", "Mã hàng đã được dùng làm QR của hàng hóa khác."
+            )
     for sku, duplicates in seen.items():
         for row in duplicates:
             if len(duplicates) > 1:
@@ -408,6 +449,7 @@ def parse_product_workbook(upload):
                 "errors": [],
             }
             row["data"]["minimum"] = "0"
+            row["data"]["qr_auto"] = "True"
             for index, cell in enumerate(cells):
                 value = cell.value
                 key = mapped.get(index)
@@ -428,14 +470,28 @@ def parse_product_workbook(upload):
                         "Không dùng công thức hoặc ô đang lỗi Excel; hãy dán giá trị thuần.",
                     )
                     continue
-                if key == "sku" and value is not None and not isinstance(value, str):
+                if (
+                    key in {"sku", "qr_code"}
+                    and value is not None
+                    and not isinstance(value, str)
+                ):
                     _error(
                         row,
                         key,
                         labels[key],
-                        "Mã hàng phải có định dạng văn bản (Text) để giữ nguyên số 0 đầu mã.",
+                        "Mã hàng / mã QR phải có định dạng văn bản (Text) để giữ nguyên số 0 đầu mã.",
                     )
                 text = str(value).strip() if value is not None else ""
+                if key == "qr_auto":
+                    choice = _header(text)
+                    if choice in {"", "co", "yes", "true", "1", "tu dong", "auto"}:
+                        text = "True"
+                    elif choice in {"khong", "no", "false", "0", "tu nhap", "manual"}:
+                        text = "False"
+                    else:
+                        _error(
+                            row, key, labels[key], "Điền Có hoặc Không cho QR tự động."
+                        )
                 row["data"][key] = text if text or key != "minimum" else "0"
             result["rows"].append(row)
         if not result["rows"]:
@@ -494,6 +550,9 @@ def confirm_product_import(user, rows, schema, *, filename=""):
         raise ValidationError("Dữ liệu xem trước quá lớn. Hãy chia nhỏ tệp Excel.")
     try:
         with transaction.atomic():
+            from .product_codes import lock_product_codes
+
+            lock_product_codes()
             user = get_user_model().objects.select_for_update().get(pk=user.pk)
             require_function(user, "products_create")
             fields = list(CustomField.objects.select_for_update().order_by("pk"))

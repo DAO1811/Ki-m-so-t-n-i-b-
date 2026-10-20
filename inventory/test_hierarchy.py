@@ -296,7 +296,7 @@ class HierarchyMigrationTests(TransactionTestCase):
         from . import release_backup as backup
 
         old = [("inventory", "0016_preserve_assigned_function_access")]
-        latest = [("inventory", "0017_approval_hierarchy")]
+        latest = [("inventory", "0018_product_qr_stocktake_workflow")]
         try:
             executor = MigrationExecutor(connection)
             executor.migrate(old)

@@ -19,6 +19,7 @@ Quy tắc ngày hôm nay, thực nhận/thiếu/không nhận và dữ liệu ch
 - Một dòng hàng ban đầu, tìm mã hoặc tên không dấu, thêm/xóa dòng, tính tạm tiền, hiển thị tồn khả dụng.
 - Nhập phiếu từ Excel: tải mẫu → kiểm tra → xem trước → tạo phiếu chờ duyệt.
 - Thêm danh mục hàng hóa từ Excel: **Hàng hóa → Nhập hàng hóa từ Excel**, tối đa 500 mã mới/lần; xem trước và kiểm tra lỗi trước khi lưu, tự có QR. Chi tiết tại [hướng dẫn Excel hàng hóa](docs/PRODUCT_EXCEL_IMPORT.md).
+- Kiểm kê thống nhất: **chốt tồn và khóa kho → chọn giấy hoặc QR → đối chiếu → duyệt điều chỉnh**. QR tự động/tự nhập cố định theo vòng đời; cập nhật ảnh ngay tại Hàng hóa. Xem [quy trình hàng hóa và kiểm kê](docs/STOCKTAKE_WORKFLOW.md).
 - Hàng chờ duyệt đúng kho, đúng người, đúng giai đoạn; người lập không tự duyệt. Trạng thái và người được phân công hiển thị trong chi tiết phiếu.
 - Luân chuyển chính thức có bước chuyển đi và xác nhận nhận hàng. Mượn dùng sổ trung gian bị khóa, trả từng phần theo lệnh gốc và giữ nguyên giá trị mượn.
 - Thiếu tồn được chặn khi tạo phiếu và được kiểm tra lại trong transaction khi duyệt. Khóa PostgreSQL chặn xuất quá tồn khi nhiều người thao tác.
