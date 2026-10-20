@@ -197,11 +197,17 @@ def dashboard(request):
 def documents(request):
     import_batch = None
     if request.GET.get("import_batch"):
-        result = request.session.get("product_import_result", {})
-        if (
-            result.get("owner") == request.user.pk
-            and result.get("key") == request.GET["import_batch"]
-        ):
+        result = next(
+            (
+                request.session.get(name, {})
+                for name in ("product_import_result", "receipt_import_result")
+                if request.session.get(name, {}).get("owner") == request.user.pk
+                and request.session.get(name, {}).get("key")
+                == request.GET["import_batch"]
+            ),
+            {},
+        )
+        if result:
             import_batch = result
             qs = documents_for(request.user).filter(
                 pk__in=result.get("document_ids", [])
@@ -916,113 +922,19 @@ def receipt_template(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response["Content-Disposition"] = 'attachment; filename="mau-nhap-kho.xlsx"'
-    receipt_template().save(response)
+    response["Content-Disposition"] = (
+        'attachment; filename="mau-nhap-kho-theo-kho.xlsx"'
+    )
+    receipt_template(user=request.user).save(response)
+    response["Cache-Control"] = "private, no-store"
     return response
 
 
 @login_required
 def receipt_import(request):
-    import uuid
+    from .receipt_import_views import receipt_import as import_receipts
 
-    from .excel import parse_receipt
-    from .forms import ReceiptImportForm
-
-    form = ReceiptImportForm(
-        request.POST or None, request.FILES or None, user=request.user
-    )
-    preview = None
-    if request.method == "POST" and request.POST.get("confirm"):
-        preview = request.session.get("receipt_import")
-        if not preview or request.POST.get("import_key") != preview["key"]:
-            messages.error(
-                request,
-                "Lượt nhập không còn hợp lệ hoặc đã tạo phiếu. Hãy tải file lại.",
-            )
-            return redirect("receipt_import")
-        warehouse = get_object_or_404(
-            warehouses_for(request.user), pk=preview["warehouse_id"]
-        )
-        if preview.get("details", {}).get("business_date") != str(timezone.localdate()):
-            request.session.pop("receipt_import", None)
-            messages.error(
-                request,
-                "Bản xem trước đã sang ngày khác hoặc dùng phiên cũ. Hãy tải lại để tạo phiếu ngày hôm nay.",
-            )
-            return redirect("receipt_import")
-        with transaction.atomic():
-            doc, created = Document.objects.get_or_create(
-                import_key=preview["key"],
-                defaults={
-                    "kind": "IN",
-                    "destination": warehouse,
-                    "created_by": request.user,
-                    "note": preview["note"],
-                    **{
-                        k: date.fromisoformat(v)
-                        if k in ["business_date", "reference_date", "due_date"] and v
-                        else v
-                        for k, v in preview.get("details", {}).items()
-                    },
-                },
-            )
-            if created:
-                # Recheck product existence after preview; deleting products must not yield a partial import.
-                if Product.objects.filter(
-                    pk__in=[i["product_id"] for i in preview["rows"]]
-                ).count() != len(preview["rows"]):
-                    transaction.set_rollback(True)
-                    messages.error(request, "Danh mục đã thay đổi. Hãy tải lại file.")
-                    return redirect("receipt_import")
-                Line.objects.bulk_create(
-                    capture_lines(
-                        doc,
-                        [
-                            Line(
-                                document=doc,
-                                product_id=i["product_id"],
-                                quantity=Decimal(i["quantity"]),
-                                unit_price=Decimal(i["unit_price"]),
-                                expected_quantity=Decimal(i["expected_quantity"])
-                                if i.get("expected_quantity") is not None
-                                else None,
-                                rejected_quantity=Decimal(
-                                    i.get("rejected_quantity", "0")
-                                ),
-                                note=i.get("note", ""),
-                            )
-                            for i in preview["rows"]
-                        ],
-                    )
-                )
-                audit_document(doc, request.user, "CREATE")
-        request.session.pop("receipt_import", None)
-        messages.success(
-            request,
-            "Đã tạo phiếu nhập nháp từ Excel. Người có quyền cần kiểm tra và duyệt trước khi cộng tồn.",
-        )
-        return redirect("document_detail", pk=doc.pk)
-    if request.method == "POST" and form.is_valid():
-        try:
-            rows = parse_receipt(form.cleaned_data["file"])
-            preview = {
-                "key": str(uuid.uuid4()),
-                "warehouse_id": form.cleaned_data["warehouse"].pk,
-                "warehouse_name": str(form.cleaned_data["warehouse"]),
-                "note": form.cleaned_data["note"],
-                "details": {
-                    k: str(form.cleaned_data[k])
-                    if isinstance(form.cleaned_data[k], date)
-                    else form.cleaned_data[k]
-                    for k in form.Meta.fields
-                    if k != "note"
-                },
-                "rows": rows,
-            }
-            request.session["receipt_import"] = preview
-        except ValidationError as exc:
-            form.add_error("file", exc)
-    return render(request, "receipt_import.html", {"form": form, "preview": preview})
+    return import_receipts(request)
 
 
 @login_required

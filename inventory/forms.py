@@ -495,11 +495,19 @@ class ReceiptImportForm(forms.ModelForm):
         configure_document_details(self, self.kind)
         self.fields["business_date"].initial = timezone.localdate
         self.fields["warehouse"].queryset = warehouses_for(user)
+        if self.kind == "IN":
+            self.fields["warehouse"].required = False
+            self.fields[
+                "warehouse"
+            ].label = "Kho nhận chung (nếu dòng Excel không có ma_kho)"
+            self.fields[
+                "warehouse"
+            ].help_text = "Có mã kho trên mọi dòng thì không cần chọn kho chung."
 
     def clean(self):
         data = super().clean()
         data["business_date"] = data.get("business_date") or timezone.localdate()
-        if not self.errors:
+        if not self.errors and data.get("warehouse"):
             validate_document(
                 Document(
                     kind=self.kind,

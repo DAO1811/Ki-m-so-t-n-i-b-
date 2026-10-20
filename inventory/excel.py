@@ -1,12 +1,15 @@
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from zipfile import ZipFile
+
 from django.core.exceptions import ValidationError
-from openpyxl import load_workbook, Workbook
-from .models import Product, Document, Line
+from openpyxl import Workbook, load_workbook
+
+from .models import Document, Line, Product
 from .services import validate_line_details
 
 HEADERS = ["ma_hang", "so_luong", "don_gia"]
 DETAIL_HEADERS = ["sl_chung_tu", "sl_khong_nhan", "ly_do"]
+WAREHOUSE_HEADERS = ["ma_kho"]
 
 
 def parse_receipt(file):
@@ -36,40 +39,61 @@ def parse_receipt(file):
             raise ValidationError(
                 "File có quá nhiều dòng, hãy dùng file mẫu mới (tối đa 50 mã hàng / phiếu)."
             )
-        if sheet.max_column and sheet.max_column > 6:
+        if sheet.max_column and sheet.max_column > 7:
             raise ValidationError("File có quá nhiều cột. Chỉ dùng các cột của mẫu.")
-        rows = sheet.iter_rows(max_row=1001, max_col=6)
+        rows = sheet.iter_rows(max_row=1001, max_col=8)
         header = next(rows, None)
-        extended = bool(
-            header
-            and [str(c.value or "").strip() for c in header] == HEADERS + DETAIL_HEADERS
+        values = [str(c.value or "").strip() for c in header] if header else []
+        multi = values[:7] == HEADERS + DETAIL_HEADERS + WAREHOUSE_HEADERS and not any(
+            values[7:]
         )
-        if (
-            not header
-            or [str(c.value or "").strip() for c in header[:3]] != HEADERS
-            or (not extended and any(c.value is not None for c in header[3:]))
-        ):
+        extended = values[:6] == HEADERS + DETAIL_HEADERS and not any(
+            values[7:] if multi else values[6:]
+        )
+        legacy = values[:3] == HEADERS and not any(values[3:])
+        if not (multi or extended or legacy):
             raise ValidationError(
-                "Dùng mẫu 3 cột cũ hoặc mẫu 6 cột mới: ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do."
+                "Dùng mẫu nhập kho mới gồm ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do, ma_kho; vẫn nhận mẫu 3 hoặc 6 cột cũ."
             )
+        rows = list(rows)
+        products = {
+            product.sku: product
+            for product in Product.objects.filter(
+                sku__in={str(cells[0].value or "").strip() for cells in rows}
+            )
+        }
         result = []
         seen = set()
+        used = 0
         for number, cells in enumerate(rows, start=2):
             if all(c.value is None for c in cells):
                 continue
-            if len(result) >= 50:
+            used += 1
+            if used > (500 if multi else 50) or number > 1000:
                 raise ValidationError(
-                    "Mỗi phiếu tối đa 50 mã hàng. Hãy chia thành nhiều file."
+                    "Mẫu mới tối đa 500 dòng; mẫu cũ tối đa 50 mã. Mỗi phiếu sẽ được chia tối đa 50 mã."
                 )
-            if any(c.data_type == "f" for c in cells):
+            if any(c.data_type in {"f", "e"} for c in cells) or any(
+                c.value is not None
+                for c in cells[7 if multi else 6 if extended else 3 :]
+            ):
                 errors.append(f"Dòng {number}: không dùng công thức, hãy dán giá trị.")
                 continue
             sku = str(cells[0].value or "").strip()
-            if sku in seen:
-                errors.append(f"Dòng {number}: mã {sku} bị trùng.")
+            warehouse_code = str(cells[6].value or "").strip() if multi else ""
+            if (
+                multi
+                and cells[6].value is not None
+                and not isinstance(cells[6].value, str)
+            ):
+                errors.append(f"Dòng {number}: mã kho phải là văn bản (Text).")
                 continue
-            seen.add(sku)
-            product = Product.objects.filter(sku=sku).first()
+            identity = (warehouse_code, sku)
+            if identity in seen:
+                errors.append(f"Dòng {number}: mã {sku} bị trùng tại cùng kho.")
+                continue
+            seen.add(identity)
+            product = products.get(sku)
             if not product:
                 errors.append(
                     f"Dòng {number}: mã hàng {sku or '(trống)'} chưa có trong danh mục."
@@ -100,7 +124,7 @@ def parse_receipt(file):
                     f"Dòng {number}: số lượng phải dương (tối đa 3 số lẻ), đơn giá không âm (tối đa 4 số lẻ), không để trống hoặc thêm dấu phân cách trong ô văn bản."
                 )
                 continue
-            if not extended and any(c.value is not None for c in cells[3:]):
+            if not extended and any(c.value is not None for c in cells[3:6]):
                 errors.append(f"Dòng {number}: có dữ liệu ngoài cột mẫu.")
                 continue
             try:
@@ -145,11 +169,16 @@ def parse_receipt(file):
             result.append(
                 {
                     "product_id": product.pk,
+                    "unit": product.unit,
+                    "warehouse_code": warehouse_code,
+                    "row_number": number,
                     "sku": product.sku,
                     "name": product.name,
                     "quantity": str(q),
                     "unit_price": str(price),
-                    "amount": str((q * price).quantize(Decimal(".01"))),
+                    "amount": str(
+                        (q * price).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
+                    ),
                     "expected_quantity": str(expected)
                     if expected is not None
                     else None,
@@ -169,15 +198,40 @@ def parse_receipt(file):
         workbook.close()
 
 
-def receipt_template():
+def receipt_template(*, user=None):
     book = Workbook()
     sheet = book.active
     sheet.title = "Nhap kho"
-    sheet.append(HEADERS + DETAIL_HEADERS)
+    sheet.append(HEADERS + DETAIL_HEADERS + WAREHOUSE_HEADERS)
     for column in ["D", "E", "F"]:
         sheet.column_dimensions[column].width = 28
     sheet.column_dimensions["A"].width = 25
     sheet.column_dimensions["B"].width = 20
     sheet.column_dimensions["C"].width = 25
+    sheet.column_dimensions["G"].width = 25
+    for number in range(2, 502):
+        sheet.cell(number, 1).number_format = "@"
+        sheet.cell(number, 7).number_format = "@"
     sheet.freeze_panes = "A2"
+    guide = book.create_sheet("Huong dan")
+    guide.column_dimensions["A"].width = 110
+    for text in [
+        "Điền ma_kho để phân bổ từng dòng về đúng kho. Tra mã trong trang Danh sach kho.",
+        "Mã hàng phải có trong Danh mục hàng hóa. Cùng mã có thể nhập ở các kho khác nhau; không lặp cùng mã trong cùng kho.",
+        "Tối đa 500 dòng ở mẫu mới. Mỗi kho tạo phiếu riêng, trên 50 mã tự chia phiếu. Duyệt xong mới cộng tồn.",
+        "Nếu bỏ trống ma_kho, dòng đó dùng Kho nhận chung đã chọn trên màn hình. Nếu không chọn kho chung, mọi dòng phải có ma_kho.",
+        "so_luong là số thực nhận đạt yêu cầu; phần thiếu/hỏng ghi sl_chung_tu, sl_khong_nhan và ly_do. Đơn giá miễn phí ghi 0.",
+        "Không dùng công thức. Ngày nghiệp vụ là hôm nay. Chỉ dùng các kho bạn được phân quyền.",
+    ]:
+        guide.append([text])
+    warehouses = book.create_sheet("Danh sach kho")
+    warehouses.append(["ma_kho", "ten_kho"])
+    warehouses.column_dimensions["A"].width = 25
+    warehouses.column_dimensions["B"].width = 50
+    if user is not None:
+        from .services import warehouses_for
+
+        for warehouse in warehouses_for(user).order_by("code"):
+            warehouses.append([warehouse.code, warehouse.name])
+            warehouses.cell(warehouses.max_row, 1).number_format = "@"
     return book

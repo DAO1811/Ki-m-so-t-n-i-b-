@@ -5,9 +5,9 @@
     <div>
       <a class="back-link" href="{% url 'operation_new' 'in' %}">← Lập phiếu nhập thủ công</a>
       <h1>{% icon 'upload' %}Nhập kho từ Excel</h1>
-      <p>Lập một phiếu nhập cho các mã đã có. Thêm mã mới tại Danh mục hàng hóa → Thêm mã hàng bằng Excel.</p>
+      <p>Nhập hàng đã có trong danh mục. Điền ma_kho trong Excel để tự tạo phiếu riêng theo từng kho; duyệt xong mới cộng tồn.</p>
     </div>
-    <a class="button secondary" href="{% url 'receipt_template' %}">{% icon 'download' %}Tải mẫu Excel</a>
+    <a class="button secondary" href="{% url 'receipt_template' %}">{% icon 'download' %}Tải mẫu nhập kho theo kho</a>
   </div>
   <div class="workflow">
     <span class="{% if preview %}complete{% else %}current{% endif %}"><b>1</b>Chọn file & kho</span><i></i><span class="{% if preview %}current{% endif %}"><b>2</b>Kiểm tra dữ liệu</span><i></i><span><b>3</b>Tạo phiếu chờ duyệt</span>
@@ -18,13 +18,17 @@
         <h2>Xem trước: {{ preview.warehouse_name }}</h2>
         <span class="badge posted">{{ preview.rows|length }} dòng hợp lệ</span>
       </div>
+      <div class="receipt-import-summary product-import-allocation-summary table-scroll"><table><thead><tr><th>Kho nhận</th><th>Số mã</th><th>Giá trị nhập</th><th>Số phiếu</th></tr></thead><tbody>
+      {% for group in preview.groups %}<tr><td data-label="Kho nhận">{{ group.warehouse_name }}</td><td data-label="Số mã">{{ group.rows }}</td><td data-label="Giá trị nhập">{{ group.amount|money }}</td><td data-label="Số phiếu">{{ group.documents }}</td></tr>{% endfor %}
+      </tbody></table></div>
       <p class="hint">
         Ngày nhập: {{ preview.details.business_date }} · Chứng từ nguồn: {{ preview.details.reference_number|default:'—' }} · Đối tác: {{ preview.details.counterparty|default:'—' }}
       </p>
-      <div class="table-scroll">
+      <div class="table-scroll product-import-table" tabindex="0" aria-label="Các dòng nhập kho từ Excel">
         <table>
           <thead>
             <tr>
+              <th>Kho nhận</th>
               <th>Mã hàng</th>
               <th>Tên hàng</th>
               <th>Số lượng</th>
@@ -37,15 +41,16 @@
           <tbody>
             {% for row in preview.rows %}
               <tr>
-                <td>
+                <td data-label="Kho nhận">{{ row.warehouse_name }}</td>
+                <td data-label="Mã hàng">
                   <b>{{ row.sku }}</b>
                 </td>
-                <td>{{ row.name }}</td>
-                <td>{{ row.quantity|number }}</td>
-                <td>{{ row.unit_price|money }}</td>
-                <td>{{ row.amount|money }}</td>
-                <td>{{ row.expected_quantity|default:'—' }} / {{ row.shortage|default:'—' }} / {{ row.rejected_quantity }}</td>
-                <td>{{ row.note }}</td>
+                <td data-label="Tên hàng">{{ row.name }}</td>
+                <td data-label="Thực nhận">{{ row.quantity|number }}</td>
+                <td data-label="Đơn giá">{{ row.unit_price|money }}</td>
+                <td data-label="Thành tiền">{{ row.amount|money }}</td>
+                <td data-label="Chứng từ / thiếu / không nhận">{{ row.expected_quantity|default:'—' }} / {{ row.shortage|default:'—' }} / {{ row.rejected_quantity }}</td>
+                <td data-label="Lý do">{{ row.note }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -54,7 +59,7 @@
       <form method="post" class="form-actions import-actions">
         {% csrf_token %}
         <input type="hidden" name="import_key" value="{{ preview.key }}">
-        <button name="confirm" value="1" class="button" type="submit">{% icon 'check' %}Xác nhận tạo phiếu nháp</button>
+        <button name="confirm" value="1" class="button" type="submit">{% icon 'check' %}{% if preview.document_count == 1 %}Xác nhận tạo phiếu nháp{% else %}Xác nhận tạo {{ preview.document_count }} phiếu nhập nháp{% endif %}</button>
         <a class="button secondary" href="{% url 'receipt_import' %}">Chọn file khác</a>
       </form>
     </section>
@@ -69,7 +74,7 @@
         <div class="form-grid">
           {% for field in form %}
             <div class="field {% if field.name == 'note' %}full-width{% endif %}">
-              {{ field.label_tag }}{{ field }}{{ field.errors }}
+              {{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
             </div>
           {% endfor %}
         </div>
@@ -77,9 +82,9 @@
           <summary>Quy định file mẫu</summary>
           <div class="fields-body">
             <p>
-              File <b>.xlsx</b>, tối đa <b>5 MB / 50 mã hàng</b>. Mẫu mới gồm <b>ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do</b>; vẫn nhận mẫu 3 cột cũ.
+              File <b>.xlsx</b>, tối đa <b>5 MB / 500 dòng</b> ở mẫu mới. Gồm <b>ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do, ma_kho</b>. Tra mã kho trong trang <b>Danh sach kho</b> của file mẫu. Mẫu cũ 3/6 cột vẫn nhận tối đa 50 mã.
             </p>
-            <p>Mã hàng phải có trong danh mục. Đơn giá không âm. Số thực nhận được bằng 0 khi có số theo chứng từ / số không nhận và lý do để ghi nhận thiếu toàn bộ; không cộng tồn. Dùng ô số, không dùng công thức hoặc lặp mã.</p>
+            <p>Mã hàng phải có trong danh mục. Mỗi dòng nhận theo ma_kho; dòng bỏ trống dùng Kho nhận chung. Một mã có thể nhập nhiều kho, nhưng không lặp cùng mã tại cùng kho. Mỗi kho tạo phiếu riêng, tối đa 50 mã/phiếu. Đơn giá không âm. Số thực nhận được bằng 0 khi có số theo chứng từ / số không nhận và lý do để ghi nhận thiếu toàn bộ; không cộng tồn. Dùng ô số, không dùng công thức hoặc lặp mã.</p>
             <p>
               so_luong là số thực nhận đạt yêu cầu. Ba cột cuối có thể bỏ trống nếu không có sai lệch; thiếu / không nhận phải ghi lý do. Số không nhận không cộng tồn.
             </p>
@@ -91,5 +96,5 @@
       </div>
     </form>
   {% endif %}
-  <div class="hint">File Excel chỉ tạo phiếu chờ duyệt. Người được cấp quyền cần duyệt trước khi cộng tồn.</div>
+  <div class="hint">File Excel chỉ tạo phiếu nhập theo từng kho chờ duyệt. Người được cấp quyền cần duyệt trước khi cộng tồn.</div>
 {% endblock %}
