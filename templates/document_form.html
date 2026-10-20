@@ -15,8 +15,12 @@
       </h1>
       <p>{{ operation_help }}</p>
     </div>
-    {% if form_kind == 'IN' %}
-      <a class="button secondary" href="{% url 'receipt_import' %}">{% icon 'upload' %}Nhập từ Excel</a>
+    {% if not editing %}
+      {% if form_kind == 'IN' %}
+        <a class="button secondary" href="{% url 'receipt_import' %}">{% icon 'upload' %}Lập phiếu nhập bằng Excel</a>
+      {% elif form_kind == 'OUT' %}
+        <a class="button secondary" href="{% url 'issue_import' %}">{% icon 'upload' %}Lập phiếu xuất bằng Excel</a>
+      {% endif %}
     {% endif %}
   </div>
   <div class="workflow">

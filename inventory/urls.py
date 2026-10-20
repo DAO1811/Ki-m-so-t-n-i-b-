@@ -1,11 +1,19 @@
 from django.urls import path
 
-from . import drive_views, loan_views, product_import_views, views
+from . import drive_views, issue_import_views, loan_views, product_import_views, views
 from . import records_views as records
 from . import stocktake_views as counts
 
 urlpatterns = [
-    path("products/import/", product_import_views.product_import, name="product_import"),
+    path("operations/out/excel/", issue_import_views.issue_import, name="issue_import"),
+    path(
+        "operations/out/excel/template/",
+        issue_import_views.issue_template,
+        name="issue_template",
+    ),
+    path(
+        "products/import/", product_import_views.product_import, name="product_import"
+    ),
     path(
         "products/import/template/",
         product_import_views.product_import_template,

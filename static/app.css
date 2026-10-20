@@ -2196,6 +2196,7 @@ footer {
   margin: 20px 0;
 }
 .import-actions {
+  flex-wrap: wrap;
   padding: 17px 20px;
   margin: 0;
   border-top: 1px solid var(--line);
@@ -3452,3 +3453,9 @@ body:has(.sidebar-open) {
   .count-paper-form .count-line-details { min-width: 0; }
 }
 .count-paper-form td:first-child { overflow-wrap: anywhere; }
+
+/* Keep Excel confirmation controls usable on narrow phones. */
+.import-actions .button {
+  max-width: 100%;
+  white-space: normal;
+}

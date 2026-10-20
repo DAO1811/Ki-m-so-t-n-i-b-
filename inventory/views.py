@@ -976,7 +976,7 @@ def receipt_import(request):
         request.session.pop("receipt_import", None)
         messages.success(
             request,
-            "Đã tạo phiếu nhập nháp từ Excel. Quản lý kho cần kiểm tra và xác nhận trước khi cộng tồn.",
+            "Đã tạo phiếu nhập nháp từ Excel. Người có quyền cần kiểm tra và duyệt trước khi cộng tồn.",
         )
         return redirect("document_detail", pk=doc.pk)
     if request.method == "POST" and form.is_valid():

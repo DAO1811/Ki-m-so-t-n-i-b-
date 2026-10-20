@@ -3,9 +3,9 @@
 {% block content %}
   <div class="page-heading">
     <div>
-      <a class="back-link" href="{% url 'operation_new' 'in' %}">← Nhập kho</a>
-      <h1>{% icon 'upload' %}Nhập phiếu từ Excel</h1>
-      <p>Tải mẫu, điền hàng hóa rồi kiểm tra trước khi tạo phiếu chờ duyệt.</p>
+      <a class="back-link" href="{% url 'operation_new' 'in' %}">← Lập phiếu nhập thủ công</a>
+      <h1>{% icon 'upload' %}Nhập kho từ Excel</h1>
+      <p>Lập một phiếu nhập cho các mã đã có. Thêm mã mới tại Hàng hóa → Thêm mã hàng bằng Excel.</p>
     </div>
     <a class="button secondary" href="{% url 'receipt_template' %}">{% icon 'download' %}Tải mẫu Excel</a>
   </div>
@@ -65,6 +65,7 @@
         <div class="panel-title">
           <h2>Thông tin nhập Excel</h2>
         </div>
+        {{ form.non_field_errors }}
         <div class="form-grid">
           {% for field in form %}
             <div class="field {% if field.name == 'note' %}full-width{% endif %}">
@@ -90,5 +91,5 @@
       </div>
     </form>
   {% endif %}
-  <div class="hint">File Excel chỉ tạo phiếu chờ duyệt. Quản lý kho cần xác nhận trước khi cộng tồn.</div>
+  <div class="hint">File Excel chỉ tạo phiếu chờ duyệt. Người được cấp quyền cần duyệt trước khi cộng tồn.</div>
 {% endblock %}

@@ -74,7 +74,8 @@ def workspace_context(request):
         "employee_new": "Thêm nhân viên",
         "employee_edit": "Sửa nhân viên",
         "reports": "Báo cáo",
-        "receipt_import": "Nhập từ Excel",
+        "receipt_import": "Nhập kho từ Excel",
+        "issue_import": "Xuất kho từ Excel",
         "custom_fields": "Trường bổ sung",
     }
     try:

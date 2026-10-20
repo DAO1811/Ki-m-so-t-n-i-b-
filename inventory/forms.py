@@ -475,6 +475,8 @@ class StocktakeCountForm(forms.Form):
 
 
 class ReceiptImportForm(forms.ModelForm):
+    kind = "IN"
+
     class Meta:
         model = Document
         fields = [*DOCUMENT_DETAILS, "note"]
@@ -490,7 +492,7 @@ class ReceiptImportForm(forms.ModelForm):
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
-        configure_document_details(self, "IN")
+        configure_document_details(self, self.kind)
         self.fields["business_date"].initial = timezone.localdate
         self.fields["warehouse"].queryset = warehouses_for(user)
 
@@ -500,8 +502,12 @@ class ReceiptImportForm(forms.ModelForm):
         if not self.errors:
             validate_document(
                 Document(
-                    kind="IN",
-                    destination=data["warehouse"],
+                    kind=self.kind,
+                    **{
+                        "destination" if self.kind == "IN" else "source": data[
+                            "warehouse"
+                        ]
+                    },
                     **{k: data.get(k) for k in self.Meta.fields},
                 )
             )
@@ -516,6 +522,14 @@ class ReceiptImportForm(forms.ModelForm):
         if file.size > 5 * 1024 * 1024:
             raise forms.ValidationError("File tối đa 5 MB.")
         return file
+
+
+class IssueImportForm(ReceiptImportForm):
+    kind = "OUT"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["warehouse"].label = "Kho xuất hàng"
 
 
 class WarehouseForm(forms.ModelForm):

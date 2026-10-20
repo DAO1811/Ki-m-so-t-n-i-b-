@@ -113,7 +113,7 @@ FUNCTION_ROWS = [
         "tools",
         "Tiện ích",
         [
-            ("import", "Nhập phiếu từ Excel"),
+            ("import", "Lập phiếu nhập kho từ Excel"),
             ("export", "Xuất CSV"),
             ("qr", "Xem / in tem QR"),
         ],

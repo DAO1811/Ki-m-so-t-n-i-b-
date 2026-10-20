@@ -34,7 +34,9 @@ def navigation(request, access):
             if creating
             else reverse("documents") + "?kind=" + code,
             "active": (route == "operation_new" and kind == code)
-            or (route == "documents" and request.GET.get("kind") == code),
+            or (route == "documents" and request.GET.get("kind") == code)
+            or (code == "IN" and route == "receipt_import")
+            or (code == "OUT" and route == "issue_import"),
         }
 
     group("I. TỔNG QUAN", [item("dashboard_view", "Tổng quan", "chart", "dashboard")])
@@ -90,7 +92,12 @@ def navigation(request, access):
                 "Kiểm kê kho",
                 "count",
                 "stocktakes",
-                ("stocktakes", "stocktake_detail", "stocktake_report", "stocktake_paper"),
+                (
+                    "stocktakes",
+                    "stocktake_detail",
+                    "stocktake_report",
+                    "stocktake_paper",
+                ),
             ),
             operation("adjustments", "ADJUST", "Điều chỉnh tồn", "count"),
             item(
@@ -113,7 +120,6 @@ def navigation(request, access):
     group(
         "V. TIỆN ÍCH",
         [
-            item("tools_import", "Nhập từ Excel", "upload", "receipt_import"),
             item("tools_qr", "In tem QR", "box", "product_labels"),
             {
                 "label": "Đổi mật khẩu",

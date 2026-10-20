@@ -4,14 +4,14 @@
   <div class="page-heading">
     <div>
       <h1>{% icon 'box' %}Danh mục hàng hóa</h1>
-      <p>Một mã hàng dùng chung cho các kho. Số lượng và giá vốn được theo dõi riêng theo kho.</p>
+      <p>Thêm mã hàng thủ công hoặc bằng Excel tại đây. Muốn ghi nhận số lượng thực tế, lập phiếu tại Nhập kho / Xuất kho.</p>
     </div>
     <div class="heading-actions">
       {% if access.custom_fields_manage %}
         <a class="button secondary" href="{% url 'custom_fields' %}">{% icon 'settings' %}Trường bổ sung</a>
       {% endif %}
       {% if access.products_create %}
-        <a class="button secondary" href="{% url 'product_import' %}">{% icon 'upload' %}Nhập hàng hóa từ Excel</a>
+        <a class="button secondary" href="{% url 'product_import' %}">{% icon 'upload' %}Thêm mã hàng bằng Excel</a>
         <a class="button" href="{% url 'product_new' %}">{% icon 'plus' %}Thêm hàng hóa</a>
       {% endif %}
     </div>

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <a class="back-link" href="{% url 'operation_new' 'out' %}">← Lập phiếu xuất thủ công</a>
+    <h1>{% icon 'upload' %}Xuất kho từ Excel</h1>
+    <p>Một file tạo một phiếu xuất, tối đa 50 mã hàng của cùng một kho. Chưa trừ tồn cho đến khi được duyệt.</p>
+  </div>
+  <a class="button secondary" href="{% url 'issue_template' %}">{% icon 'download' %}Tải mẫu xuất kho</a>
+</div>
+<div class="workflow">
+  <span class="{% if preview %}complete{% else %}current{% endif %}"><b>1</b>Chọn file & kho</span><i></i>
+  <span class="{% if preview %}current{% endif %}"><b>2</b>Kiểm tra dữ liệu</span><i></i>
+  <span><b>3</b>Tạo phiếu chờ duyệt</span>
+</div>
+{% if preview %}
+<section class="panel">
+  <div class="panel-title"><h2>{{ preview.warehouse_name }}</h2><span class="badge posted">{{ preview.rows|length }} mã hợp lệ</span></div>
+  <p class="hint">Ngày xuất: {{ preview.details.business_date }} · Người/đơn vị nhận: {{ preview.details.counterparty|default:'—' }}</p>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Đơn vị</th><th>Tồn có thể xuất</th><th>Số lượng xuất</th><th>Ghi chú</th></tr></thead>
+    <tbody>{% for row in preview.rows %}<tr><td><b>{{ row.sku }}</b></td><td>{{ row.name }}</td><td>{{ row.unit }}</td><td>{{ row.available|number }}</td><td>{{ row.quantity|number }}</td><td>{{ row.note }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="hint">Tồn được kiểm tra lại khi tạo và khi duyệt. Phiếu nháp chưa giữ hàng. Giá vốn lấy theo sổ kho khi duyệt, không nhập đơn giá xuất tùy ý.</p>
+  <form method="post" class="form-actions import-actions">{% csrf_token %}
+    <input type="hidden" name="import_key" value="{{ preview.key }}">
+    <button name="confirm" value="1" class="button">{% icon 'check' %}Xác nhận tạo phiếu xuất nháp</button>
+    <a class="button secondary" href="{% url 'issue_import' %}">Chọn file khác</a>
+  </form>
+</section>
+{% else %}
+<form method="post" enctype="multipart/form-data" class="standard-form">{% csrf_token %}
+  <section class="panel form-panel">
+    <div class="panel-title"><h2>Thông tin phiếu xuất</h2></div>
+    {{ form.non_field_errors }}
+    <div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'note' %}full-width{% endif %}">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}</div>
+    <p class="hint">File .xlsx tối đa 5 MB, gồm ma_hang, so_luong, ghi_chu. Mã hàng phải có trong danh mục; mã là ô văn bản. Số lượng dương, tối đa 3 số lẻ. Không lặp mã, dùng công thức hoặc vượt tồn có thể xuất. Hàng mượn không dùng để xuất.</p>
+  </section>
+  <div class="form-actions"><button class="button">{% icon 'check' %}Kiểm tra & xem trước</button></div>
+</form>
+{% endif %}
+{% endblock %}
