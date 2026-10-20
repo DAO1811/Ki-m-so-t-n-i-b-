@@ -195,7 +195,22 @@ def dashboard(request):
 
 @login_required
 def documents(request):
-    qs = scoped_documents(request).select_related("source", "destination", "created_by")
+    import_batch = None
+    if request.GET.get("import_batch"):
+        result = request.session.get("product_import_result", {})
+        if (
+            result.get("owner") == request.user.pk
+            and result.get("key") == request.GET["import_batch"]
+        ):
+            import_batch = result
+            qs = documents_for(request.user).filter(
+                pk__in=result.get("document_ids", [])
+            )
+        else:
+            qs = Document.objects.none()
+    else:
+        qs = scoped_documents(request)
+    qs = qs.select_related("source", "destination", "created_by")
     kind = request.GET.get("kind", "")
     status = request.GET.get("status", "")
     if kind:
@@ -279,6 +294,7 @@ def documents(request):
         "documents.html",
         {
             "documents": page,
+            "import_batch": import_batch,
             "page_obj": page,
             "kinds": [
                 (key, label)
@@ -836,7 +852,14 @@ def products(request):
             result.get("owner") == request.user.pk
             and result.get("key") == request.GET["batch"]
         ):
-            import_result = result
+            import_result = dict(result)
+            import_result["documents"] = list(
+                documents_for(request.user)
+                .filter(pk__in=result.get("document_ids", []))
+                .select_related("destination")
+                .order_by("pk")[:20]
+            )
+            import_result["document_count"] = len(result.get("document_ids", []))
             qs = qs.filter(pk__in=result["ids"])
         else:
             messages.info(

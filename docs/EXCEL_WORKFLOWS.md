@@ -1,6 +1,6 @@
 # Excel trong từng nghiệp vụ
 
-- **Danh mục hàng hóa → Thêm mã hàng bằng Excel**: thêm danh mục (tên, đơn vị, QR, thuộc tính). Không ghi số lượng, giá trị tồn hoặc phiếu nhập. Có thể thêm từng mã bằng nút Thêm hàng hóa.
+- **Danh mục hàng hóa → Thêm mã hàng bằng Excel**: thêm danh mục (tên, đơn vị, QR, thuộc tính). Tùy chọn điền đủ Mã kho nhập, Số lượng nhập, Đơn giá nhập để tự tạo phiếu nhập riêng theo kho; duyệt xong mới cộng tồn. Ba cột cùng trống thì chỉ thêm danh mục. Xem [hướng dẫn chi tiết](PRODUCT_EXCEL_IMPORT.md).
 - **Nhập kho → Lập phiếu nhập bằng Excel**: nhận hàng thực tế theo các mã đã khai báo; ghi số thực nhận, đơn giá và phần thiếu/hỏng. Chỉ cộng tồn sau khi phiếu được duyệt. Liên kết cũ `/import/receipt/` vẫn hoạt động.
 - **Xuất kho → Lập phiếu xuất bằng Excel**: một file lập một phiếu nháp cho cùng kho, tối đa 50 mã. Tải mẫu gồm `ma_hang`, `so_luong`, `ghi_chu`; mã định dạng văn bản, số lượng dương tối đa 3 số lẻ; không trùng mã/công thức. Tồn có thể xuất được kiểm tra ở bước xem trước và tạo phiếu; khi duyệt tiếp tục kiểm tra dưới khóa giao dịch. Giá vốn lấy theo sổ kho lúc duyệt, không lấy giá người dùng điền. Phiếu nháp không giữ hàng hoặc trừ tồn.
 

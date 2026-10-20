@@ -12,16 +12,18 @@
       {% endif %}
     </div>
   </div>
+  {% if import_batch %}<div class="notice"><span>Đang xem phiếu nhập của file <strong>{{ import_batch.filename }}</strong> trong các kho bạn được cấp quyền. <a href="{% url 'documents' %}?kind=IN">Xem tất cả phiếu nhập</a></span></div>{% endif %}
   <div class="tabs">
     <a class="{% if not request.GET.status and not request.GET.mine %}active{% endif %}"
-       href="{% url 'documents' %}{% if request.GET.kind %}?kind={{ request.GET.kind|urlencode }}{% endif %}">Tất cả phiếu</a><a class="{% if request.GET.mine %}active{% endif %}" href="?mine=1{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Phiếu tôi lập</a><a class="{% if request.GET.status == 'DRAFT' %}active{% endif %}"
-   href="?status=DRAFT{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Chờ duyệt</a><a class="{% if request.GET.status == 'TRANSIT' %}active{% endif %}"
-   href="?status=TRANSIT{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Chờ nhận hàng</a><a class="{% if request.GET.status == 'POSTED' %}active{% endif %}"
-   href="?status=POSTED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Hoàn tất</a><a class="{% if request.GET.status == 'REJECTED' %}active{% endif %}"
-   href="?status=REJECTED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Yêu cầu sửa</a><a class="{% if request.GET.status == 'CANCELLED' %}active{% endif %}"
-   href="?status=CANCELLED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}">Đã hủy</a>
+       href="{% url 'documents' %}{% if request.GET.kind %}?kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Tất cả phiếu</a><a class="{% if request.GET.mine %}active{% endif %}" href="?mine=1{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Phiếu tôi lập</a><a class="{% if request.GET.status == 'DRAFT' %}active{% endif %}"
+   href="?status=DRAFT{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Chờ duyệt</a><a class="{% if request.GET.status == 'TRANSIT' %}active{% endif %}"
+   href="?status=TRANSIT{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Chờ nhận hàng</a><a class="{% if request.GET.status == 'POSTED' %}active{% endif %}"
+   href="?status=POSTED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Hoàn tất</a><a class="{% if request.GET.status == 'REJECTED' %}active{% endif %}"
+   href="?status=REJECTED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Yêu cầu sửa</a><a class="{% if request.GET.status == 'CANCELLED' %}active{% endif %}"
+   href="?status=CANCELLED{% if request.GET.kind %}&amp;kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Đã hủy</a>
   </div>
   <form class="filters">
+    {% if import_batch %}<input type="hidden" name="import_batch" value="{{ import_batch.key }}">{% endif %}
     <div class="search-box">
       {% icon 'search' %}
       <input name="q"
@@ -48,7 +50,7 @@
            aria-label="Đến ngày nghiệp vụ">
     <button class="button secondary">Lọc phiếu</button>
     {% if access.tools_export %}<button name="export" value="1" class="button secondary">Xuất CSV</button>{% endif %}
-    <a class="text-link" href="{% url 'documents' %}{% if request.GET.kind %}?kind={{ request.GET.kind|urlencode }}{% endif %}">Xóa bộ lọc</a>
+    <a class="text-link" href="{% url 'documents' %}{% if request.GET.kind %}?kind={{ request.GET.kind|urlencode }}{% endif %}{% if import_batch %}&amp;import_batch={{ import_batch.key }}{% endif %}">Xóa bộ lọc</a>
   </form>
   <section class="panel">
     {% include 'document_table.html' %}

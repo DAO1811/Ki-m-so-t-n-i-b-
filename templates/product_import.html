@@ -6,7 +6,7 @@
       <div>
         <a class="back-link" href="{% url 'products' %}">← Danh mục hàng hóa</a>
         <h1>{% icon 'upload' %}Thêm hàng hóa từ Excel</h1>
-        <p>Tạo nhiều mã hàng cùng lúc. Kiểm tra từng dòng trước khi lưu vào danh mục.</p>
+        <p>Thêm mã hàng và tùy chọn lập phiếu nhập theo từng kho trong cùng một file. Tồn chỉ tăng sau khi phiếu được duyệt.</p>
       </div>
       <a class="button secondary" href="{% url 'product_import_template' %}">{% icon 'download' %}Tải mẫu Excel</a>
     </div>
@@ -55,12 +55,21 @@
           <div class="product-import-feedback" role="status">
             {% icon 'check' %}
             <div>
-              <strong>{{ preview.valid_count }} mã hàng sẵn sàng được tạo.</strong>
-              <p>Kiểm tra mã, tên và đơn vị tính bên dưới rồi bấm xác nhận. Mỗi mã sẽ có QR riêng.</p>
+              <strong>{{ preview.product_count }} mã hàng sẵn sàng được tạo.</strong>
+              <p>Kiểm tra mã, tên, đơn vị tính và phân bổ kho bên dưới rồi bấm xác nhận. Mỗi mã hàng có một QR dùng chung cho các kho.</p>
             </div>
           </div>
         {% endif %}
 
+        {% if preview.allocations %}
+          <div class="product-import-allocation-summary">
+            <h3>Phiếu nhập dự kiến theo kho · {{ preview.business_date }}</h3>
+            <p>Chưa cộng tồn. Trên 50 mã tại một kho sẽ tự chia phiếu để dễ kiểm tra và duyệt.</p>
+            <div class="table-scroll"><table><thead><tr><th>Kho nhận</th><th>Số mã</th><th>Giá trị nhập</th><th>Số phiếu</th></tr></thead><tbody>
+              {% for group in preview.allocations %}<tr><td data-label="Kho nhận">{{ group.warehouse_name }}</td><td data-label="Số mã">{{ group.rows }}</td><td data-label="Giá trị nhập">{{ group.amount|money }}</td><td data-label="Số phiếu">{{ group.documents }}</td></tr>{% endfor %}
+            </tbody></table></div>
+          </div>
+        {% endif %}
         <div class="table-scroll product-import-table" tabindex="0" aria-label="Dữ liệu hàng hóa trong file Excel">
           <table>
             <thead>
@@ -69,6 +78,7 @@
                 <th>Mã hàng</th>
                 <th>Tên hàng</th>
                 <th>Đơn vị</th>
+                <th>Phân bổ nhập kho</th>
                 <th>Thông tin thêm</th>
                 <th>Kết quả kiểm tra</th>
               </tr>
@@ -76,11 +86,16 @@
             <tbody>
               {% for row in preview.rows %}
                 <tr class="{% if row.errors %}product-import-row-error{% endif %}">
-                  <td><span class="product-import-row-number">{{ row.number }}</span></td>
-                  <td><strong class="product-import-sku">{{ row.sku|default:'—' }}</strong></td>
-                  <td class="product-import-name">{{ row.name|default:'—' }}</td>
-                  <td>{{ row.unit|default:'—' }}</td>
-                  <td>
+                  <td data-label="Dòng Excel"><span class="product-import-row-number">{{ row.number }}</span></td>
+                  <td data-label="Mã hàng"><strong class="product-import-sku">{{ row.sku|default:'—' }}</strong></td>
+                  <td data-label="Tên hàng" class="product-import-name">{{ row.name|default:'—' }}</td>
+                  <td data-label="Đơn vị">{{ row.unit|default:'—' }}</td>
+                  <td data-label="Nhập kho">{% if row.warehouse_code or row.receipt_quantity or row.receipt_price %}
+                    <strong>{{ row.warehouse_name|default:row.warehouse_code|default:'Chưa chọn kho' }}</strong>
+                    <div>SL: {{ row.receipt_quantity|default:'—' }} · Đơn giá: {{ row.receipt_price|default:'—' }}</div>
+                    {% if row.receipt_amount %}<small>{{ row.receipt_amount|money }}</small>{% endif %}
+                  {% else %}<span class="muted">Chỉ thêm danh mục</span>{% endif %}</td>
+                  <td data-label="Thông tin thêm">
                     <details class="product-import-row-details">
                       <summary>Xem chi tiết</summary>
                       <dl>
@@ -103,7 +118,7 @@
                       </dl>
                     </details>
                   </td>
-                  <td class="product-import-row-result">
+                  <td data-label="Kiểm tra" class="product-import-row-result">
                     {% if row.errors %}
                       <span class="product-import-status product-import-status-error">Cần sửa</span>
                       <ul>{% for error in row.errors %}<li>{{ error }}</li>{% endfor %}</ul>
@@ -115,7 +130,7 @@
                   </td>
                 </tr>
               {% empty %}
-                <tr><td colspan="6"><div class="empty-state"><strong>Không có dòng hàng hóa để thêm</strong><span>Điền dữ liệu vào file mẫu rồi tải lại.</span></div></td></tr>
+                <tr><td colspan="7"><div class="empty-state"><strong>Không có dòng hàng hóa để thêm</strong><span>Điền dữ liệu vào file mẫu rồi tải lại.</span></div></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -127,7 +142,7 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="confirm">
               <input type="hidden" name="import_key" value="{{ preview.key }}">
-              <button class="button" type="submit">{% icon 'check' %}Xác nhận thêm {{ preview.valid_count }} hàng hóa</button>
+              <button class="button" type="submit">{% icon 'check' %}{% if preview.document_count %}Thêm {{ preview.product_count }} mã & tạo {{ preview.document_count }} phiếu nhập{% else %}Xác nhận thêm {{ preview.product_count }} hàng hóa{% endif %}</button>
             </form>
           {% endif %}
           <form method="post">
@@ -164,15 +179,15 @@
           <div class="panel-title"><h2>Chuẩn bị file trong 2 bước</h2></div>
           <ol>
             <li><strong>Tải mẫu Excel</strong><p>Dùng mẫu của phần mềm để giữ đúng tên cột.</p><a class="text-link" href="{% url 'product_import_template' %}">{% icon 'download' %}Tải mẫu về máy</a></li>
-            <li><strong>Điền mỗi hàng hóa một dòng</strong><p>Chỉ bắt buộc <b>Mã hàng, Tên hàng, Đơn vị tính</b>. Các cột khác có thể để trống.</p></li>
+            <li><strong>Điền mỗi hàng hóa một dòng</strong><p>Bắt buộc <b>Mã hàng, Tên hàng, Đơn vị tính</b>. Muốn nhập vào kho, điền đủ <b>Mã kho nhập, Số lượng nhập, Đơn giá nhập</b>. Tra mã kho trong trang Danh sách kho của file mẫu; đơn giá bằng 0 phải ghi rõ 0.</p></li>
           </ol>
           <details class="product-import-rules">
             <summary>Lưu ý khi điền Excel</summary>
             <ul>
-              <li>Mã hàng không được trùng trong file hoặc với danh mục đang có.</li>
+              <li>Chỉ thêm mã hàng mới. Một mã phân bổ nhiều kho: lặp mã ở các dòng khác kho và giữ nguyên thông tin hàng hóa, QR. Không lặp cùng mã tại cùng kho. Mã đã có dùng Nhập kho → Lập phiếu nhập bằng Excel.</li>
               <li>Đặt ô mã hàng ở dạng văn bản để giữ số 0 ở đầu mã.</li>
               <li>Dùng giá trị trực tiếp trong ô, không dùng công thức.</li>
-              <li>Tồn tối thiểu là định mức cảnh báo, không phải số lượng tồn kho.</li>
+              <li>Tồn tối thiểu là định mức cảnh báo. Số lượng nhập là số hàng thực nhận đạt yêu cầu; phần thiếu/hỏng cần lập phiếu nhập chi tiết tại Nhập kho.</li>
             </ul>
           </details>
         </section>
@@ -181,7 +196,7 @@
 
     <div class="notice product-import-scope">
       {% icon 'box' %}
-      <div><strong>Excel này tạo danh mục hàng hóa và QR.</strong> Để ghi nhận số lượng, lập phiếu nhập kho và duyệt theo quy trình. Ảnh hàng hóa bổ sung tại chi tiết hàng; hóa đơn gắn theo từng đợt nhập.</div>
+      <div><strong>Để trống ba cột nhập kho: chỉ thêm danh mục và QR.</strong> Điền đủ kho, số lượng, đơn giá: tự tạo phiếu nhập theo từng kho, duyệt xong mới tăng tồn. Cần quyền Tạo phiếu nhập kho và quyền tại kho đó. Ảnh thêm tại chi tiết hàng; hóa đơn gắn vào phiếu nhập.</div>
     </div>
   </div>
 {% endblock %}

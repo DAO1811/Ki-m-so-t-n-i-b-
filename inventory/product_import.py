@@ -1,4 +1,4 @@
-"""Bounded Excel import of new product master records, without inventory changes."""
+"""Bounded product import with optional, separately approved receipt drafts."""
 
 import hashlib
 import json
@@ -11,13 +11,22 @@ from defusedxml.ElementTree import iterparse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import column_index_from_string, get_column_letter
 
-from .access import require_function
+from .access import has_function, require_function
 from .forms import ProductForm
 from .models import CustomField, Product
+from .product_allocation import (
+    ALLOCATION_COLUMNS,
+    ALLOCATION_KEYS,
+    allocation_summary,
+    create_allocated_receipts,
+    has_allocation,
+    validate_allocations,
+)
 
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_PRODUCTS = 500
@@ -84,12 +93,15 @@ def _custom_fields():
 
 
 def _schema(fields):
-    value = [(field.key, field.label) for field in fields]
+    value = {"version": 2, "fields": [(field.key, field.label) for field in fields]}
     return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()
 
 
 def _columns(fields):
-    return [{"key": key, "label": label} for key, label, _aliases in BASE_COLUMNS] + [
+    return [
+        {"key": key, "label": label}
+        for key, label, _aliases in (*BASE_COLUMNS, *ALLOCATION_COLUMNS)
+    ] + [
         {"key": "extra_" + field.key, "label": "Bổ sung: " + field.label}
         for field in fields
     ]
@@ -113,7 +125,7 @@ def _aliases(fields):
         if normalized:
             aliases.setdefault(normalized, set()).add(key)
 
-    for key, label, variants in BASE_COLUMNS:
+    for key, label, variants in (*BASE_COLUMNS, *ALLOCATION_COLUMNS):
         for alias in (key, label, *variants):
             add(alias, key)
     built_in_aliases = set(aliases)
@@ -126,7 +138,7 @@ def _aliases(fields):
     return aliases
 
 
-def build_product_template():
+def build_product_template(*, user=None):
     """Return an XLSX stream with current custom columns and text-formatted SKU."""
     fields = _custom_fields()
     columns = _columns(fields)
@@ -150,7 +162,11 @@ def build_product_template():
         )
         for row in range(2, MAX_PRODUCTS + 2):
             sheet.cell(row, index).number_format = (
-                "0.###" if column["key"] == "minimum" else "@"
+                "0.###"
+                if column["key"] in {"minimum", "receipt_quantity"}
+                else "0.####"
+                if column["key"] == "receipt_price"
+                else "@"
             )
     sheet.row_dimensions[1].height = 32
     instructions = workbook.create_sheet("Hướng dẫn")
@@ -158,18 +174,30 @@ def build_product_template():
     for text in (
         "NHẬP DANH MỤC HÀNG HÓA BẰNG EXCEL",
         "1. Điền dữ liệu từ dòng 2 của trang Hàng hóa; giữ tiêu đề ở dòng 1.",
-        "2. Bắt buộc: Mã hàng, Tên hàng, Đơn vị tính. Mỗi mã hàng là một dòng.",
+        "2. Bắt buộc: Mã hàng, Tên hàng, Đơn vị tính. Phân bổ nhiều kho: lặp mã ở các dòng khác kho, giữ nguyên thông tin hàng hóa và QR.",
         "3. Mã hàng phải là văn bản (Text) để giữ số 0 đầu mã. Không dùng công thức.",
         "4. Mức tồn tối thiểu: số không âm, tối đa 3 chữ số thập phân; bỏ trống tương đương 0.",
         "5. Tối đa 500 dòng hàng, tệp .xlsx không quá 5 MB. Dòng trống được bỏ qua.",
-        "6. Chỉ thêm hàng mới. Mã đã có hoặc trùng trong tệp phải sửa trước khi xác nhận.",
-        "7. Không tạo tồn kho, đơn giá hay chứng từ. QR được tạo tự động cho mỗi mã hàng mới.",
+        "6. Chỉ thêm mã mới. Mã đã có: dùng chức năng Nhập kho → Lập phiếu nhập bằng Excel. Không lặp cùng mã tại cùng kho.",
+        "7. Ba cột Mã kho nhập, Số lượng nhập, Đơn giá nhập cùng để trống: chỉ thêm danh mục. Có phân bổ: điền đủ cả ba, đơn giá miễn phí ghi 0.",
+        "7a. Mỗi kho tự tạo phiếu nhập chờ duyệt, tối đa 50 mã/phiếu. Chưa cộng tồn trước khi được duyệt đúng quyền. Ngày nhập là hôm nay.",
+        "7b. Số lượng nhập dương, tối đa 3 số lẻ. Đơn giá không âm, tối đa 4 số lẻ. Mã kho lấy tại trang Danh sách kho; không dùng tên kho.",
         "8. Cột Bổ sung là thông tin hàng hóa đã được quản trị viên cấu hình, có thể để trống.",
         "9. Tải tệp để xem trước, sửa mọi lỗi trong Excel rồi tải lại trước khi xác nhận.",
-        "10. Ảnh hàng hóa và hóa đơn được thêm ở trang chi tiết/phiếu nhập sau khi tạo mã.",
+        "10. Ảnh hàng hóa và hóa đơn được thêm ở trang chi tiết/phiếu nhập sau khi tạo mã. Cần quyền Tạo phiếu nhập kho và quyền tại kho được chọn.",
         "11. QR tự động: bỏ trống hoặc Có. Nếu dùng QR sẵn/tự đặt, điền Không và nhập Mã QR. QR cố định suốt vòng đời hàng hóa.",
     ):
         instructions.append([text])
+    warehouses = workbook.create_sheet("Danh sách kho")
+    warehouses.append(["Mã kho nhập", "Tên kho"])
+    warehouses.column_dimensions["A"].width = 28
+    warehouses.column_dimensions["B"].width = 50
+    if user is not None and has_function(user, "receipts_create"):
+        from .services import warehouses_for
+
+        for warehouse in warehouses_for(user).order_by("code"):
+            warehouses.append([warehouse.code, warehouse.name])
+            warehouses.cell(warehouses.max_row, 1).number_format = "@"
     stream = BytesIO()
     workbook.save(stream)
     stream.seek(0)
@@ -266,6 +294,7 @@ def _validate_rows(rows, fields):
     seen = {}
     candidates = set()
     for row in rows:
+        allocation = {key: row["data"].get(key, "") for key in ALLOCATION_KEYS}
         form = ProductImportForm(data=row["data"], custom_fields=fields)
         if form.is_valid():
             instance = form.save(commit=False)
@@ -274,6 +303,7 @@ def _validate_rows(rows, fields):
             }
             # Decimal zero must remain explicit, and no ModelForm defaults may
             # accidentally fill the required unit of an incomplete source row.
+            row["data"].update(allocation)
             row["data"]["minimum"] = str(form.cleaned_data["minimum"])
             row["data"]["qr_auto"] = "True" if form.cleaned_data["qr_auto"] else "False"
             row["instance"] = instance
@@ -285,6 +315,34 @@ def _validate_rows(rows, fields):
         if sku:
             candidates.add(sku)
             seen.setdefault(sku, []).append(row)
+    for sku, duplicates in seen.items():
+        if len(duplicates) < 2 or not all(
+            has_allocation(row) and row.get("instance") for row in duplicates
+        ):
+            continue
+
+        def master_data(row):
+            return {
+                key: value
+                for key, value in row["data"].items()
+                if key not in ALLOCATION_KEYS
+                and not (key == "qr_code" and row["data"].get("qr_auto") == "True")
+            }
+
+        if any(
+            master_data(row) != master_data(duplicates[0]) for row in duplicates[1:]
+        ):
+            for row in duplicates:
+                _error(
+                    row,
+                    "sku",
+                    labels["sku"],
+                    "Cùng mã phân bổ nhiều kho phải giữ nguyên tên, đơn vị, QR và thông tin hàng hóa.",
+                )
+        else:
+            for row in duplicates:
+                row["instance"] = duplicates[0]["instance"]
+                row["data"]["qr_code"] = duplicates[0]["data"]["qr_code"]
     existing = set(
         Product.objects.filter(sku__in=candidates).values_list("sku", flat=True)
     )
@@ -308,10 +366,12 @@ def _validate_rows(rows, fields):
             continue
         code = instance.qr_code
         if (
-            len(code_rows[code]) > 1
+            len({other["instance"].sku for other in code_rows[code]}) > 1
             or code in reserved_codes
             or code in occupied_skus
-            or any(other is not row for other in seen.get(code, []))
+            or any(
+                other["data"].get("sku") != instance.sku for other in seen.get(code, [])
+            )
         ):
             _error(
                 row,
@@ -325,7 +385,12 @@ def _validate_rows(rows, fields):
             )
     for sku, duplicates in seen.items():
         for row in duplicates:
-            if len(duplicates) > 1:
+            allocation_repeat = all(
+                has_allocation(other) for other in duplicates
+            ) and len(
+                {other["data"].get("warehouse_code") for other in duplicates}
+            ) == len(duplicates)
+            if len(duplicates) > 1 and not allocation_repeat:
                 lines = ", ".join(
                     str(duplicate["row_number"]) for duplicate in duplicates[:10]
                 )
@@ -347,13 +412,14 @@ def _validate_rows(rows, fields):
     return rows
 
 
-def parse_product_workbook(upload):
+def parse_product_workbook(upload, *, user=None):
     """Return a JSON-safe preview; invalid rows are never silently imported."""
     fields = _custom_fields()
     columns = _columns(fields)
     result = {
         "filename": str(getattr(upload, "name", "hang-hoa.xlsx"))[:250],
         "schema": _schema(fields),
+        "business_date": str(timezone.localdate()),
         "columns": columns,
         "rows": [],
         "errors": [],
@@ -471,7 +537,7 @@ def parse_product_workbook(upload):
                     )
                     continue
                 if (
-                    key in {"sku", "qr_code"}
+                    key in {"sku", "qr_code", "warehouse_code"}
                     and value is not None
                     and not isinstance(value, str)
                 ):
@@ -479,7 +545,7 @@ def parse_product_workbook(upload):
                         row,
                         key,
                         labels[key],
-                        "Mã hàng / mã QR phải có định dạng văn bản (Text) để giữ nguyên số 0 đầu mã.",
+                        "Mã hàng / mã QR / mã kho phải có định dạng văn bản (Text) để giữ nguyên số 0 đầu mã.",
                     )
                 text = str(value).strip() if value is not None else ""
                 if key == "qr_auto":
@@ -506,6 +572,7 @@ def parse_product_workbook(upload):
                 "Nội dung hàng hóa quá dài. Hãy chia nhỏ tệp (tối đa 1 MB dữ liệu văn bản mỗi lần)."
             )
         _validate_rows(result["rows"], fields)
+        validate_allocations(result["rows"], user)
         validated = True
     except ValidationError as exc:
         result["errors"].extend(exc.messages)
@@ -519,6 +586,8 @@ def parse_product_workbook(upload):
     for row in result["rows"]:
         row.pop("instance", None)
         row["display"] = dict(row["data"])
+    result["allocation_summary"] = allocation_summary(result["rows"])
+    result["product_count"] = len({row["data"].get("sku") for row in result["rows"]})
     result["count"] = len(result["rows"])
     result["rows_checked"] = validated
     result["valid_count"] = (
@@ -532,7 +601,15 @@ def parse_product_workbook(upload):
     return result
 
 
-def confirm_product_import(user, rows, schema, *, filename=""):
+class ProductImportResult(list):
+    def __init__(self, products, documents):
+        super().__init__(products)
+        self.documents = documents
+
+
+def confirm_product_import(
+    user, rows, schema, *, filename="", business_date=None, batch_key=None
+):
     """Revalidate server-owned preview data and insert the complete batch atomically."""
     require_function(user, "products_create")
     if not isinstance(rows, list) or not rows or len(rows) > MAX_PRODUCTS:
@@ -558,7 +635,7 @@ def confirm_product_import(user, rows, schema, *, filename=""):
             fields = list(CustomField.objects.select_for_update().order_by("pk"))
             if schema != _schema(fields):
                 raise ValidationError(
-                    "Thông tin bổ sung hàng hóa đã thay đổi sau khi xem trước. Hãy tải mẫu mới và nhập lại."
+                    "Mẫu nhập hàng / thông tin bổ sung hàng hóa đã thay đổi sau khi xem trước. Hãy tải mẫu mới và nhập lại."
                 )
             keys = {column["key"] for column in _columns(fields)}
             validated = []
@@ -599,6 +676,19 @@ def confirm_product_import(user, rows, schema, *, filename=""):
                     "Nội dung hàng hóa quá dài. Hãy chia nhỏ tệp Excel."
                 )
             _validate_rows(validated, fields)
+            if any(has_allocation(row) for row in validated):
+                require_function(user, "receipts_create")
+            validate_allocations(validated, user, lock=True)
+            for source, row in zip(rows, validated, strict=True):
+                if has_allocation(row) and source.get("warehouse_id") != row.get(
+                    "warehouse_id"
+                ):
+                    _error(
+                        row,
+                        "warehouse_code",
+                        "Mã kho nhập",
+                        "Kho đã thay đổi sau bước xem trước. Hãy tải lại file.",
+                    )
             failures = [
                 f"Dòng {row['row_number']} · {error['label']}: {error['message']}"
                 for row in validated
@@ -606,9 +696,19 @@ def confirm_product_import(user, rows, schema, *, filename=""):
             ]
             if failures:
                 raise ValidationError(failures)
-            products = [row["instance"] for row in validated]
+            products = list(
+                {row["instance"].sku: row["instance"] for row in validated}.values()
+            )
             Product.objects.bulk_create(products, batch_size=MAX_PRODUCTS)
-            return products
+            documents = create_allocated_receipts(
+                user,
+                validated,
+                products,
+                business_date=business_date,
+                filename=filename,
+                batch_key=batch_key,
+            )
+            return ProductImportResult(products, documents)
     except IntegrityError as exc:
         raise ValidationError(
             "Có mã hàng vừa được tạo bởi thao tác khác. Chưa nhập hàng nào từ tệp này; hãy tải lại để kiểm tra mã trùng."

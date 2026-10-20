@@ -4,7 +4,7 @@
   <div class="page-heading">
     <div>
       <h1>{% icon 'box' %}Danh mục hàng hóa</h1>
-      <p>Thêm mã hàng thủ công hoặc bằng Excel tại đây. Muốn ghi nhận số lượng thực tế, lập phiếu tại Nhập kho / Xuất kho.</p>
+      <p>Thêm mã hàng thủ công hoặc bằng Excel tại đây. Excel có thể kèm kho, số lượng và đơn giá để tạo phiếu nhập chờ duyệt.</p>
     </div>
     <div class="heading-actions">
       {% if access.custom_fields_manage %}
@@ -18,6 +18,15 @@
   </div>
   {% if import_result %}
     <div class="notice"><span>Đang xem <strong>{{ import_result.ids|length }} mã vừa thêm từ Excel</strong> · {{ import_result.filename }}. <a href="{% url 'products' %}">Xem toàn bộ hàng hóa</a></span></div>
+    {% if import_result.document_count %}
+      <section class="panel product-import-result">
+        <div class="panel-title"><h2>{{ import_result.document_count }} phiếu nhập đã tạo theo kho</h2><a href="{% url 'documents' %}?kind=IN&amp;import_batch={{ import_result.key }}">Xem toàn bộ phiếu của lượt nhập</a></div>
+        <p class="hint">Chưa cộng tồn. Mở từng phiếu để kiểm tra, bổ sung hóa đơn và duyệt theo quyền.</p>
+        <div class="table-scroll"><table><thead><tr><th>Phiếu nhập</th><th>Kho nhận</th><th>Trạng thái</th></tr></thead><tbody>
+        {% for doc in import_result.documents %}<tr><td><a href="{% url 'document_detail' doc.pk %}">PK-{{ doc.pk|stringformat:'06d' }}</a></td><td>{{ doc.destination }}</td><td>{{ doc.get_status_display }}</td></tr>{% endfor %}
+        </tbody></table></div>
+      </section>
+    {% endif %}
     <input type="hidden" form="product-search" name="batch" value="{{ import_result.key }}">
   {% endif %}
   <form class="filters" id="product-search">

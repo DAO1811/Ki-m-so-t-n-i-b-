@@ -65,6 +65,8 @@ def preview_context(preview):
         rows.append(
             {
                 **data,
+                "warehouse_name": original.get("warehouse_name", ""),
+                "receipt_amount": original.get("receipt_amount", ""),
                 "number": original["row_number"],
                 "checked": preview.get("rows_checked", True),
                 "extra": {
@@ -88,6 +90,12 @@ def preview_context(preview):
         "errors": preview["errors"],
         "rows": rows,
         "valid": preview["valid"],
+        "product_count": preview.get("product_count", preview["count"]),
+        "business_date": preview.get("business_date", ""),
+        "allocations": preview.get("allocation_summary", []),
+        "document_count": sum(
+            group["documents"] for group in preview.get("allocation_summary", [])
+        ),
     }
 
 
@@ -96,7 +104,7 @@ def preview_context(preview):
 def product_import_template(request):
     require_function(request.user, "products_create")
     try:
-        template = build_product_template()
+        template = build_product_template(user=request.user)
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
         return redirect("product_import")
@@ -148,6 +156,8 @@ def product_import(request):
                     preview["rows"],
                     preview["schema"],
                     filename=preview["filename"],
+                    business_date=preview.get("business_date"),
+                    batch_key=key,
                 )
             except ValidationError as exc:
                 request.session.pop("product_import", None)
@@ -160,11 +170,12 @@ def product_import(request):
                     "key": key,
                     "filename": preview["filename"],
                     "ids": [product.pk for product in products],
+                    "document_ids": [doc.pk for doc in products.documents],
                 }
-                messages.success(
-                    request,
-                    f"Đã thêm {len(products)} hàng hóa từ Excel và tạo mã QR cho từng mã.",
-                )
+                message = f"Đã thêm {len(products)} hàng hóa từ Excel và tạo mã QR cho từng mã."
+                if products.documents:
+                    message += f" Đã tạo {len(products.documents)} phiếu nhập theo kho chờ duyệt; chưa cộng tồn."
+                messages.success(request, message)
                 return redirect(reverse("products") + "?batch=" + key)
         else:
             request.session.pop("product_import", None)
@@ -172,7 +183,9 @@ def product_import(request):
             form = ProductImportUploadForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
-                    preview = parse_product_workbook(form.cleaned_data["file"])
+                    preview = parse_product_workbook(
+                        form.cleaned_data["file"], user=request.user
+                    )
                     preview.update(
                         key=str(uuid4()), owner=request.user.pk, created_at=time.time()
                     )
