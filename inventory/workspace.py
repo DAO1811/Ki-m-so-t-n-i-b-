@@ -55,7 +55,7 @@ def workspace_context(request):
         "loans": "Mượn & trả",
         "loan_return": "Trả hàng theo lệnh mượn",
         "loan_return_edit": "Sửa phiếu trả hàng",
-        "products": "Hàng hóa",
+        "products": "Danh mục hàng hóa",
         "product_new": "Thêm hàng hóa",
         "product_import": "Thêm hàng hóa từ Excel",
         "product_edit": "Sửa hàng hóa",

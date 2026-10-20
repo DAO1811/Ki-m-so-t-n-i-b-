@@ -15,7 +15,7 @@ FUNCTION_ROWS = [
     ("dashboard", "Tổng quan", [("view", "Xem tổng quan và số liệu tổng hợp")]),
     (
         "products",
-        "Hàng hóa",
+        "Danh mục hàng hóa",
         [
             ("view", "Xem danh mục và ảnh"),
             ("create", "Thêm hàng hóa"),

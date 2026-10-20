@@ -45,7 +45,7 @@ def navigation(request, access):
         [
             item(
                 "products_view",
-                "Hàng hóa",
+                "Danh mục hàng hóa",
                 "box",
                 "products",
                 (

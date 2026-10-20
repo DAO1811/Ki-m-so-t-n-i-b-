@@ -3,7 +3,7 @@
 {% block content %}
   <div class="page-heading">
     <div>
-      <a class="back-link" href="{% url 'products' %}">← Hàng hóa</a>
+      <a class="back-link" href="{% url 'products' %}">← Danh mục hàng hóa</a>
       <h1>
         {% icon 'box' %}
         {% if editing %}
@@ -55,7 +55,7 @@
       <div class="form-grid product-photo-editor" id="photos">
         <div class="field full-width"><h2>Hình ảnh hàng hóa <span class="caption">Có thể thêm sau</span></h2>{% if photos %}<div class="photo-gallery">{% for photo in photos %}<figure><img src="{% url 'private_file' photo.file_id %}" alt="{{ photo.caption|default:'Ảnh hàng hóa' }}"><figcaption>{{ photo.caption }}</figcaption></figure>{% endfor %}</div>{% endif %}</div>
         <div class="field">
-          {{ photo_form.image.label_tag }}{{ photo_form.image }}{{ photo_form.image.errors }}<small>Ảnh không bắt buộc; có thể thêm khi tạo hoặc cập nhật sau tại Hàng hóa.</small>
+          {{ photo_form.image.label_tag }}{{ photo_form.image }}{{ photo_form.image.errors }}<small>Ảnh không bắt buộc; có thể thêm khi tạo hoặc cập nhật sau tại Danh mục hàng hóa.</small>
         </div>
         <div class="field">{{ photo_form.caption.label_tag }}{{ photo_form.caption }}{{ photo_form.caption.errors }}</div>
       </div>
