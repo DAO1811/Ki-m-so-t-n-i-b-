@@ -10,6 +10,12 @@ from .services import validate_line_details
 HEADERS = ["ma_hang", "so_luong", "don_gia"]
 DETAIL_HEADERS = ["sl_chung_tu", "sl_khong_nhan", "ly_do"]
 WAREHOUSE_HEADERS = ["ma_kho"]
+MAX_RECEIPT_ROWS = 1000
+LEGACY_RECEIPT_ROWS = 50
+RECEIPT_LIMIT_ERROR = (
+    "Mẫu mới tối đa 1.000 dòng; mẫu cũ tối đa 50 mã. "
+    "Mỗi phiếu sẽ được chia tối đa 50 mã."
+)
 
 
 def parse_receipt(file):
@@ -35,13 +41,12 @@ def parse_receipt(file):
         ) from exc
     try:
         sheet = workbook.worksheets[0]
-        if sheet.max_row and sheet.max_row > 1000:
-            raise ValidationError(
-                "File có quá nhiều dòng, hãy dùng file mẫu mới (tối đa 50 mã hàng / phiếu)."
-            )
+        if sheet.max_row and sheet.max_row > MAX_RECEIPT_ROWS + 1:
+            raise ValidationError(RECEIPT_LIMIT_ERROR)
         if sheet.max_column and sheet.max_column > 7:
             raise ValidationError("File có quá nhiều cột. Chỉ dùng các cột của mẫu.")
-        rows = sheet.iter_rows(max_row=1001, max_col=8)
+        # Include one overflow row, even if a workbook understates its dimensions.
+        rows = sheet.iter_rows(max_row=MAX_RECEIPT_ROWS + 2, max_col=8)
         header = next(rows, None)
         values = [str(c.value or "").strip() for c in header] if header else []
         multi = values[:7] == HEADERS + DETAIL_HEADERS + WAREHOUSE_HEADERS and not any(
@@ -69,10 +74,11 @@ def parse_receipt(file):
             if all(c.value is None for c in cells):
                 continue
             used += 1
-            if used > (500 if multi else 50) or number > 1000:
-                raise ValidationError(
-                    "Mẫu mới tối đa 500 dòng; mẫu cũ tối đa 50 mã. Mỗi phiếu sẽ được chia tối đa 50 mã."
-                )
+            if (
+                used > (MAX_RECEIPT_ROWS if multi else LEGACY_RECEIPT_ROWS)
+                or number > MAX_RECEIPT_ROWS + 1
+            ):
+                raise ValidationError(RECEIPT_LIMIT_ERROR)
             if any(c.data_type in {"f", "e"} for c in cells) or any(
                 c.value is not None
                 for c in cells[7 if multi else 6 if extended else 3 :]
@@ -209,7 +215,7 @@ def receipt_template(*, user=None):
     sheet.column_dimensions["B"].width = 20
     sheet.column_dimensions["C"].width = 25
     sheet.column_dimensions["G"].width = 25
-    for number in range(2, 502):
+    for number in range(2, MAX_RECEIPT_ROWS + 2):
         sheet.cell(number, 1).number_format = "@"
         sheet.cell(number, 7).number_format = "@"
     sheet.freeze_panes = "A2"
@@ -218,7 +224,7 @@ def receipt_template(*, user=None):
     for text in [
         "Điền ma_kho để phân bổ từng dòng về đúng kho. Tra mã trong trang Danh sach kho.",
         "Mã hàng phải có trong Danh mục hàng hóa. Cùng mã có thể nhập ở các kho khác nhau; không lặp cùng mã trong cùng kho.",
-        "Tối đa 500 dòng ở mẫu mới. Mỗi kho tạo phiếu riêng, trên 50 mã tự chia phiếu. Duyệt xong mới cộng tồn.",
+        "Tối đa 1.000 dòng dữ liệu ở mẫu mới (không tính dòng tiêu đề). Mỗi kho tạo phiếu riêng, trên 50 mã tự chia phiếu. Duyệt xong mới cộng tồn.",
         "Nếu bỏ trống ma_kho, dòng đó dùng Kho nhận chung đã chọn trên màn hình. Nếu không chọn kho chung, mọi dòng phải có ma_kho.",
         "so_luong là số thực nhận đạt yêu cầu; phần thiếu/hỏng ghi sl_chung_tu, sl_khong_nhan và ly_do. Đơn giá miễn phí ghi 0.",
         "Không dùng công thức. Ngày nghiệp vụ là hôm nay. Chỉ dùng các kho bạn được phân quyền.",

@@ -1,10 +1,13 @@
 from copy import deepcopy
 from datetime import timedelta
 from io import BytesIO
+from re import sub
 from unittest.mock import patch
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -68,6 +71,12 @@ class ReceiptWarehouseTests(TestCase):
             {"K01", "K02"},
         )
         self.assertEqual(book.worksheets[0]["G2"].number_format, "@")
+        self.assertEqual(book.worksheets[0]["A1001"].number_format, "@")
+        self.assertEqual(book.worksheets[0]["G1001"].number_format, "@")
+        self.assertEqual(book.worksheets[0].max_row, 1001)
+        self.assertIn(
+            "1.000 dòng", " ".join(str(r[0]) for r in book["Huong dan"].values)
+        )
         book.close()
 
     def test_existing_product_to_multiple_warehouses_without_common_warehouse(self):
@@ -231,13 +240,75 @@ class ReceiptWarehouseTests(TestCase):
         )
         self.assertEqual(response.context["page_obj"].paginator.count, 2)
 
-    def test_new_template_500_rows_split_into_10_drafts(self):
+    def large_rows(self, count):
         Product.objects.bulk_create(
-            [Product(sku=f"R{i}", name=f"Hàng {i}") for i in range(500)]
+            [Product(sku=f"R{i}", name=f"Hàng {i}") for i in range(count)]
         )
-        self.upload([[f"R{i}", 1, 10, None, None, None, "K01"] for i in range(500)])
-        self.assertIn("receipt_import", self.client.session)
+        return [
+            [f"R{i}", 1, 10, None, None, None, "K01" if i < 550 else "K02"]
+            for i in range(count)
+        ]
+
+    def test_new_template_1000_rows_split_into_20_drafts_by_warehouse(self):
+        self.assertContains(self.client.get(self.url), "5 MB / 1.000 dòng")
+        response = self.upload(self.large_rows(1000))
+        self.assertContains(response, "1000 dòng hợp lệ")
+        preview = self.client.session["receipt_import"]
+        self.assertEqual(len(preview["rows"]), 1000)
+        self.assertEqual(preview["rows"][-1]["sku"], "R999")
+        self.assertEqual(preview["rows"][-1]["row_number"], 1001)
+        self.assertEqual(preview["document_count"], 20)
         self.confirm()
-        self.assertEqual(Document.objects.count(), 10)
+        self.assertEqual(Document.objects.filter(destination=self.a).count(), 11)
+        self.assertEqual(Document.objects.filter(destination=self.b).count(), 9)
+        self.assertEqual(Line.objects.count(), 1000)
         self.assertTrue(all(d.lines.count() == 50 for d in Document.objects.all()))
+        self.assertFalse(Document.objects.exclude(status="DRAFT").exists())
         self.assertFalse(Balance.objects.exists())
+        self.assertFalse(Movement.objects.exists())
+
+    def test_1001_rows_rejected_even_with_understated_excel_dimensions(self):
+        rows = self.large_rows(1001)
+        for understated in (False, True):
+            with self.subTest(understated=understated):
+                upload = workbook_upload(rows, COLUMNS)
+                if understated:
+                    output = BytesIO()
+                    with (
+                        ZipFile(upload) as source,
+                        ZipFile(output, "w", ZIP_DEFLATED) as target,
+                    ):
+                        for entry in source.infolist():
+                            data = source.read(entry.filename)
+                            if entry.filename == "xl/worksheets/sheet1.xml":
+                                data = sub(
+                                    rb'<dimension ref="[^"]+"',
+                                    b'<dimension ref="A1:G2"',
+                                    data,
+                                )
+                            target.writestr(entry, data)
+                    upload = SimpleUploadedFile("overflow.xlsx", output.getvalue())
+                response = self.upload(file=upload)
+                self.assertContains(response, "Mẫu mới tối đa 1.000 dòng")
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
+
+    def test_last_of_1000_rows_is_validated_without_partial_preview(self):
+        rows = self.large_rows(1000)
+        rows[-1][0] = "MISSING-LAST-PRODUCT"
+        response = self.upload(rows)
+        self.assertContains(response, "Dòng 1001")
+        self.assertContains(response, "MISSING-LAST-PRODUCT")
+        self.assertNotIn("receipt_import", self.client.session)
+        self.assertFalse(Document.objects.exists())
+
+    def test_legacy_three_and_six_column_files_still_limit_to_50_rows(self):
+        rows = self.large_rows(51)
+        for headers in (HEADERS, HEADERS + DETAIL_HEADERS):
+            with self.subTest(headers=headers):
+                response = self.upload(
+                    [r[: len(headers)] for r in rows], warehouse=self.a, headers=headers
+                )
+                self.assertContains(response, "mẫu cũ tối đa 50 mã")
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
