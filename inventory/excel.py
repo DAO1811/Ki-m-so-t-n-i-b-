@@ -311,3 +311,124 @@ def receipt_template(*, user=None):
             for cell in warehouses[warehouses.max_row]:
                 cell.data_type = "s"
     return book
+
+
+def normalized_receipt_download(file, *, user):
+    """Return a private, canonical workbook; never create stock or documents."""
+    source = _open_receipt(file)
+    try:
+        try:
+            rows = list(
+                source.worksheets[0].iter_rows(max_row=MAX_RECEIPT_ROWS + 2, max_col=8)
+            )
+        except Exception as exc:
+            raise ValidationError(RECEIPT_READ_ERROR) from exc
+        header = [cell.value for cell in rows.pop(0)]
+        if header[:7] != HEADERS + DETAIL_HEADERS + WAREHOUSE_HEADERS or header[7]:
+            raise ValidationError(
+                "Chuẩn hóa dùng mẫu mới 7 cột. Mẫu cũ vẫn dùng nút Kiểm tra & xem trước."
+            )
+        data = [
+            (number, list(cells))
+            for number, cells in enumerate(rows, 2)
+            if any(cell.value is not None for cell in cells)
+        ]
+        removed = 0
+        while (
+            data
+            and not isinstance(data[-1][1][2].value, bool)
+            and data[-1][1][2].value == 0
+            and all(cell.value is None for i, cell in enumerate(data[-1][1]) if i != 2)
+        ):
+            data.pop()
+            removed += 1
+        if not data:
+            raise ValidationError("File chưa có dòng hàng.")
+        converted = 0
+        values = []
+        for number, cells in data:
+            if any(cell.data_type in {"f", "e"} for cell in cells):
+                raise ValidationError(
+                    f"Dòng {number}: không dùng công thức hoặc ô lỗi Excel."
+                )
+            row = [cell.value for cell in cells[:7]]
+            if not isinstance(row[0], str) or not row[0].strip():
+                raise ValidationError(f"Dòng {number}: mã hàng phải là văn bản (Text).")
+            if row[6] is not None and not isinstance(row[6], str):
+                raise ValidationError(f"Dòng {number}: mã kho phải là văn bản (Text).")
+            price = row[2]
+            if isinstance(price, str):
+                match = fullmatch(
+                    r"\s*([0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)\s*(?:đ|Đ|₫|[vV][nN][dD])\s*",
+                    price,
+                )
+                if not match:
+                    raise ValidationError(
+                        f"Dòng {number}: đơn giá dạng chữ không rõ ràng. Chỉ tự đổi dạng 600.000 đ / VND; giá khác cần nhập ô số, không tự đoán dấu thập phân."
+                    )
+                digits = match[1].replace(".", "")
+                if len(digits) > 14:
+                    raise ValidationError(
+                        f"Dòng {number}: đơn giá vượt giới hạn của mẫu."
+                    )
+                row[2] = int(digits)
+                converted += 1
+            for index in (1, 2, 3, 4):
+                value = row[index]
+                if value is None and index in (3, 4):
+                    continue
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float, Decimal))
+                    or not Decimal(str(value)).is_finite()
+                    or value < 0
+                    or value >= (10**14 if index == 2 else 10**13)
+                ):
+                    raise ValidationError(
+                        f"Dòng {number}: số lượng / đơn giá phải là ô số không âm trong giới hạn của mẫu."
+                    )
+            values.append(row)
+    finally:
+        source.close()
+
+    book = receipt_template(user=user)
+    sheet = book.worksheets[0]
+    review = book.create_sheet("Can doi chieu")
+    review.append(["dong_nhap_kho", "ma_hang", "ma_kho", "don_gia", "can_kiem_tra"])
+    review.column_dimensions["E"].width = 100
+    for number, row in enumerate(values, 2):
+        for column, value in enumerate(row, 1):
+            cell = sheet.cell(number, column, value)
+            if isinstance(value, str):
+                cell.data_type = "s"
+        if row[2] == 0 or row[2] >= 100_000_000:
+            review.append(
+                [
+                    number,
+                    row[0],
+                    row[6],
+                    row[2],
+                    "Giá bằng 0: xác nhận giá thực tế, không dùng 0 thay giá chưa biết."
+                    if row[2] == 0
+                    else "Đơn giá từ 100 triệu: đối chiếu chứng từ; giá được giữ nguyên.",
+                ]
+            )
+            for cell in review[review.max_row]:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
+    book["Huong dan"].append(
+        [
+            f"Đã chuẩn hóa {converted} ô giá chữ sang số và bỏ {removed} dòng thừa cuối file chỉ có đơn giá 0. Còn {len(values)} dòng hàng."
+        ]
+    )
+    book["Huong dan"].append(
+        [
+            "Chỉ chuẩn hóa định dạng; chưa kiểm tra mã hàng, quyền kho, chứng từ hay giá thực tế. Chọn lại file đã tải rồi bấm Kiểm tra & xem trước. Chưa tạo phiếu, chưa cộng tồn."
+        ]
+    )
+    book["Huong dan"].append(
+        [
+            "Giá bằng 0 và giá từ 100 triệu được giữ nguyên, liệt kê trong trang Can doi chieu để đối chiếu trước khi duyệt."
+        ]
+    )
+    return book

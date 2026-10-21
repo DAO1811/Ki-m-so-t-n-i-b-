@@ -11,13 +11,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .access import require_function
-from .excel import parse_receipt
+from .excel import normalized_receipt_download, parse_receipt
 from .forms import ReceiptImportForm
 from .models import Document, Line, Product, Warehouse
 from .services import audit_document, capture_lines, validate_document, warehouses_for
@@ -240,6 +241,22 @@ def receipt_import(request):
         request.session.pop("receipt_import", None)
         if form.is_valid():
             try:
+                if request.POST.get("normalize") == "1":
+                    book = normalized_receipt_download(
+                        form.cleaned_data["file"], user=request.user
+                    )
+                    response = HttpResponse(
+                        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                    response["Content-Disposition"] = (
+                        'attachment; filename="nhap-kho-da-chuan-hoa.xlsx"'
+                    )
+                    response["Cache-Control"] = "private, no-store"
+                    try:
+                        book.save(response)
+                    finally:
+                        book.close()
+                    return response
                 rows = parse_receipt(form.cleaned_data["file"])
                 groups = resolve_rows(
                     rows, request.user, form.cleaned_data["warehouse"]

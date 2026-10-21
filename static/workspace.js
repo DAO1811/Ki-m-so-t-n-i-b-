@@ -84,7 +84,7 @@
   );
   document.querySelectorAll("form").forEach((form) =>
     form.addEventListener("submit", (e) => {
-      if (e.defaultPrevented || !form.checkValidity()) return;
+      if (e.defaultPrevented || !form.checkValidity() || e.submitter?.hasAttribute("data-download")) return;
       setTimeout(
         () =>
           form.querySelectorAll('button[type="submit"]').forEach((button) => {

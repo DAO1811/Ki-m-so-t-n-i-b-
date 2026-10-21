@@ -93,7 +93,9 @@
       </section>
       <div class="form-actions">
         <button class="button" type="submit">{% icon 'check' %}Kiểm tra & xem trước</button>
+        <button class="button secondary" type="submit" name="normalize" value="1" data-download>{% icon 'download' %}Chuẩn hóa và tải lại Excel</button>
       </div>
+      <p class="hint">Nếu đơn giá đang là chữ như 600.000 đ: chọn file rồi bấm Chuẩn hóa và tải lại Excel. Tải xong, chọn lại file đã tải để kiểm tra trước khi tạo phiếu. Nút chuẩn hóa chỉ sửa định dạng, chưa tạo phiếu hay cộng tồn.</p>
     </form>
   {% endif %}
   <div class="hint">File Excel chỉ tạo phiếu nhập theo từng kho chờ duyệt. Người được cấp quyền cần duyệt trước khi cộng tồn.</div>
