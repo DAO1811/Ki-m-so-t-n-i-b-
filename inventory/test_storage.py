@@ -237,6 +237,26 @@ class StorageReportsTests(TransactionTestCase):
                 "verified",
             )
 
+    def test_summary_does_not_add_quantities_with_different_units(self):
+        other = Product.objects.create(sku="BOX-01", name="Hàng đóng hộp", unit="Hộp")
+        item = Movement.objects.create(
+            document=self.doc,
+            warehouse=self.a,
+            product=other,
+            delta=5,
+            value_delta=50,
+            balance_after=5,
+            value_after=50,
+        )
+        Movement.objects.filter(pk=item.pk).update(created_at=self.start)
+        payload, _summary = self.payload()
+        book = load_workbook(BytesIO(payload))
+        totals = list(book["Tong hop giao dich"].values)
+        self.assertEqual(len(totals), 3)
+        by_unit = {row[2]: row for row in totals[1:]}
+        self.assertEqual(by_unit["Cái"][5], "-2.000")
+        self.assertEqual(by_unit["Hộp"][5], "5.000")
+
     @patch("inventory.storage_reports.drive.google_request")
     def test_invalid_and_unfinished_period_never_contacts_google(self, google):
         for period in (

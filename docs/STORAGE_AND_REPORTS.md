@@ -67,7 +67,8 @@ công thức từ tên hàng hoặc ghi chú. Muốn tính toán thêm nên dùn
 Các tab:
 
 - Thông tin mốc xuất, múi giờ và phạm vi.
-- Tổng hợp giao dịch theo kho: tăng, giảm, ròng và giá trị ròng.
+- Tổng hợp giao dịch theo kho và đơn vị tính: tăng, giảm, ròng và giá trị ròng.
+  Không cộng số lượng khác đơn vị (ví dụ Cái với Hộp) thành cùng một dòng.
 - Nhật ký biến động theo **thời điểm thực tế của từng chặng** trong tháng:
   bao gồm chặng chuyển kho đã xuất nhưng đang chờ nhận.
 - Phiếu liên quan; trạng thái tại thời điểm xuất.

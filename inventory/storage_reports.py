@@ -183,7 +183,7 @@ def build_report(period):
                 )
             doc_ids.add(item.document_id)
             # Movement is authoritative for executed transfer legs and quantities.
-            key = (item.warehouse.code, item.warehouse.name)
+            key = (item.warehouse.code, item.warehouse.name, item.product.unit)
             row = totals[key]
             row[0] += max(item.delta, 0)
             row[1] += max(-item.delta, 0)
@@ -210,6 +210,7 @@ def build_report(period):
             [
                 "Mã kho",
                 "Tên kho",
+                "Đơn vị tính",
                 "SL tăng",
                 "SL giảm",
                 "SL ròng",
