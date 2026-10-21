@@ -2,15 +2,15 @@ from io import StringIO
 from unittest import skipUnless
 from unittest.mock import patch
 
-from psycopg import sql
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import TransactionTestCase, override_settings
+from psycopg import sql
 
 from . import release_backup as backup
-from .models import Product, Warehouse, Balance
+from .models import Balance, Product, Warehouse
 
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL release snapshots")

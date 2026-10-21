@@ -1,0 +1,119 @@
+.button,
+button:not([class]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 660;
+  line-height: 1.5;
+  min-height: 36px;
+  white-space: nowrap;
+  background: linear-gradient(115deg, #f0dba8, var(--accent-fill));
+  color: var(--accent-contrast);
+  border-color: var(--accent-line);
+  box-shadow: 0 2px 4px #8a6b1e0a;
+}
+.button .icon {
+  width: 16px;
+  height: 16px;
+}
+.button:hover {
+  background: var(--accent-fill);
+  color: var(--accent-contrast);
+  box-shadow: 0 3px 10px #8a6b1e16;
+}
+.button.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.button.secondary:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+  border-color: var(--accent-line);
+}
+.button.danger {
+  color: #fff;
+  background: #c83e4e;
+  border-color: #c83e4e;
+}
+.button.danger:hover {
+  color: #fff;
+  background: #ac2b3b;
+  border-color: #ac2b3b;
+}
+.button.orange {
+  color: #fff;
+  background: #ad6117;
+  border-color: #ad6117;
+}
+.button.orange:hover {
+  color: #fff;
+  background: #914d0e;
+  border-color: #914d0e;
+}
+.button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: transparent;
+  box-shadow: none;
+}
+.button.small {
+  padding: 5px 10px;
+  min-height: 30px;
+  font-size: 11px;
+}
+.text-link {
+  font-size: 11px;
+  font-weight: 600;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 19px 20px;
+}
+.panel-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: -0.1px;
+  margin: 0;
+  min-width: 0;
+}
+.panel-title h2 > .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--accent);
+}
+.panel-title a {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 620;
+}
+.panel-title a .icon {
+  width: 14px;
+  height: 14px;
+}
+.caption {
+  font-size: 10px;
+  color: var(--muted);
+}

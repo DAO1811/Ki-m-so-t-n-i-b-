@@ -4,13 +4,13 @@ The snapshot lives in the same database. It is a migration recovery copy, not
 an off-site backup. No production data is sent to logs or the application host.
 """
 
-from contextlib import contextmanager
 import os
+from contextlib import contextmanager
 
 import psycopg
+from django.db import connection
 from psycopg import sql
 from psycopg.types.json import Jsonb
-from django.db import connection
 
 SNAPSHOT_SCHEMA = "dhd_backup_inventory_0018"
 MANIFEST_TABLE = "_dhd_snapshot_manifest"

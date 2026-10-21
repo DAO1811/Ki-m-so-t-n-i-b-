@@ -1,24 +1,26 @@
-from .test_support import grant_functions
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
-from django.test import TestCase, TransactionTestCase
+from unittest import skipUnless
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import connection, close_old_connections, connections
-from concurrent.futures import ThreadPoolExecutor
-from unittest import skipUnless
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import close_old_connections, connection, connections
+from django.test import TestCase, TransactionTestCase
+
+from .forms import ProductForm
 from .models import (
-    Warehouse,
-    Product,
+    Balance,
+    CustomField,
     Document,
     Line,
-    Balance,
-    Movement,
-    CustomField,
     LoanHolding,
+    Movement,
+    Product,
+    Warehouse,
 )
-from .services import post_document, capture_lines
-from .forms import ProductForm
+from .services import capture_lines, post_document
+from .test_support import grant_functions
 
 
 class InventoryTests(TestCase):
@@ -408,8 +410,9 @@ class ExcelImportTests(TestCase):
     # Isolated tests use the same warehouse / identity fixtures without duplicating the inventory suite.
     def workbook(self, rows):
         from io import BytesIO
-        from openpyxl import Workbook
+
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from openpyxl import Workbook
 
         b = Workbook()
         s = b.active
@@ -517,9 +520,10 @@ class ExcelImportTests(TestCase):
 
 class BootstrapAdminTests(TestCase):
     def test_initial_admin_created_once_without_password_reset(self):
-        from django.core.management import call_command
-        from unittest.mock import patch
         from io import StringIO
+        from unittest.mock import patch
+
+        from django.core.management import call_command
 
         with patch.dict(
             "os.environ",
@@ -545,8 +549,9 @@ class BootstrapAdminTests(TestCase):
             self.assertTrue(user.check_password("Strong-unique-test-password-2026!"))
 
     def test_existing_user_not_promoted(self):
-        from django.core.management import call_command, CommandError
         from unittest.mock import patch
+
+        from django.core.management import CommandError, call_command
 
         get_user_model().objects.create_user("worker")
         with patch.dict(

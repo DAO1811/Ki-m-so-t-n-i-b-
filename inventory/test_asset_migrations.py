@@ -3,11 +3,12 @@ from decimal import Decimal
 from io import StringIO
 from zoneinfo import ZoneInfo
 
-from psycopg import sql
 from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
+from psycopg import sql
+
 from . import release_backup as backup
 
 

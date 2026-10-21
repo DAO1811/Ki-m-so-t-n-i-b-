@@ -1,36 +1,69 @@
-# Cấu trúc để tiếp tục phát triển
+# Kiến trúc DHD Kiểm soát nội bộ
 
-- `config/`: cấu hình, URL, WSGI. Đọc PostgreSQL từ `DATABASE_URL`; SQLite chỉ dành cho phát triển một người.
-- `inventory/models.py`: danh mục, chứng từ, dòng hàng, sổ biến động, số dư.
-- `inventory/services.py`: nghiệp vụ ghi sổ trong transaction, khóa dòng PostgreSQL, kiểm tra quyền, chống âm tồn và ghi sổ hai lần.
-- `inventory/forms.py`: biểu mẫu và trường bổ sung hàng hóa.
-- `inventory/views.py`: màn hình và xuất CSV, kiểm soát phạm vi kho tại máy chủ.
-- `templates/` và `static/`: giao diện tiếng Việt, tương thích màn hình nhỏ, không cần dịch vụ font hoặc thư viện bên ngoài.
-- Django Admin: kho, hàng hóa, nhân viên, vai trò và trường bổ sung. Không mở chỉnh sửa trực tiếp sổ kho, số dư hoặc phiếu đã ghi sổ.
-- `inventory/tests.py`: kiểm thử nghiệp vụ, phân quyền, giao diện và cập nhật tồn đồng thời trên PostgreSQL.
+Cập nhật cấu trúc ngày 21/10/2026. Đây là một ứng dụng Django chia phân hệ, dùng một database PostgreSQL và một quy trình triển khai. Ranh giới được tách để bảo trì; không cần tách thành nhiều dịch vụ riêng khi chưa có nhu cầu vận hành tương ứng.
 
-## Quy tắc định giá
+## Điểm vào và trách nhiệm
 
-VNĐ, giá vốn bình quân liên hoàn theo từng kho / mã hàng. Số lượng 3 chữ số thập phân, đơn giá nhập 4 chữ số thập phân, giá trị sổ 2 chữ số thập phân (làm tròn half-up). Xuất hết số lượng sẽ xuất hết giá trị còn lại để không lưu dư tiền do làm tròn. Màn hình có thể làm tròn giá trị VNĐ; CSV giữ số thập phân.
+| Thư mục | Trách nhiệm |
+| --- | --- |
+| `config/` | Cấu hình môi trường, URL gốc, health, WSGI và Django Admin |
+| `core/` | Tài khoản/phân quyền ở giao diện, đổi mật khẩu, xuất CSV an toàn, trang chuẩn bị dùng chung |
+| `inventory/` | Mô hình dữ liệu, giao dịch kho, quyền, Drive, Excel, QR và kiểm kê |
+| `workflows/` | App/URL riêng cho Quy trình; hiện chỉ là trang chuẩn bị |
+| `people/` | App/URL riêng cho Nhân sự; hiện chỉ là trang chuẩn bị |
+| `assets/styles/` | Nguồn CSS theo thành phần và nghiệp vụ |
+| `static/app.css` | Bundle CSS sinh từ nguồn, được kiểm tra đồng bộ khi build |
+| `templates/` | Các template Django, dùng chung `base.html` |
+| `.github/workflows/ci.yml` | Lint, kiểm tra cấu hình/migration/static và test PostgreSQL |
 
-Phiếu nhập phải khai báo đơn giá; được nhập 0 cho hàng không thu tiền. Phiếu xuất dùng bình quân tại kho xuất. Luân chuyển chính thức và xuất cho mượn dùng giá vốn bình quân tại kho cho ở thời điểm duyệt xuất. Hàng mượn lưu vào `LoanHolding`, tách biệt `Balance` khả dụng; trả hàng giữ nguyên giá trị trung gian, không dùng giá bình quân hàng mua riêng của kho mượn. Kiểm kê nhập số lượng thực đếm, điều chỉnh nhập số chênh lệch. Chênh lệch giảm dùng giá bình quân hiện tại; tăng dùng đơn giá nhập trên phiếu hoặc bình quân hiện tại. Hàng chưa có tồn cần nhập đơn giá.
+`config/urls.py` ghép URL của các app. Tên route và đường dẫn cũ được giữ: `/team/`, `/account/password/`, `/products/`, `/documents/`, `/processes/`, `/human-resources/`... Các trang và quyền hiện có không thay đổi chỉ vì chuyển file.
 
-Không bao gồm thuế, vận chuyển phân bổ, kế toán công nợ hoặc tính giá FIFO. Không so sánh giá trị giữa các đơn vị tính khác nhau.
+## Màn hình kho
 
-## Mở rộng
+`inventory/views.py` cũ được thay bằng package:
 
-Trường bổ sung hàng hóa được khai báo bằng mã và nhãn; giá trị lưu JSON, nhập qua biểu mẫu hàng hóa. Bản đầu hỗ trợ trường văn bản tùy chọn cho hàng hóa; trường số/ngày, trường bắt buộc, trường cho phiếu hoặc quy trình tự cấu hình cần mở rộng tiếp, không tự động được hỗ trợ bởi JSON.
+- `dashboard.py`: tổng quan.
+- `catalog.py`: danh mục, ảnh lúc tạo/sửa, trường bổ sung.
+- `warehouses.py`: danh mục kho, phân công và kho đang xem.
+- `document_list.py`: danh sách và hàng chờ duyệt.
+- `document_editing.py`: tạo/sửa phiếu nháp và kiểm tra dòng.
+- `document_detail.py`: xem, duyệt và đóng phiếu.
+- `stock.py`: tồn, thẻ kho, báo cáo và API số lượng khả dụng.
+- `common.py`, `imports.py`: các trợ giúp và điểm vào tương thích.
 
-Những báo cáo nên bổ sung tiếp: nhập–xuất–tồn đầu/cuối kỳ theo khoảng ngày; hàng không phát sinh 30/60/90 ngày; chênh lệch kiểm kê; tần suất và giá trị điều chỉnh; tuổi nợ mượn; dashboard mua bổ sung. Báo cáo bản đầu gồm tồn hiện tại và định giá, cảnh báo dưới tối thiểu, thẻ kho, đối chiếu mượn trả, xuất CSV tồn và thẻ kho.
+`inventory/views/__init__.py` tái xuất các tên hàm cũ. Code mới nên import module cụ thể; lớp tương thích phục vụ URL và tích hợp hiện có. Các luồng chuyên sâu vốn đã có file riêng như `stocktakes.py`, `loan_returns.py`, `product_import.py` và các `*_views.py` vẫn được giữ nguyên.
 
-## Phân quyền và hai giai đoạn
+## Ranh giới dữ liệu và quyền
 
-`Warehouse.members` là phạm vi truy cập; `managers` là người duyệt nhập / kiểm kê / điều chỉnh; `issue_approvers` là người được admin chỉ định duyệt xuất. Vai trò nhóm cấp quyền tạo chứng từ / danh mục, không thay thế phân quyền duyệt từng kho. Superuser hỗ trợ mọi kho nhưng không tự duyệt phiếu đã lập.
+Tất cả model hiện có vẫn thuộc app `inventory`, kể cả `FunctionAccess` hoặc kết nối Drive được dùng chung. Không đổi tên bảng, khóa ngoại, `app_label` hay migration lịch sử trong một lần tổ chức lại mã. `core.views` sử dụng các model/quyền đó qua import rõ ràng. Việc chuyển model sang app khác nếu có sẽ là một thiết kế migration riêng có kiểm thử dữ liệu.
 
-Phiếu liên kho: DRAFT → TRANSIT (trừ tồn khả dụng hoặc giảm tồn mượn tạm khi trả) → POSTED (nhận vào tồn thường, riêng LOAN nhận vào LoanHolding bị khóa). Giá trị đi đường cố định tại lúc duyệt xuất. Các xác nhận chạy trong transaction; khóa Document, phiếu mượn gốc khi cần và Warehouse theo thứ tự ID để serialize biến động.
+`FunctionAccessMiddleware` áp dụng cho namespace `core`, `inventory`, `workflows`, `people`. Tài khoản thường bị từ chối khi truy cập một route chưa đăng ký quyền; hai route chuẩn bị chỉ cho xem thông báo. Thêm endpoint ở app mới không được tự bỏ kiểm tra quyền. View phải bảo vệ truy cập chưa đăng nhập; nghiệp vụ tiếp tục kiểm tra quyền, cấp duyệt, phạm vi kho và trạng thái chứng từ tại máy chủ.
 
-Excel nhập phiếu IN dùng openpyxl + defusedxml, giới hạn kích thước nén/giải nén, không chạy công thức, kiểm tra toàn file trước khi tạo nháp. Xem trước lưu server session; `Document.import_key` unique chống tạo trùng khi gửi lại xác nhận.
+Admin dùng toàn bộ chức năng theo yêu cầu chủ dự án. Người duyệt thường phải cao cấp hơn người lập và có quyền phù hợp. Admin tự duyệt phải xác nhận cảnh báo, được ghi lịch sử. Chi tiết hiện hành ở `APPROVAL_HIERARCHY.md`, thay cho mô tả cũ về cấm admin tự duyệt.
 
-## Workspace cải tiến (chưa phát hành)
+## Bất biến nghiệp vụ
 
-`inventory/workspace.py` quản lý kho đang xem và context điều hướng. `approval_documents_for` và `can_approve` dùng chung giữa hàng chờ và thao tác ghi sổ. Kiểm tra dòng dùng chung cho tạo/sửa; kiểm tra tồn ban đầu hỗ trợ người lập, còn `post_document` giữ kiểm tra có khóa để chống race. `submission_key` dùng cột import_key hiện có để xử lý gửi lại form, không thêm schema. Biểu đồ tổng hợp số liệu theo ngày trong DB, không nạp toàn bộ ledger vào bộ nhớ. Quy tắc mật khẩu tự do của chủ dự án được thể hiện bằng AUTH_PASSWORD_VALIDATORS rỗng; băm mật khẩu, kiểm tra mật khẩu hiện tại, xác nhận mật khẩu và quyền quản trị vẫn giữ.
+- Ghi sổ chạy trong transaction, có khóa dòng và kiểm tra lại tồn/quyền/trạng thái; không cập nhật tồn trực tiếp từ giao diện.
+- Giá vốn bình quân liên hoàn theo từng kho/mã. Số lượng 3 số lẻ, đơn giá nhập 4 số lẻ, giá trị sổ 2 số lẻ, làm tròn half-up. Xuất hết sẽ kết chuyển hết giá trị còn lại.
+- Ngày lập/ghi nhận nhập, xuất mới chỉ dùng ngày hôm nay. Chuyển hàng và xác nhận nhận là các giai đoạn riêng; giữ mốc chuyển đi.
+- `DRAFT → TRANSIT → POSTED` áp dụng cho luân chuyển hai giai đoạn. Phiếu nhập/xuất thông thường có quy tắc duyệt hiện có; không tự bổ sung luồng nhiều cấp từ một đề xuất chưa được chốt.
+- Hàng mượn nằm trong `LoanHolding`, tách khỏi tồn sở hữu `Balance`; trả từng phần giữ giá trị mượn và chống trả vượt.
+- Phiếu đã ghi sổ không sửa nội dung/xóa. Tệp đính kèm có lịch sử bổ sung/thu hồi, giữ tệp cũ. Chưa có quy trình sửa phiếu qua email.
+- Kiểm kê theo kho: chốt tồn/khóa giao dịch, chọn giấy hoặc QR, đối chiếu và tạo phiếu chênh lệch. Chỉ điều chỉnh tồn khi phiếu được duyệt.
+- QR tự tạo/tự nhập là duy nhất và cố định trong vòng đời mã hàng. Mỗi lượt quét kiểm kê cộng 1, có chống gửi lại.
+- Excel kiểm tra toàn file, không chạy công thức, giới hạn kích thước, lưu bản xem trước ở server và chống tạo trùng. Phân bổ kho tạo phiếu nháp, chưa cộng tồn.
+- Ảnh và hóa đơn/PDF ở Drive riêng tư đã được cấp OAuth. PostgreSQL giữ chỉ mục; không dựa vào ổ đĩa tạm Render để lưu tệp thực tế.
+
+## Giao diện và nguồn CSS
+
+Các file `foundation`, `layout`, `controls`, `inventory`, `responsive`, `records`, `loans`, `imports`, `stocktakes`, `navigation`, `states` trong `assets/styles/` được ghép theo thứ tự cố định bởi `scripts/build_styles.py`. Không có bước tải CSS qua dịch vụ bên ngoài hoặc dependency Node để build.
+
+Màu nhận diện dùng `--accent*`, `--silver*`; trạng thái thành công dùng `--success*`. Tông vàng/bạc không thay thế màu lỗi/cảnh báo. Palette sáng/tối nằm cùng nguồn; CSS in có quy tắc riêng. Không còn stylesheet `company-theme.css` ghi đè toàn ứng dụng hoặc các quy tắc đăng nhập cũ không sử dụng trong bundle. Trang đăng nhập dùng `static/login.css` riêng.
+
+## Kiểm tra và triển khai
+
+Kiểm thử PostgreSQL bao gồm tồn/giá vốn, cạnh tranh cập nhật, quyền, luồng duyệt, QR, Excel và migration/snapshot. Các test thêm cho cấu trúc app kiểm tra URL tương thích và chống bỏ quyền khi đổi namespace. Kiểm tra trình duyệt và ảnh trước–sau bổ sung cho các thay đổi giao diện; số lượng test không thay thế kiểm tra hành vi thực tế.
+
+`safe_migrate` có khóa triển khai và snapshot nhất quán trước thay đổi schema. Snapshot cùng Neon phục vụ khôi phục migration; cần backup độc lập cho sự cố toàn database. Refactor cấu trúc này không có migration dữ liệu mới.
+
+Xem `RELEASE_PROCESS.md` để phát hành. Quy trình CI chạy tự động theo file workflow; bảo vệ nhánh và chế độ tự triển khai Render phải được quản lý trong cấu hình GitHub/Render, không tự suy ra đã bật từ việc có workflow.

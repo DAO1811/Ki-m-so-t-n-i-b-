@@ -1,4 +1,3 @@
-from .test_support import grant_functions, OPERATOR, MANAGER
 from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import patch
@@ -12,10 +11,11 @@ from django.test import TestCase
 from django.utils import timezone
 from openpyxl import Workbook
 
-from .excel import HEADERS, DETAIL_HEADERS, parse_receipt
+from .excel import DETAIL_HEADERS, HEADERS, parse_receipt
 from .forms import DocumentForm, LineFormSet, ProductForm
 from .models import Balance, Document, Line, Movement, Product, Warehouse
 from .services import capture_lines, close_document, post_document
+from .test_support import MANAGER, OPERATOR, grant_functions
 
 
 class AssetControlTests(TestCase):
@@ -221,8 +221,9 @@ class AssetControlTests(TestCase):
         )
         self.assertRedirects(response, "/stocktakes/")
         self.assertFalse(Document.objects.filter(kind="COUNT").exists())
-        from uuid import uuid4
         from decimal import Decimal
+        from uuid import uuid4
+
         from .stocktakes import (
             begin_session,
             freeze_session,

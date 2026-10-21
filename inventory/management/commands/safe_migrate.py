@@ -1,9 +1,9 @@
+import psycopg
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection, DatabaseError
-import psycopg
+from django.db import DatabaseError, connection
 
-from inventory.release_backup import deploy_connection, ensure_snapshot, SNAPSHOT_SCHEMA
+from inventory.release_backup import SNAPSHOT_SCHEMA, deploy_connection, ensure_snapshot
 
 
 class Command(BaseCommand):

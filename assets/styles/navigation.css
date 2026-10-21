@@ -1,0 +1,74 @@
+/* Company modules: native disclosure keeps navigation usable without JavaScript. */
+.nav-module {
+  margin: 5px 0;
+}
+.nav-module-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 9px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  list-style: none;
+  color: #c9cdd6;
+}
+.nav-module-heading::-webkit-details-marker {
+  display: none;
+}
+.nav-module-heading:hover {
+  background: #ffffff0a;
+  color: white;
+}
+.nav-module-heading.active {
+  color: #f0dba8;
+  background: #d9b96b12;
+}
+.nav-module-heading > .icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+.nav-module-heading > span {
+  flex: 1;
+}
+.nav-module-heading > .icon:last-child:not(:first-child) {
+  width: 14px;
+}
+.nav-module[open] > summary > .icon:last-child {
+  transform: rotate(90deg);
+}
+.nav-module-heading small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #9ba5b4;
+}
+.nav-module-content {
+  padding-left: 8px;
+  border-left: 1px solid #ffffff18;
+  margin-left: 16px;
+}
+.nav-module-heading:focus-visible {
+  outline: 2px solid #11d3a2;
+  outline-offset: -2px;
+  outline-color: #e9cc8c;
+}
+
+.sidebar nav {
+  flex: 1;
+  min-height: 0;
+  scrollbar-color: #4e535d transparent;
+}
+.brand,
+.sidebar-user {
+  flex-shrink: 0;
+}
+.nav-module-content {
+  max-height: max(140px, calc(100dvh - 420px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4e535d transparent;
+}

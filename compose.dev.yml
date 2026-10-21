@@ -1,0 +1,19 @@
+# Local development database only. Production credentials are not used here.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dhd_dev
+      POSTGRES_USER: dhd_dev
+      POSTGRES_PASSWORD: local-development-only
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - dhd_dev_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dhd_dev -d dhd_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  dhd_dev_database:

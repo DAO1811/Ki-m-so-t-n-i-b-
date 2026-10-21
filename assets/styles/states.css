@@ -1,0 +1,72 @@
+.sidebar-user .avatar {
+  color: #332710;
+  background: #e9cc8c;
+}
+
+.button.ghost:hover {
+  background: transparent;
+  color: var(--muted);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.stat-icon.purple,
+.signal-icon.purple {
+  color: var(--silver);
+  background: var(--silver-soft);
+}
+
+.stat-icon.green {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.signal-icon.green {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.dark .notice.warning {
+  color: #f4ca8f;
+  border-color: #78603e;
+}
+
+.dark .message.error {
+  color: #ffb0bc;
+  border-color: #78424f;
+}
+
+.dark .badge.transit {
+  color: var(--blue);
+}
+
+.dark .errorlist {
+  color: #ffb0bc;
+}
+
+.dark .product-import-row-result ul {
+  color: #ffb0bc;
+}
+
+.dark .badge:not(.posted):not(.transit):not(.draft) {
+  color: var(--amber);
+}
+
+@media print {
+  :root,
+  .dark {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-alt: #f5f5f5;
+    --ink: #111;
+    --muted: #555;
+    --line: #ccc;
+    --accent: #795715;
+    --accent-ink: #795715;
+    --accent-soft: #faf5e9;
+    --success: #186044;
+    --success-soft: #f2f7f4;
+    --silver: #555;
+    --silver-soft: #eee;
+  }
+}

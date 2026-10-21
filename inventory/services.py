@@ -357,7 +357,7 @@ def post_document(
     # Reserve return quantities at dispatch; pending returns count toward the loan limit.
     if doc.kind == "RETURN" and doc.status == "DRAFT":
         loan = Document.objects.select_for_update().get(pk=doc.loan_id)
-        borrowed = {l.product_id: l.quantity for l in loan.lines.all()}
+        borrowed = {line.product_id: line.quantity for line in loan.lines.all()}
         for line in lines:
             from .models import Line
 

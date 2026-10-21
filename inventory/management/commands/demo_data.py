@@ -1,8 +1,9 @@
-from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
-from inventory.models import Warehouse, Product, Document, Line
-from inventory.services import post_document
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+
+from inventory.models import Document, Line, Product, Warehouse
+from inventory.services import post_document
 
 
 class Command(BaseCommand):

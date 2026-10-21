@@ -1,9 +1,11 @@
 import os
+
 from django.conf import settings
-from django.db import connection, DatabaseError
+from django.db import DatabaseError, connection
 from django.db.migrations.recorder import MigrationRecorder
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+
 from inventory.release_backup import snapshot_status
 
 

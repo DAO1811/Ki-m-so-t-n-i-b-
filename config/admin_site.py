@@ -1,4 +1,5 @@
 from django.contrib.admin import AdminSite
+
 from inventory.access import is_admin
 
 

@@ -63,7 +63,9 @@ ADMIN_VIEWS = {
 class FunctionAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view, args, kwargs):
         if (
-            not view.__module__.startswith("inventory.")
+            not view.__module__.startswith(
+                ("inventory.", "core.", "workflows.", "people.")
+            )
             or not request.user.is_authenticated
         ):
             return None

@@ -1,0 +1,124 @@
+:root {
+  --red-soft: #fff0f2;
+  --blue-soft: #edf6ff;
+  --purple: #7261ef;
+  --purple-soft: #f0edff;
+  --amber-soft: #fff5e7;
+  --sidebar-width: 224px;
+  --radius: 14px;
+  --step-idle: #e8edf5;
+  --bg: #f3f4f6;
+  --surface: #fff;
+  --surface-alt: #f6f7f8;
+  --ink: #242a35;
+  --muted: #697383;
+  --line: #dfe2e7;
+  --sidebar: #12161d;
+  --accent: #99701d;
+  --accent-ink: #795715;
+  --accent-soft: #fbf4e4;
+  --accent-fill: #e3c47d;
+  --accent-contrast: #332710;
+  --accent-line: #d8c290;
+  --silver: #697586;
+  --silver-soft: #eef0f4;
+  --blue: #216dac;
+  --amber: #9b5c13;
+  --red: #bd3447;
+  --success: #087e5a;
+  --success-soft: #eaf8f1;
+  --success-line: #b5decd;
+
+  --chart-in: var(--accent);
+  --chart-out: #8c98aa;
+  --shadow: 0 2px 6px #1c23300a;
+}
+.dark {
+  --step-idle: var(--surface-alt);
+  --shadow: 0 2px 4px #00000015;
+  --bg: #0e1117;
+  --surface: #191e26;
+  --surface-alt: #202630;
+  --ink: #e7e9ee;
+  --muted: #a7afbd;
+  --line: #303743;
+  --accent: #e9cc8c;
+  --accent-ink: #f0dba8;
+  --accent-soft: #342d20;
+  --accent-fill: #e9cc8c;
+  --accent-contrast: #302411;
+  --accent-line: #6a5937;
+  --silver: #bdc5d1;
+  --silver-soft: #2a313d;
+  --success: #75d9b4;
+  --success-soft: #15352b;
+  --success-line: #2f6551;
+  --red: #ff8893;
+  --red-soft: #3b222b;
+  --blue: #80bfff;
+  --blue-soft: #203449;
+  --amber: #f4ba6c;
+  --amber-soft: #3b2e20;
+  --purple: #c0adff;
+  --purple-soft: #30283f;
+  --chart-out: #bdc5d1;
+
+  --chart-in: var(--accent);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    13px/1.55 Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+a {
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+button {
+  cursor: pointer;
+}
+a,
+button {
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+a:hover {
+  color: var(--accent-ink);
+}
+svg.icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+small {
+  font-size: 11px;
+}

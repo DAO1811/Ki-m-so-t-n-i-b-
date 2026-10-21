@@ -1,16 +1,16 @@
 """Private attachments on owner-authorized Drive; database bytes only in development."""
 
+import warnings
 from hashlib import sha256
 from io import BytesIO
 from pathlib import PurePath
-import warnings
 
+from defusedxml import ElementTree
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from PIL import Image, ImageOps
-from defusedxml import ElementTree
 from pypdf import PdfReader
 
 from .models import MediaQuota, ProductPhoto, ReceiptAttachment, StoredFile
@@ -169,9 +169,10 @@ def add_receipt_attachment(doc, user, validated, upload_name, **metadata):
     doc = Document.objects.select_for_update().get(pk=doc.pk)
     if doc.kind != "IN" or doc.status == "CANCELLED":
         raise ValidationError("Chỉ thêm hồ sơ vào phiếu nhập chưa hủy.")
+    from django.core.exceptions import PermissionDenied
+
     from .access import may_attach
     from .services import documents_for
-    from django.core.exceptions import PermissionDenied
 
     if not documents_for(user).filter(pk=doc.pk).exists() or not may_attach(doc, user):
         raise PermissionDenied

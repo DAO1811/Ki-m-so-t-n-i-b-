@@ -1,6 +1,6 @@
 # Nhận diện vàng kim và bạc
 
-`static/company-theme.css` được nạp sau CSS bố cục trên các trang đã đăng nhập. Các biến màu giữ nguyên bố cục, URL, quyền, dữ liệu và nghiệp vụ. Các tên biến `--green*` cũ được dùng làm bí danh cho màu nhận diện để các biểu mẫu cũ nhận bộ màu mới; trạng thái thành công có bộ `--success*` riêng.
+Nguồn màu nằm trong `assets/styles/foundation.css`; các thành phần nhận diện nằm trong các file nguồn tương ứng tại `assets/styles/`. `scripts/build_styles.py` ghép thành `static/app.css`, được nạp chung trên các trang đã đăng nhập. Dùng `--accent*` cho nhận diện và `--success*` cho thành công; không dùng tên biến màu xanh cũ để chỉ màu vàng. Không còn lớp `company-theme.css` ghi đè riêng. Khi chỉnh CSS, sửa nguồn rồi tạo lại bundle.
 
 - Sáng: nền bạc sáng, panel trắng, menu than đậm, điểm nhấn vàng.
 - Tối: nền than, panel graphite, chữ bạc, điểm nhấn vàng champagne.

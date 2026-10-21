@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import Warehouse, Product, CustomField
+
 from .forms import ProductForm
+from .models import CustomField, Product, Warehouse
 
 
 @admin.register(Warehouse)

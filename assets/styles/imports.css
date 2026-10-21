@@ -1,0 +1,412 @@
+/* Bulk product creation: keep required data prominent and optional data compact. */
+.product-import {
+  min-width: 0;
+}
+.product-import-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+.product-import-upload,
+.product-import-guide {
+  min-width: 0;
+}
+.product-import-upload .panel,
+.product-import-guide {
+  margin-bottom: 0;
+}
+.product-import-upload-body {
+  padding: 28px;
+}
+.product-import-file-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 20px;
+  border: 1px solid #bdebdc;
+  border-radius: 15px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: var(--accent-line);
+}
+.product-import-file-icon .icon {
+  width: 25px;
+  height: 25px;
+}
+.product-import-upload .field {
+  margin: 0 0 24px;
+}
+.product-import-upload .field label {
+  display: block;
+  margin-bottom: 9px;
+}
+.product-import-upload input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed #b8c9da;
+  background: var(--surface-alt);
+  border-radius: 9px;
+  font-size: 11px;
+}
+.product-import-upload input[type="file"]::file-selector-button {
+  padding: 7px 10px;
+  margin-right: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.product-import-upload .field > small {
+  display: block;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.product-import-guide > ol {
+  list-style: none;
+  counter-reset: product-import-guide;
+  padding: 4px 22px 0;
+  margin: 0;
+}
+.product-import-guide > ol > li {
+  position: relative;
+  padding: 18px 0 18px 38px;
+  counter-increment: product-import-guide;
+}
+.product-import-guide > ol > li + li {
+  border-top: 1px solid var(--line);
+}
+.product-import-guide > ol > li::before {
+  content: counter(product-import-guide);
+  position: absolute;
+  top: 19px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+.product-import-guide > ol strong {
+  font-size: 12px;
+}
+.product-import-guide p {
+  margin: 5px 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.product-import-guide .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.product-import-guide .text-link .icon {
+  width: 14px;
+  height: 14px;
+}
+.product-import-rules {
+  padding: 0 22px 20px;
+  font-size: 11px;
+}
+.product-import-rules summary {
+  cursor: pointer;
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.product-import-rules ul {
+  padding-left: 18px;
+  margin-bottom: 0;
+  color: var(--muted);
+}
+.product-import-rules li + li {
+  margin-top: 7px;
+}
+.product-import-scope {
+  margin-top: 22px;
+}
+.product-import-preview-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.product-import-preview-heading > div {
+  min-width: 0;
+}
+.product-import-file {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.product-import-unsaved {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 10px;
+}
+.product-import-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 22px 20px;
+}
+.product-import-counts > div {
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-alt);
+}
+.product-import-counts small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.product-import-counts strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 25px;
+  line-height: 1.25;
+}
+.product-import-counts .product-import-count-valid {
+  background: var(--success-soft);
+  border-color: var(--success-line);
+}
+.product-import-count-valid strong {
+  color: var(--success);
+}
+.product-import-counts .product-import-count-invalid {
+  background: var(--red-soft);
+  border-color: #ffc3c7;
+}
+.product-import-count-invalid strong {
+  color: var(--red);
+}
+.product-import-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 22px 20px;
+  padding: 13px 15px;
+  border-radius: 9px;
+  font-size: 11px;
+  color: var(--success);
+  background: var(--success-soft);
+}
+.product-import-feedback > .icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.product-import-feedback p {
+  margin: 4px 0 0;
+  line-height: 1.65;
+}
+.product-import-feedback ul {
+  margin: 8px 0 0;
+  padding-left: 17px;
+}
+.product-import-feedback-error {
+  background: var(--red-soft);
+  color: #b33846;
+}
+.product-import-table {
+  max-height: 650px;
+  border-top: 1px solid var(--line);
+}
+.product-import-table table {
+  min-width: 800px;
+}
+.product-import-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-alt);
+}
+.product-import-table th:first-child,
+.product-import-table td:first-child {
+  width: 75px;
+  text-align: center;
+}
+.product-import-table td {
+  vertical-align: top;
+}
+.product-import-table .product-import-row-error {
+  background: var(--red-soft);
+}
+.product-import-row-number {
+  color: var(--muted);
+  font-size: 11px;
+}
+.product-import-sku {
+  display: block;
+  min-width: 90px;
+  max-width: 190px;
+  overflow-wrap: anywhere;
+}
+.product-import-name {
+  min-width: 160px;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.product-import-row-details {
+  min-width: 130px;
+  max-width: 280px;
+  font-size: 11px;
+}
+.product-import-row-details summary {
+  cursor: pointer;
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+.product-import-row-details dl {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.product-import-row-details dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+.product-import-row-details dd {
+  margin: 1px 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.product-import-row-result {
+  min-width: 190px;
+  max-width: 320px;
+}
+.product-import-status {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--success);
+  background: var(--success-soft);
+}
+.product-import-status .icon {
+  width: 12px;
+  height: 12px;
+}
+.product-import-status-error {
+  color: #b33846;
+  background: var(--red-soft);
+}
+.product-import-row-result ul {
+  padding-left: 14px;
+  margin: 7px 0 0;
+  color: #b33846;
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.product-import-row-result li + li {
+  margin-top: 4px;
+}
+.product-import-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border-top: 1px solid var(--line);
+}
+.product-import-preview-actions > form {
+  margin: 0;
+}
+.product-import-preview-actions > .text-link {
+  margin-left: auto;
+  font-size: 11px;
+}
+.dark .product-import-feedback-error,
+.dark .product-import-row-result ul {
+  color: #ffb0bc;
+}
+.dark .product-import-status-error {
+  background: #6f2637;
+  color: #ffb0bc;
+}
+@media (max-width: 900px) {
+  .product-import-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .product-import-upload-body {
+    padding: 20px 16px;
+  }
+  .product-import-file-icon {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 16px;
+  }
+  .product-import-steps {
+    gap: 6px;
+  }
+  .product-import-steps > span {
+    font-size: 9px;
+    white-space: normal;
+  }
+  .product-import-steps > span > b {
+    flex-shrink: 0;
+  }
+  .product-import-steps > i {
+    min-width: 5px;
+  }
+  .product-import-guide > ol {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .product-import-rules {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .product-import-counts {
+    padding: 0 16px 16px;
+    gap: 7px;
+  }
+  .product-import-counts > div {
+    padding: 11px 9px;
+  }
+  .product-import-counts small {
+    font-size: 9px;
+  }
+  .product-import-counts strong {
+    font-size: 22px;
+  }
+  .product-import-feedback {
+    margin: 0 16px 16px;
+    padding: 12px;
+  }
+  .product-import-preview-actions {
+    padding: 16px;
+    gap: 10px;
+  }
+  .product-import-preview-actions > form {
+    width: 100%;
+  }
+  .product-import-preview-actions .button {
+    width: 100%;
+    white-space: normal;
+  }
+  .product-import-preview-actions > .text-link {
+    margin: 2px 0 0;
+  }
+}

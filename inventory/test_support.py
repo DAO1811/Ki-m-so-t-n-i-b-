@@ -1,8 +1,7 @@
 """Explicit function grants for pre-existing regression fixtures, never production setup."""
 
-from .access import normalize_permissions, FUNCTION_KEYS
+from .access import FUNCTION_KEYS, normalize_permissions
 from .models import FunctionAccess
-
 
 OPERATOR = {
     "dashboard_view",

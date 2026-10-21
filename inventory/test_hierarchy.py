@@ -1,7 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+from unittest import skipUnless
+
 from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
-from django.test import TestCase
+from django.db import connection, connections, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TestCase, TransactionTestCase
+from psycopg import sql
 
 from .access import FUNCTION_KEYS
 from .models import (
@@ -281,14 +288,6 @@ class HierarchyTests(TestCase):
         self.assertContains(response, "Tên thông tin này đã có")
 
 
-from concurrent.futures import ThreadPoolExecutor
-from threading import Event
-from unittest import skipUnless
-
-from django.db import connection, connections, transaction
-from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
-from psycopg import sql
 
 
 class HierarchyMigrationTests(TransactionTestCase):

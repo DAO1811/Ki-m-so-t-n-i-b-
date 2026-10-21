@@ -1,24 +1,24 @@
-from unittest.mock import patch
-from html.parser import HTMLParser
-from urllib.parse import parse_qs, urljoin, urlsplit
-from django.db import DatabaseError, connection
 from hashlib import sha256
+from html.parser import HTMLParser
+from unittest.mock import patch
+from urllib.parse import parse_qs, urljoin, urlsplit
+
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.contrib.admin.models import LogEntry
-from django.core.exceptions import PermissionDenied
-from django.test import TestCase, Client, override_settings
+from django.db import DatabaseError, connection
+from django.test import Client, TestCase, override_settings
 
 from .access import FUNCTION_KEYS, has_function
 from .models import (
-    FunctionAccess,
-    Warehouse,
-    Product,
-    Document,
-    Line,
     Balance,
-    StoredFile,
+    Document,
+    FunctionAccess,
+    Line,
+    Product,
     ReceiptAttachment,
+    StoredFile,
+    Warehouse,
 )
 from .services import can_approve, post_document
 from .stocktakes import start_session

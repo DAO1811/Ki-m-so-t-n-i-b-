@@ -8,8 +8,8 @@ from django.test import TransactionTestCase
 
 from . import test_qr_records as fixtures
 from .models import Balance, Movement, StocktakeEvent
-from .services import post_document, close_document
-from .stocktakes import start_session, save_count, submit_session
+from .services import close_document, post_document
+from .stocktakes import save_count, start_session, submit_session
 
 
 @skipUnless(connection.vendor == "postgresql", "Requires PostgreSQL row locks")

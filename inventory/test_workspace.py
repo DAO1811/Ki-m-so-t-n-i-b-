@@ -1,21 +1,23 @@
-from .test_support import grant_functions, OPERATOR, MANAGER
 from decimal import Decimal
 from io import StringIO
 from uuid import uuid4
-from django.test import TestCase
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.core.management import call_command
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.test import TestCase
+
 from .models import (
-    Warehouse,
-    Product,
-    Document,
-    Line,
     Balance,
     CustomField,
+    Document,
+    Line,
+    Product,
+    Warehouse,
 )
 from .services import post_document
+from .test_support import MANAGER, OPERATOR, grant_functions
 
 
 class WorkspaceTests(TestCase):

@@ -1,9 +1,8 @@
-from .test_support import grant_functions, OPERATOR, MANAGER
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO, StringIO
-from uuid import uuid4
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
@@ -15,20 +14,21 @@ from django.utils import timezone
 from PIL import Image
 from pypdf import PdfWriter
 
+from .media import add_product_photo, add_receipt_attachment, validate_upload
 from .models import (
-    Product,
-    Warehouse,
-    Document,
-    Line,
     Balance,
-    StoredFile,
-    StocktakeSession,
-    StocktakeEvent,
+    Document,
     DriveConnection,
+    Line,
+    Product,
+    StocktakeEvent,
+    StocktakeSession,
+    StoredFile,
+    Warehouse,
 )
-from .services import post_document, can_approve, approval_documents_for
-from .stocktakes import start_session, save_count, submit_session, product_from_scan
-from .media import validate_upload, add_product_photo, add_receipt_attachment
+from .services import approval_documents_for, can_approve, post_document
+from .stocktakes import product_from_scan, save_count, start_session, submit_session
+from .test_support import MANAGER, OPERATOR, grant_functions
 
 
 class QRStocktakeTests(TestCase):
@@ -505,6 +505,7 @@ class RecordMediaTests(TestCase):
     @patch("inventory.drive.access_token", return_value="short-lived")
     def test_drive_selects_only_approved_private_folder(self, _token, google):
         from django.conf import settings
+
         from .drive import choose_folder
 
         DriveConnection.objects.create(
@@ -612,8 +613,9 @@ class RecordMediaTests(TestCase):
         self.assertEqual(Balance.objects.get().quantity, 3)
 
     def test_ceo_grant_and_revocation_are_logged_without_password(self):
-        from .services import can_approve_adjustments
         from django.contrib.admin.models import LogEntry
+
+        from .services import can_approve_adjustments
 
         self.client.force_login(self.admin)
         data = {
