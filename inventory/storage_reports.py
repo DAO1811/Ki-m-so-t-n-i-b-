@@ -368,9 +368,9 @@ def build_report(period):
 
 @contextmanager
 def export_lock(period):
-    """Serialize retries across gunicorn processes, including lost HTTP responses."""
+    """Serialize all reports, including shared year-folder creation and retries."""
     key = int.from_bytes(
-        hashlib.sha256(("dhd-report-v1:" + period).encode()).digest()[:8],
+        hashlib.sha256(b"dhd-management-reports-v1").digest()[:8],
         "big",
         signed=True,
     )
@@ -379,7 +379,7 @@ def export_lock(period):
             locked = db.execute("SELECT pg_try_advisory_lock(%s)", (key,)).fetchone()[0]
             if not locked:
                 raise ValidationError(
-                    "Đang xuất báo cáo tháng này. Chờ hoàn tất rồi tải lại danh sách."
+                    "Đang xuất báo cáo. Chờ hoàn tất rồi tải lại danh sách."
                 )
             try:
                 yield

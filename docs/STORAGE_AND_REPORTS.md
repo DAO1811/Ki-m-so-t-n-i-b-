@@ -81,8 +81,8 @@ phiếu kiểm kê dùng các trường snapshot. Không xuất tài khoản, qu
 chat, ảnh hoặc PDF vào bản báo cáo.
 
 Đọc nguồn bằng PostgreSQL REPEATABLE READ READ ONLY; không giữ khóa kho khi
-liên hệ Drive. Dedicated advisory lock theo tháng ngăn hai web worker xuất
-trùng. Nếu phản hồi Google bị mất, lần thử lại tìm đúng appProperties trong
+liên hệ Drive. Dedicated advisory lock cho luồng xuất báo cáo ngăn các web worker xuất
+trùng hoặc đồng thời tạo trùng thư mục chung giữa các tháng. Nếu phản hồi Google bị mất, lần thử lại tìm đúng appProperties trong
 thư mục năm và kiểm tra bản đang tồn tại.
 
 Bản đầu tiên mỗi tháng được giữ nguyên. Sau upload, xuất lại XLSX từ Google,

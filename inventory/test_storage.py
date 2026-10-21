@@ -431,6 +431,9 @@ class StorageReportsTests(TransactionTestCase):
             with self.assertRaisesMessage(ValidationError, "Đang xuất báo cáo"):
                 with reports.export_lock(self.period):
                     self.fail("Second worker obtained the same period lock")
+            with self.assertRaisesMessage(ValidationError, "Đang xuất báo cáo"):
+                with reports.export_lock("2000-01"):
+                    self.fail("Different periods raced on shared report folders")
         # Failure/exit releases the session lock; a retry can proceed.
         with reports.export_lock(self.period):
             pass
