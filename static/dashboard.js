@@ -73,8 +73,8 @@
     activity.forEach((row, index) => {
       const center = left + step * (index + 0.5);
       for (const [key, color, offset] of [
-        ["inbound", "#09b98b", -bar - 1],
-        ["outbound", "#f34c57", 1],
+        ["inbound", "var(--chart-in)", -bar - 1],
+        ["outbound", "var(--chart-out)", 1],
       ]) {
         const height = (row[key] / max) * ph;
         const rect = el("rect", {

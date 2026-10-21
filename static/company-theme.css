@@ -1,0 +1,132 @@
+/* Company identity. Legacy accent names remain aliases; business statuses keep
+   dedicated colours so a palette change cannot turn errors into brand accents. */
+:root {
+  --bg: #f3f4f6;
+  --surface: #fff;
+  --surface-alt: #f6f7f8;
+  --ink: #242a35;
+  --muted: #697383;
+  --line: #dfe2e7;
+  --sidebar: #12161d;
+  --accent: #99701d;
+  --accent-ink: #795715;
+  --accent-soft: #fbf4e4;
+  --accent-fill: #e3c47d;
+  --accent-contrast: #332710;
+  --accent-line: #d8c290;
+  --silver: #697586;
+  --silver-soft: #eef0f4;
+  --blue: #216dac;
+  --amber: #9b5c13;
+  --red: #bd3447;
+  --success: #087e5a;
+  --success-soft: #eaf8f1;
+  --success-line: #b5decd;
+  --green: var(--accent);
+  --green-deep: var(--accent-ink);
+  --green-soft: var(--accent-soft);
+  --chart-in: var(--accent);
+  --chart-out: #8c98aa;
+  --shadow: 0 2px 6px #1c23300a;
+}
+.dark {
+  --bg: #0e1117;
+  --surface: #191e26;
+  --surface-alt: #202630;
+  --ink: #e7e9ee;
+  --muted: #a7afbd;
+  --line: #303743;
+  --accent: #e9cc8c;
+  --accent-ink: #f0dba8;
+  --accent-soft: #342d20;
+  --accent-fill: #e9cc8c;
+  --accent-contrast: #302411;
+  --accent-line: #6a5937;
+  --silver: #bdc5d1;
+  --silver-soft: #2a313d;
+  --success: #75d9b4;
+  --success-soft: #15352b;
+  --success-line: #2f6551;
+  --red: #ff8893;
+  --red-soft: #3b222b;
+  --blue: #80bfff;
+  --blue-soft: #203449;
+  --amber: #f4ba6c;
+  --amber-soft: #3b2e20;
+  --purple: #c0adff;
+  --purple-soft: #30283f;
+  --chart-out: #bdc5d1;
+  --green: var(--accent);
+  --green-deep: var(--accent-ink);
+  --green-soft: var(--accent-soft);
+  --chart-in: var(--accent);
+}
+.sidebar { color: #b6bdc9; border-color: #303640; }
+.brand small, .nav-label { color: #9ba5b4; }
+.brand-symbol { color: #ebcf91; background: #d9b96b10; border: 1px solid #d9b96b50; box-shadow: none; }
+.nav-link { color: #b6bdc9; }
+.nav-link .icon, .nav-link[href*="transfer"] .icon { color: #9ba5b4; }
+.nav-link[href*="operations/in"] .icon { color: #e9cc8c; }
+.nav-link.active { background: #d9b96b12; border-color: #d9b96b45; color: #f0dba8; }
+.nav-link.active .icon { color: #e9cc8c; }
+.nav-module-heading { color: #c9cdd6; }
+.nav-module-heading.active { color: #f0dba8; background: #d9b96b12; }
+.nav-module-heading small { color: #9ba5b4; }
+.nav-module-heading:focus-visible { outline-color: #e9cc8c; }
+.sidebar nav, .nav-module-content { scrollbar-color: #4e535d transparent; }
+.sidebar-user { color: #e7e9ee; }
+.sidebar-user small { color: #a1aab8; }
+.sidebar-user .avatar { color: #332710; background: #e9cc8c; }
+.sidebar-user .icon-button { color: #bfc5cf; }
+.sidebar-backdrop { background: #080c14a6; }
+.topbar { box-shadow: 0 1px 0 #1c233003; }
+.breadcrumb > a, .icon-button { color: var(--silver); }
+.button, button:not([class]) {
+  background: linear-gradient(115deg, #f0dba8, var(--accent-fill));
+  color: var(--accent-contrast);
+  border-color: var(--accent-line);
+  box-shadow: 0 2px 4px #8a6b1e0a;
+}
+.button:hover { background: var(--accent-fill); color: var(--accent-contrast); box-shadow: 0 3px 10px #8a6b1e16; }
+.button.secondary { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: none; }
+.button.secondary:hover { background: var(--surface-alt); color: var(--ink); border-color: var(--accent-line); }
+.button.ghost, .button.ghost:hover { background: transparent; color: var(--muted); border-color: transparent; box-shadow: none; }
+.button.danger { color: #fff; background: #c83e4e; border-color: #c83e4e; }
+.button.danger:hover { color: #fff; background: #ac2b3b; border-color: #ac2b3b; }
+.button.orange { color: #fff; background: #ad6117; border-color: #ad6117; }
+.button.orange:hover { color: #fff; background: #914d0e; border-color: #914d0e; }
+input, select, textarea { border-color: var(--line); }
+input:focus, select:focus, textarea:focus { outline-color: var(--accent-line); border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
+.brand-symbol, .avatar, .workflow .current b, .count-steps .current b { color: var(--accent-contrast); }
+.brand-symbol { color: #ebcf91; }
+.workflow .current b, .count-steps .current b { background: var(--accent-fill); box-shadow: 0 0 0 4px var(--accent-soft); }
+.stat-icon.purple, .signal-icon.purple { color: var(--silver); background: var(--silver-soft); }
+.stat-icon.green { color: var(--accent-ink); background: var(--accent-soft); }
+.stat.green-border, .dark .stat.green-border { border-color: var(--accent-line); }
+.green, .signal-icon.green { color: var(--success); background: var(--success-soft); }
+.green-text, .positive { color: var(--success); }
+.badge.posted { color: var(--success); background: var(--success-soft); }
+.badge.transit { color: var(--blue); }
+.notice, .message { color: var(--success); background: var(--success-soft); border-color: var(--success-line); }
+.notice.warning { color: #8b5412; background: var(--amber-soft); border-color: #e4bd85; }
+.message.error { color: #b33846; background: var(--red-soft); border-color: #e9a4ae; }
+.dark .notice.warning { color: #f4ca8f; border-color: #78603e; }
+.dark .message.error { color: #ffb0bc; border-color: #78424f; }
+.dark .badge.transit { color: var(--blue); }
+.dark .badge.draft { color: #f0dba8; background: var(--accent-soft); }
+.dark .errorlist { color: #ffb0bc; }
+.dark .stat.red-border { border-color: #78424f; }
+.green-dot { background: var(--chart-in); }
+.red-dot { background: var(--chart-out); }
+.warehouse-bar-fill { background: linear-gradient(90deg, var(--accent), var(--accent-fill)); }
+.product-import-file-icon { border-color: var(--accent-line); }
+.product-import-counts .product-import-count-valid { background: var(--success-soft); border-color: var(--success-line); }
+.product-import-count-valid strong, .product-import-feedback, .product-import-status { color: var(--success); }
+.product-import-feedback, .product-import-status { background: var(--success-soft); }
+.product-import-status-error { color: #b33846; background: var(--red-soft); }
+.dark .product-import-status-error, .dark .product-import-row-result ul { color: #ffb0bc; }
+.dark .badge:not(.posted):not(.transit):not(.draft) { color: var(--amber); }
+@media print {
+  :root, .dark { --bg: #fff; --surface: #fff; --surface-alt: #f5f5f5; --ink: #111; --muted: #555; --line: #ccc; --accent: #795715; --accent-ink: #795715; --accent-soft: #faf5e9; --success: #186044; --success-soft: #f2f7f4; --silver: #555; --silver-soft: #eee; }
+}
