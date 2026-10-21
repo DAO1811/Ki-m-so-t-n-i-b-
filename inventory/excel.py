@@ -1,8 +1,12 @@
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from io import BytesIO
+from re import fullmatch
 from zipfile import ZipFile
 
+from defusedxml.ElementTree import iterparse
 from django.core.exceptions import ValidationError
 from openpyxl import Workbook, load_workbook
+from openpyxl.utils import column_index_from_string
 
 from .models import Document, Line, Product
 from .services import validate_line_details
@@ -16,29 +20,72 @@ RECEIPT_LIMIT_ERROR = (
     "Mẫu mới tối đa 1.000 dòng; mẫu cũ tối đa 50 mã. "
     "Mỗi phiếu sẽ được chia tối đa 50 mã."
 )
+RECEIPT_READ_ERROR = (
+    "Không đọc được Excel. File có thể bị hỏng; hãy chép dữ liệu vào mẫu .xlsx mới."
+)
+
+
+def _open_receipt(file):
+    """Bound the real worksheet, including files with incorrect dimensions."""
+    workbook = None
+    try:
+        file.seek(0)
+        raw = file.read(5 * 1024 * 1024 + 1)
+        if len(raw) > 5 * 1024 * 1024:
+            raise ValidationError("File tối đa 5 MB.")
+        with ZipFile(BytesIO(raw)) as archive:
+            entries = archive.infolist()
+            if (
+                len(entries) > 1000
+                or len({entry.filename for entry in entries}) != len(entries)
+                or sum(entry.file_size for entry in entries) > 20 * 1024 * 1024
+                or any(entry.flag_bits & 1 for entry in entries)
+                or any("vbaproject" in entry.filename.lower() for entry in entries)
+            ):
+                raise ValidationError(
+                    "Cấu trúc Excel quá lớn hoặc không được hỗ trợ. Hãy dùng mẫu .xlsx mới."
+                )
+            workbook = load_workbook(
+                BytesIO(raw), read_only=True, data_only=False, keep_links=False
+            )
+            sheet = workbook.worksheets[0]
+            with archive.open(sheet._worksheet_path) as stream:
+                for _event, element in iterparse(stream, events=("start",)):
+                    tag = element.tag.rsplit("}", 1)[-1]
+                    if tag == "row":
+                        ref = element.attrib.get("r", "")
+                        if ref and (
+                            not ref.isascii()
+                            or not ref.isdigit()
+                            or len(ref) > 4
+                            or not 1 <= int(ref) <= MAX_RECEIPT_ROWS + 1
+                        ):
+                            raise ValidationError(RECEIPT_LIMIT_ERROR)
+                    elif tag == "c":
+                        ref = element.attrib.get("r", "")
+                        if ref:
+                            match = fullmatch(r"([A-Z]{1,3})([1-9][0-9]{0,6})", ref)
+                            if not match:
+                                raise ValidationError(RECEIPT_READ_ERROR)
+                            if int(match[2]) > MAX_RECEIPT_ROWS + 1:
+                                raise ValidationError(RECEIPT_LIMIT_ERROR)
+                            if column_index_from_string(match[1]) > 7:
+                                raise ValidationError(
+                                    "File có quá nhiều cột. Chỉ dùng các cột của mẫu."
+                                )
+                    element.clear()
+        return workbook
+    except Exception as exc:
+        if workbook is not None:
+            workbook.close()
+        if isinstance(exc, ValidationError):
+            raise
+        raise ValidationError(RECEIPT_READ_ERROR) from exc
 
 
 def parse_receipt(file):
     errors = []
-    try:
-        with ZipFile(file) as archive:
-            if (
-                len(archive.infolist()) > 1000
-                or sum(f.file_size for f in archive.infolist()) > 20 * 1024 * 1024
-            ):
-                raise ValidationError(
-                    "Nội dung giải nén quá lớn, vui lòng dùng file mẫu đơn giản."
-                )
-        file.seek(0)
-        workbook = load_workbook(
-            file, read_only=True, data_only=False, keep_links=False
-        )
-    except ValidationError:
-        raise
-    except Exception as exc:
-        raise ValidationError(
-            "Không đọc được Excel. Hãy lưu file .xlsx theo mẫu rồi thử lại."
-        ) from exc
+    workbook = _open_receipt(file)
     try:
         sheet = workbook.worksheets[0]
         if sheet.max_row and sheet.max_row > MAX_RECEIPT_ROWS + 1:
@@ -46,8 +93,11 @@ def parse_receipt(file):
         if sheet.max_column and sheet.max_column > 7:
             raise ValidationError("File có quá nhiều cột. Chỉ dùng các cột của mẫu.")
         # Include one overflow row, even if a workbook understates its dimensions.
-        rows = sheet.iter_rows(max_row=MAX_RECEIPT_ROWS + 2, max_col=8)
-        header = next(rows, None)
+        try:
+            rows = list(sheet.iter_rows(max_row=MAX_RECEIPT_ROWS + 2, max_col=8))
+        except Exception as exc:
+            raise ValidationError(RECEIPT_READ_ERROR) from exc
+        header = rows.pop(0) if rows else None
         values = [str(c.value or "").strip() for c in header] if header else []
         multi = values[:7] == HEADERS + DETAIL_HEADERS + WAREHOUSE_HEADERS and not any(
             values[7:]
@@ -60,7 +110,6 @@ def parse_receipt(file):
             raise ValidationError(
                 "Dùng mẫu nhập kho mới gồm ma_hang, so_luong, don_gia, sl_chung_tu, sl_khong_nhan, ly_do, ma_kho; vẫn nhận mẫu 3 hoặc 6 cột cũ."
             )
-        rows = list(rows)
         products = {
             product.sku: product
             for product in Product.objects.filter(
@@ -85,7 +134,13 @@ def parse_receipt(file):
             ):
                 errors.append(f"Dòng {number}: không dùng công thức, hãy dán giá trị.")
                 continue
-            sku = str(cells[0].value or "").strip()
+            raw_sku = cells[0].value
+            if not isinstance(raw_sku, str) or not raw_sku.strip():
+                errors.append(
+                    f"Dòng {number}: mã hàng phải là văn bản (Text), không để trống; giữ nguyên số 0 đầu mã."
+                )
+                continue
+            sku = raw_sku.strip()
             warehouse_code = str(cells[6].value or "").strip() if multi else ""
             if (
                 multi
@@ -127,7 +182,7 @@ def parse_receipt(file):
                     raise ValueError
             except (InvalidOperation, ValueError, TypeError):
                 errors.append(
-                    f"Dòng {number}: số lượng phải dương (tối đa 3 số lẻ), đơn giá không âm (tối đa 4 số lẻ), không để trống hoặc thêm dấu phân cách trong ô văn bản."
+                    f"Dòng {number}: số lượng phải dương (tối đa 3 số lẻ), đơn giá không âm (tối đa 4 số lẻ). Nhập ô số, ví dụ 600000; không nhập chữ 'đ', 'VND' hoặc dấu phân cách hàng nghìn trong ô văn bản."
                 )
                 continue
             if not extended and any(c.value is not None for c in cells[3:6]):
@@ -196,7 +251,16 @@ def parse_receipt(file):
                 }
             )
         if errors:
-            raise ValidationError(errors[:30])
+            raise ValidationError(
+                errors[:30]
+                + (
+                    [
+                        f"File có {len(errors)} lỗi, đang hiển thị 30 lỗi đầu. Chưa tạo phiếu nào."
+                    ]
+                    if len(errors) > 30
+                    else []
+                )
+            )
         if not result:
             raise ValidationError("File chưa có dòng hàng hợp lệ.")
         return result
@@ -218,6 +282,9 @@ def receipt_template(*, user=None):
     for number in range(2, MAX_RECEIPT_ROWS + 2):
         sheet.cell(number, 1).number_format = "@"
         sheet.cell(number, 7).number_format = "@"
+        for column in (2, 4, 5):
+            sheet.cell(number, column).number_format = "0.###"
+        sheet.cell(number, 3).number_format = "#,##0.####"
     sheet.freeze_panes = "A2"
     guide = book.create_sheet("Huong dan")
     guide.column_dimensions["A"].width = 110
@@ -227,6 +294,7 @@ def receipt_template(*, user=None):
         "Tối đa 1.000 dòng dữ liệu ở mẫu mới (không tính dòng tiêu đề). Mỗi kho tạo phiếu riêng, trên 50 mã tự chia phiếu. Duyệt xong mới cộng tồn.",
         "Nếu bỏ trống ma_kho, dòng đó dùng Kho nhận chung đã chọn trên màn hình. Nếu không chọn kho chung, mọi dòng phải có ma_kho.",
         "so_luong là số thực nhận đạt yêu cầu; phần thiếu/hỏng ghi sl_chung_tu, sl_khong_nhan và ly_do. Đơn giá miễn phí ghi 0.",
+        "Số lượng và đơn giá dùng ô số: nhập 600000, có thể định dạng hiển thị tiền; không dán chuỗi chữ như 600.000 đ. Không để dòng chỉ có đơn giá 0 mà thiếu mã hàng/số lượng.",
         "Không dùng công thức. Ngày nghiệp vụ là hôm nay. Chỉ dùng các kho bạn được phân quyền.",
     ]:
         guide.append([text])
@@ -240,4 +308,6 @@ def receipt_template(*, user=None):
         for warehouse in warehouses_for(user).order_by("code"):
             warehouses.append([warehouse.code, warehouse.name])
             warehouses.cell(warehouses.max_row, 1).number_format = "@"
+            for cell in warehouses[warehouses.max_row]:
+                cell.data_type = "s"
     return book

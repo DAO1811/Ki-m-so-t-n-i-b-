@@ -1,14 +1,17 @@
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from datetime import timedelta
 from io import BytesIO
 from re import sub
+from threading import Barrier
 from unittest.mock import patch
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.db import close_old_connections, connection, connections
+from django.test import Client, TestCase, TransactionTestCase, skipUnlessDBFeature
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -312,3 +315,204 @@ class ReceiptWarehouseTests(TestCase):
                 self.assertContains(response, "mẫu cũ tối đa 50 mã")
                 self.assertNotIn("receipt_import", self.client.session)
                 self.assertFalse(Document.objects.exists())
+
+    def rewritten_upload(self, upload, rewrite):
+        output = BytesIO()
+        with ZipFile(upload) as source, ZipFile(output, "w", ZIP_DEFLATED) as target:
+            for entry in source.infolist():
+                data = source.read(entry.filename)
+                if entry.filename == "xl/worksheets/sheet1.xml":
+                    data = rewrite(data)
+                target.writestr(entry, data)
+        return SimpleUploadedFile("receipt.xlsx", output.getvalue())
+
+    def test_numeric_sku_is_not_silently_converted_and_text_preserves_leading_zero(
+        self,
+    ):
+        Product.objects.create(sku="123", name="Numeric-looking code")
+        Product.objects.create(sku="00123", name="Leading-zero code")
+        response = self.upload([[123, 1, 10, None, None, None, "K01"]])
+        self.assertContains(response, "mã hàng phải là văn bản (Text)")
+        self.assertNotIn("receipt_import", self.client.session)
+        self.upload([["00123", 1, 10, None, None, None, "K01"]])
+        self.confirm()
+        self.assertEqual(Line.objects.get().sku_snapshot, "00123")
+
+    def test_currency_text_and_orphan_zero_row_do_not_produce_partial_preview(self):
+        for bad in (
+            ["CAM001", 1, "600.000 đ", None, None, None, "K02"],
+            [None, None, 0, None, None, None, None],
+        ):
+            with self.subTest(bad=bad):
+                response = self.upload(
+                    [["CAM001", 1, 10, None, None, None, "K01"], bad]
+                )
+                self.assertContains(response, "Dòng 3")
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
+                self.assertFalse(Balance.objects.exists())
+
+    def test_many_errors_report_total_instead_of_hiding_remaining_invalid_rows(self):
+        rows = self.large_rows(31)
+        for row in rows:
+            row[2] = "600.000 đ"
+        response = self.upload(rows)
+        self.assertContains(response, "File có 31 lỗi, đang hiển thị 30 lỗi đầu")
+        self.assertContains(response, "ví dụ 600000")
+        self.assertNotIn("receipt_import", self.client.session)
+        self.assertFalse(Document.objects.exists())
+
+    def test_truncated_xml_and_invalid_numeric_cell_show_file_error_instead_of_500(
+        self,
+    ):
+        for rewrite in (
+            lambda data: data[:-20],
+            lambda data: sub(
+                rb'(<c r="B2"[^>]*><v>)[^<]*(</v>)',
+                rb"\g<1>not-a-number\2",
+                data,
+            ),
+        ):
+            with self.subTest(rewrite=rewrite):
+                upload = self.rewritten_upload(
+                    workbook_upload(
+                        [["CAM001", 1, 10, None, None, None, "K01"]], COLUMNS
+                    ),
+                    rewrite,
+                )
+                response = self.upload(file=upload)
+                self.assertContains(response, "Không đọc được Excel")
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
+
+    def test_hidden_extra_column_or_far_row_cannot_be_silently_discarded(self):
+        for column, row in ((9, 2), (1, 5000)):
+            with self.subTest(column=column, row=row):
+                upload = workbook_upload(
+                    [["CAM001", 1, 10, None, None, None, "K01"]], COLUMNS
+                )
+                book = load_workbook(upload)
+                book.worksheets[0].cell(row, column, "unexpected data")
+                stream = BytesIO()
+                book.save(stream)
+                book.close()
+                stream.seek(0)
+                upload = self.rewritten_upload(
+                    stream,
+                    lambda data: sub(
+                        rb'<dimension ref="[^"]+"', b'<dimension ref="A1:G2"', data
+                    ),
+                )
+                response = self.upload(file=upload)
+                self.assertContains(
+                    response,
+                    "quá nhiều cột" if column == 9 else "Mẫu mới tối đa 1.000 dòng",
+                )
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
+
+    def test_wrong_extension_and_file_over_five_mb_do_not_keep_old_preview(self):
+        for upload in (
+            SimpleUploadedFile("receipt.xls", b"not xlsx"),
+            SimpleUploadedFile("receipt.xlsx", b"0" * (5 * 1024 * 1024 + 1)),
+        ):
+            with self.subTest(name=upload.name):
+                self.upload()
+                response = self.upload(file=upload)
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("receipt_import", self.client.session)
+                self.assertFalse(Document.objects.exists())
+
+    def test_warehouse_labels_in_downloaded_template_are_literal_text(self):
+        warehouse = Warehouse.objects.create(code="=1+1", name="=2+2")
+        warehouse.members.add(self.maker)
+        response = self.client.get(reverse("receipt_template"))
+        book = load_workbook(BytesIO(response.content), data_only=False)
+        cells = next(
+            row for row in book["Danh sach kho"].iter_rows() if row[0].value == "=1+1"
+        )
+        self.assertTrue(all(cell.data_type == "s" for cell in cells))
+        self.assertEqual(cells[1].value, "=2+2")
+        book.close()
+
+    def test_confirmation_cannot_override_preview_warehouse_quantity_or_status(self):
+        self.upload()
+        key = self.client.session["receipt_import"]["key"]
+        response = self.client.post(
+            self.url,
+            {
+                "confirm": 1,
+                "import_key": key,
+                "warehouse": self.outside.pk,
+                "quantity": "99999",
+                "status": "POSTED",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Document.objects.get().destination, self.a)
+        self.assertEqual(Document.objects.get().status, "DRAFT")
+        self.assertEqual(Line.objects.get().quantity, 2)
+        self.assertFalse(Balance.objects.exists())
+
+    def test_revoked_create_permission_blocks_confirmation_and_template(self):
+        self.upload()
+        grant_functions(self.maker, {"receipts_view"})
+        self.assertEqual(self.confirm().status_code, 403)
+        self.assertEqual(self.client.get(reverse("receipt_template")).status_code, 403)
+        self.assertFalse(Document.objects.exists())
+
+    def test_confirmation_requires_csrf_token(self):
+        self.upload()
+        client = Client(enforce_csrf_checks=True)
+        client.cookies = self.client.cookies
+        response = client.post(
+            self.url,
+            {"confirm": 1, "import_key": self.client.session["receipt_import"]["key"]},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Document.objects.exists())
+
+
+class ReceiptConfirmationConcurrencyTests(TransactionTestCase):
+    @skipUnlessDBFeature("has_select_for_update")
+    def test_parallel_confirmations_create_each_receipt_once(self):
+        maker = get_user_model().objects.create_user("parallel-receipt-maker")
+        grant_functions(maker, {"receipts_create"})
+        for code in ("K01", "K02"):
+            Warehouse.objects.create(code=code, name=code).members.add(maker)
+        Product.objects.create(sku="P", name="Parallel confirmation item")
+        self.client.force_login(maker)
+        self.client.post(
+            reverse("receipt_import"),
+            {
+                "file": workbook_upload(
+                    [
+                        ["P", 2, 10, None, None, None, "K01"],
+                        ["P", 3, 10, None, None, None, "K02"],
+                    ],
+                    COLUMNS,
+                )
+            },
+        )
+        preview = deepcopy(self.client.session["receipt_import"])
+        barrier = Barrier(2)
+
+        def confirm():
+            close_old_connections()
+            try:
+                actor = get_user_model().objects.get(pk=maker.pk)
+                with connection.cursor() as cursor:
+                    cursor.execute("SET lock_timeout = '5s'")
+                    cursor.execute("SET statement_timeout = '15s'")
+                barrier.wait(timeout=10)
+                return [doc.pk for doc in confirm_receipts(actor, deepcopy(preview))]
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: confirm(), range(2)))
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(Document.objects.count(), 2)
+        self.assertEqual(Line.objects.count(), 2)
+        self.assertFalse(Balance.objects.exists())
+        self.assertFalse(Movement.objects.exists())

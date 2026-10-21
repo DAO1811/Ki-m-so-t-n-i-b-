@@ -19,3 +19,7 @@ Xem trước gắn người dùng, khóa lượt nhập, hạn 30 phút và ngà
 Kiểm tra nâng giới hạn: **77 kiểm thử PostgreSQL đạt** cho nhập theo kho, nhập mẫu cũ và kiểm soát tài sản. Tệp đủ 1.000 dòng tạo đúng 20 phiếu nháp cho hai kho; tệp 1.001 dòng bị từ chối cả khi khai báo sai kích thước trang tính; lỗi ở dòng dữ liệu cuối không tạo xem trước một phần. Mẫu cũ 3/6 cột vẫn tối đa 50 mã.
 
 Trình duyệt với dữ liệu cách ly đã tải file mẫu thực tế, điền đủ 1.000 dòng, xem trước và tạo 20 phiếu nháp theo hai kho, mỗi phiếu 50 mã; chưa duyệt nên không có biến động tồn. Kiểm tra bố cục 320–1440px và nút xác nhận trên điện thoại. Không tạo phiếu thử trong dữ liệu công ty. Không thêm migration hoặc dependency.
+
+Rà soát định dạng và xác nhận: **278 kiểm thử PostgreSQL toàn phần mềm đạt**. Bổ sung các ca file XML hỏng, giá trị ô số hỏng, cột/dòng ngoài mẫu dù metadata khai báo thiếu, mã hàng dạng số làm mất số 0 đầu mã, dòng thừa chỉ có giá 0, giá tiền dán dạng chữ, tệp quá 5 MB, thu hồi quyền sau xem trước và CSRF. Tổng số lỗi được hiển thị khi vượt 30 lỗi chi tiết. Hai xác nhận chạy đồng thời trên các kết nối PostgreSQL riêng vẫn tạo mỗi phiếu đúng một lần; gửi kho/số lượng/trạng thái khác qua nút xác nhận không thay đổi bản xem trước.
+
+Đơn giá và số lượng phải là ô số (ví dụ `600000`); ký hiệu tiền chỉ dùng trong định dạng hiển thị, không dán chuỗi `600.000 đ`. Hướng dẫn đã chỉ rõ tên ba cột tùy chọn thay cho cách gọi nhầm “ba cột cuối”. Tên/mã kho trong trang tra cứu được ghi dạng chữ thuần, không thành công thức Excel.
