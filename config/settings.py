@@ -146,3 +146,22 @@ CACHES = {
 CONFIRMED_DATABASE_STORAGE_PROFILE = storage_profile(
     render_hostname, DATABASES["default"].get("HOST", "")
 )
+
+# Opt-in local preview. No production secrets or Drive access are inherited.
+DHD_PREVIEW = os.environ.get("DHD_PREVIEW") == "1"
+if DHD_PREVIEW:
+    from .preview import validate_preview_environment
+
+    validate_preview_environment()
+    SECRET_KEY = "isolated-local-preview-only-not-for-production"
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+    CSRF_TRUSTED_ORIGINS = []
+    PRIVATE_MEDIA_PROVIDER = "database"
+    GOOGLE_DRIVE_CLIENT_ID = ""
+    GOOGLE_DRIVE_CLIENT_SECRET = ""
+    GOOGLE_PICKER_API_KEY = ""
+    GOOGLE_CLOUD_PROJECT_NUMBER = ""
+    GOOGLE_DRIVE_EXPECTED_FOLDER_ID = ""
+    CONFIRMED_DATABASE_STORAGE_PROFILE = None
+    DATABASE_STORAGE_LIMIT_MB = None
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("config.preview.preview_context")

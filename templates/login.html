@@ -11,6 +11,7 @@
     <script src="{% static 'login.js' %}" defer></script>
   </head>
   <body class="auth-page">
+    {% include "preview_banner.html" %}
     <div class="auth-atmosphere" aria-hidden="true"></div>
     <header class="auth-header">
       <div class="auth-brand"><span class="auth-brand-symbol">{% icon 'warehouse' %}</span><span>DHD<span class="auth-brand-divider"></span>KSNB</span></div>

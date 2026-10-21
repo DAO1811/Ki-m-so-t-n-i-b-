@@ -9,13 +9,14 @@ from django.db import transaction
 from django.db.models import Max, Q
 from django.utils import timezone
 
-from .access import has_function
+from .access import has_function, is_admin
 from .models import (
     Balance,
     Document,
     Line,
     Movement,
     Product,
+    StocktakeDeletion,
     StocktakeEvent,
     StocktakeItem,
     StocktakeSession,
@@ -45,6 +46,8 @@ def product_from_scan(raw):
 
 
 def require_open(session, user):
+    if session.is_deleted:
+        raise ValidationError("Phiếu đã xóa; chỉ được xem hồ sơ đối chiếu.")
     if session.counter_id != user.pk and not user.is_superuser:
         raise PermissionDenied(
             "Chỉ người nhận kiểm hoặc Admin tổng được ghi số đếm và gửi duyệt."
@@ -65,7 +68,7 @@ def active_sessions():
     return StocktakeSession.objects.filter(
         Q(status__in=["READY", "OPEN"])
         | Q(status="SUBMITTED", document__status="DRAFT")
-    )
+    ).filter(deletion__isnull=True)
 
 
 @transaction.atomic
@@ -261,6 +264,8 @@ def save_count(
 @transaction.atomic
 def submit_session(pk, user, note):
     session = StocktakeSession.objects.select_for_update().get(pk=pk)
+    if session.is_deleted:
+        raise ValidationError("Phiếu đã xóa, không thể gửi duyệt lại.")
     if session.status == "COMPLETED" and (
         session.counter_id == user.pk or user.is_superuser
     ):
@@ -305,7 +310,8 @@ def submit_session(pk, user, note):
     changes = [i for i in items if i.difference != 0]
     if not changes:
         session.status, session.note = "COMPLETED", note.strip()
-        session.save(update_fields=["status", "note"])
+        session.locks_inventory = False
+        session.save(update_fields=["status", "note", "locks_inventory"])
         StocktakeEvent.objects.create(session=session, actor=user, action="SUBMIT")
         return None
     doc = Document.objects.create(
@@ -336,7 +342,8 @@ def submit_session(pk, user, note):
     session.document = doc
     session.note = note.strip()
     session.status = "SUBMITTED"
-    session.save(update_fields=["document", "note", "status"])
+    session.locks_inventory = False
+    session.save(update_fields=["document", "note", "status", "locks_inventory"])
     StocktakeEvent.objects.create(session=session, actor=user, action="SUBMIT")
     return doc
 
@@ -355,5 +362,86 @@ def cancel_session(pk, user, reason):
         raise ValidationError("Chỉ hủy phiên đang mở và phải ghi lý do.")
     session.status = "CANCELLED"
     session.note = reason.strip()
-    session.save(update_fields=["status", "note"])
+    Warehouse.objects.select_for_update().get(pk=session.warehouse_id)
+    session.locks_inventory = False
+    session.save(update_fields=["status", "note", "locks_inventory"])
     StocktakeEvent.objects.create(session=session, actor=user, action="CANCEL")
+
+
+def _lock_review_session(pk):
+    # Approval locks the document first. Never reverse that order during review.
+    observed = StocktakeSession.objects.only("document_id").get(pk=pk)
+    document = (
+        Document.objects.select_for_update().get(pk=observed.document_id)
+        if observed.document_id
+        else None
+    )
+    session = StocktakeSession.objects.select_for_update().get(pk=pk)
+    if session.document_id != observed.document_id:
+        raise ValidationError("Phiếu vừa thay đổi. Tải lại biên bản trước khi xử lý.")
+    return session, document
+
+
+@transaction.atomic
+def reject_session(pk, user, reason, *, expected_revision):
+    from .services import close_document
+
+    session, document = _lock_review_session(pk)
+    if session.is_deleted or session.status != "SUBMITTED" or not document:
+        raise ValidationError("Chỉ không duyệt biên bản đang chờ duyệt điều chỉnh.")
+    if type(expected_revision) is not int or document.revision != expected_revision:
+        raise ValidationError(
+            "Phiếu đã thay đổi. Tải lại và kiểm tra trước khi không duyệt."
+        )
+    document = close_document(document.pk, user, "REJECT", reason)
+    return document
+
+
+@transaction.atomic
+def delete_session(
+    pk,
+    user,
+    reason,
+    *,
+    confirmation,
+    expected_status,
+    expected_document_status,
+    expected_revision,
+):
+    from django.contrib.auth import get_user_model
+
+    from .services import close_document
+
+    actor = get_user_model().objects.get(pk=user.pk)
+    if not is_admin(actor):
+        raise PermissionDenied("Chỉ Admin tổng được xóa phiếu kiểm kê.")
+    reason = reason.strip()
+    if not reason or len(reason) > 1000 or confirmation != f"KK-{pk:06d}":
+        raise ValidationError("Ghi lý do và nhập đúng mã biên bản để xác nhận xóa.")
+    session, document = _lock_review_session(pk)
+    if session.is_deleted:
+        raise ValidationError("Biên bản đã xóa trước đó, không xử lý lại.")
+    if (
+        session.status != expected_status
+        or (document.status if document else "") != expected_document_status
+        or (document.revision if document else 0) != expected_revision
+    ):
+        raise ValidationError("Trạng thái phiếu đã thay đổi. Tải lại trước khi xóa.")
+    Warehouse.objects.select_for_update().get(pk=session.warehouse_id)
+    StocktakeDeletion.objects.create(
+        session=session,
+        deleted_by=actor,
+        reason=reason,
+        previous_status=session.status,
+        previous_document_status=document.status if document else "",
+    )
+    if document and document.status in {"DRAFT", "REJECTED"}:
+        close_document(
+            document.pk, actor, "CANCEL", "Xóa biên bản kiểm kê: " + reason[:950]
+        )
+    if session.status in {"READY", "OPEN"}:
+        session.status = "CANCELLED"
+    session.locks_inventory = False
+    session.save(update_fields=["status", "locks_inventory"])
+    StocktakeEvent.objects.create(session=session, actor=actor, action="DELETE")
+    return session

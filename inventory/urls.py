@@ -64,6 +64,12 @@ urlpatterns = [
         name="receipt_attachment_void",
     ),
     path("stocktakes/", counts.stocktakes, name="stocktakes"),
+    path(
+        "stocktakes/<int:pk>/reject/", counts.stocktake_reject, name="stocktake_reject"
+    ),
+    path(
+        "stocktakes/<int:pk>/delete/", counts.stocktake_delete, name="stocktake_delete"
+    ),
     path("stocktakes/<int:pk>/", counts.stocktake_detail, name="stocktake_detail"),
     path("stocktakes/<int:pk>/start/", counts.stocktake_begin, name="stocktake_begin"),
     path("stocktakes/<int:pk>/paper/", counts.stocktake_paper, name="stocktake_paper"),

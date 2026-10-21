@@ -12,7 +12,10 @@ from .stocktakes import product_from_scan
 class StocktakeUpgradeTests(TransactionTestCase):
     def test_schema_17_qr_labels_open_sessions_and_rolling_inserts_survive(self):
         old = [("inventory", "0017_approval_hierarchy")]
-        latest = [("inventory", "0018_product_qr_stocktake_workflow")]
+        latest = sorted(
+            MigrationExecutor(connection).loader.graph.leaf_nodes(),
+            key=lambda node: node[0] != "inventory",
+        )
         try:
             executor = MigrationExecutor(connection)
             executor.migrate(old)
@@ -84,3 +87,36 @@ class StocktakeUpgradeTests(TransactionTestCase):
                             sql.Identifier(backup.SNAPSHOT_SCHEMA)
                         )
                     )
+
+    def test_0019_releases_only_finalized_locks_and_preserves_counts(self):
+        old = [("inventory", "0018_product_qr_stocktake_workflow")]
+        latest = MigrationExecutor(connection).loader.graph.leaf_nodes()
+        try:
+            executor = MigrationExecutor(connection)
+            executor.migrate(old)
+            apps = executor.loader.project_state(old).apps
+            User = apps.get_model("auth", "User")
+            Warehouse = apps.get_model("inventory", "Warehouse")
+            Session = apps.get_model("inventory", "StocktakeSession")
+            user = User.objects.create(username="upgrade-lock-owner")
+            rows = [
+                Session.objects.create(
+                    warehouse=Warehouse.objects.create(
+                        code=f"MIGRATION-{status}", name="Kho thử migration"
+                    ),
+                    created_by=user,
+                    status=status,
+                    locks_inventory=True,
+                )
+                for status in ["READY", "OPEN", "SUBMITTED", "COMPLETED", "CANCELLED"]
+            ]
+            MigrationExecutor(connection).migrate(latest)
+            for row in rows:
+                current = StocktakeSession.objects.get(pk=row.pk)
+                self.assertEqual(current.status, row.status)
+                self.assertEqual(
+                    current.locks_inventory, row.status in {"READY", "OPEN"}
+                )
+            self.assertEqual(StocktakeSession.objects.count(), 5)
+        finally:
+            MigrationExecutor(connection).migrate(latest)

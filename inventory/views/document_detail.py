@@ -153,9 +153,26 @@ def document_post(request, pk):
 @login_required
 @require_POST
 def document_close(request, pk, action):
-    get_object_or_404(documents_for(request.user), pk=pk)
+    document = get_object_or_404(documents_for(request.user), pk=pk)
     try:
-        close_document(pk, request.user, action.upper(), request.POST.get("reason", ""))
+        if action.upper() == "REJECT" and hasattr(document, "stocktake_session"):
+            from ..stocktakes import reject_session
+
+            revision = request.POST.get("expected_revision", "")
+            if not revision.isascii() or not revision.isdigit() or len(revision) > 10:
+                raise ValidationError(
+                    "Tải lại biên bản để xem bản mới trước khi không duyệt."
+                )
+            reject_session(
+                document.stocktake_session.pk,
+                request.user,
+                request.POST.get("reason", ""),
+                expected_revision=int(revision),
+            )
+        else:
+            close_document(
+                pk, request.user, action.upper(), request.POST.get("reason", "")
+            )
         messages.success(request, "Đã lưu xử lý phiếu; tồn kho không thay đổi.")
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))

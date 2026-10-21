@@ -26,7 +26,11 @@ Xem kết quả từng lần chạy tại tab Actions. Để **bắt buộc** c�
 
 Render hiện sử dụng triển khai từ main. Nếu muốn Render chờ CI, cần chọn chế độ **After CI Checks Pass** trong thiết lập Auto-Deploy của dịch vụ. File mã nguồn không xác nhận được thiết lập hiện tại trên tài khoản hosting. Không hứa CI tự chặn phát hành khi hai cấu hình bắt buộc này chưa được kiểm tra.
 
-## Khi đã có yêu cầu phát hành
+## Chờ chủ phần mềm duyệt bản chạy thử
+
+Chủ phần mềm đã thay đổi yêu cầu ngày 21/10/2026: phải xem bản thử trong VS Code trước. Các yêu cầu tự cập nhật trước đây không còn là quyền đưa mọi bản sửa mới lên production. Dùng nhánh `preview/*` và [môi trường thử riêng](PREVIEW_IN_VSCODE.md); ghi commit đã xem. Chỉ sau khi người dùng đồng ý bản cụ thể mới merge/push main hoặc gọi deploy. Chưa bật branch protection không có nghĩa được bỏ qua bước này.
+
+## Khi bản thử đã được đồng ý phát hành
 
 1. Kiểm tra thay đổi mới trên main, giữ các chỉnh sửa của người dùng và giải quyết xung đột nếu có.
 2. Xem các kiểm tra và bằng chứng của đúng commit cần đưa lên. Kiểm thử ở máy phát triển và CI là hai lần chạy riêng; ghi rõ lần nào đã xác minh.

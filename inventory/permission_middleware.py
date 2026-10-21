@@ -13,6 +13,7 @@ from .access import (
 )
 
 VIEW_KEYS = {
+    "stocktake_reject": "adjustments_approve",
     "products": "products_view",
     "product_detail": "products_view",
     "qr_landing": "products_view",
@@ -49,6 +50,7 @@ VIEW_KEYS = {
     "loan_return_edit": "returns_create",
 }
 ADMIN_VIEWS = {
+    "stocktake_delete",
     "storage_settings",
     "storage_measure",
     "storage_download",

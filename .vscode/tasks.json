@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label": "DHD: Xem tài khoản thử", "type": "shell", "command": "python scripts/preview.py credentials", "problemMatcher": []},
+    {"label": "DHD: Cập nhật bản thử", "type": "shell", "command": "python scripts/preview.py update", "problemMatcher": []},
+    {"label": "DHD: Khởi động bản thử", "type": "shell", "command": "python scripts/preview.py start", "problemMatcher": []},
+    {"label": "DHD: Dừng bản thử", "type": "shell", "command": "python scripts/preview.py stop", "problemMatcher": []},
+    {"label": "DHD: Xem trạng thái bản thử", "type": "shell", "command": "python scripts/preview.py status", "problemMatcher": []},
+    {"label": "DHD: Ghép giao diện", "type": "shell", "command": ".venv/bin/python scripts/build_styles.py", "problemMatcher": []}
+  ]
+}

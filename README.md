@@ -4,6 +4,10 @@
 
 Website: https://kiemsoatnoibolemon.onrender.com
 
+## Bản chạy thử trước khi phát hành
+
+Mở nhánh `preview/shared-review` trong VS Code + Docker Desktop theo [hướng dẫn từng bước](docs/PREVIEW_IN_VSCODE.md). Dữ liệu thử tách riêng; chỉ cập nhật `main`/Render sau khi chủ phần mềm xem và đồng ý bản thử cụ thể.
+
 ## Các phân hệ
 
 | Phần | Trạng thái và trách nhiệm |

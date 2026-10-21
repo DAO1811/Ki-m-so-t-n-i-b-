@@ -68,3 +68,94 @@ class QRConcurrencyTests(TransactionTestCase):
             self.assertEqual(doc.status, "CANCELLED")
             self.assertEqual(Balance.objects.get().quantity, 3)
             self.assertFalse(Movement.objects.filter(document=doc).exists())
+
+    def test_approval_racing_rejection_or_admin_delete_has_only_one_decision(self):
+        from .stocktakes import delete_session, reject_session
+
+        for action in ("reject", "delete"):
+            with self.subTest(action=action):
+                self.receipt()
+                session = start_session(self.a, self.maker)
+                # Include every SKU at this snapshot, retaining a shortage of one.
+                for item in session.items.all():
+                    save_count(
+                        session.pk,
+                        self.maker,
+                        item.product,
+                        "SET",
+                        item.book_quantity - 1,
+                        None,
+                        "",
+                        uuid4(),
+                        1,
+                    )
+                doc = submit_session(session.pk, self.maker, "Thiếu 1")
+                before = Balance.objects.get().quantity
+
+                def decide():
+                    if action == "reject":
+                        reject_session(
+                            session.pk,
+                            self.ceo,
+                            "Không duyệt điều chỉnh",
+                            expected_revision=doc.revision,
+                        )
+                    else:
+                        delete_session(
+                            session.pk,
+                            self.admin,
+                            "Phiếu thử",
+                            confirmation=f"KK-{session.pk:06d}",
+                            expected_status="SUBMITTED",
+                            expected_document_status="DRAFT",
+                            expected_revision=doc.revision,
+                        )
+
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    results = list(
+                        pool.map(
+                            self.execute,
+                            [lambda: post_document(doc.pk, self.ceo), decide],
+                        )
+                    )
+                self.assertEqual(results.count("ok"), 1)
+                doc.refresh_from_db()
+                movements = Movement.objects.filter(document=doc).count()
+                self.assertEqual(movements, 1 if doc.status == "POSTED" else 0)
+                self.assertEqual(Balance.objects.get().quantity, before - movements)
+
+    def test_receipt_racing_approval_preserves_both_operations(self):
+        from django.contrib.auth import get_user_model
+
+        from .models import Document, Line
+
+        self.receipt()
+        session = start_session(self.a, self.maker)
+        save_count(session.pk, self.maker, self.p, "SET", 2, None, "", uuid4(), 1)
+        adjustment = submit_session(session.pk, self.maker, "Thiếu một")
+        separate = get_user_model().objects.create_superuser(
+            "race-unrelated", "race@example.test", "1"
+        )
+        receipt = Document.objects.create(
+            kind="IN", destination=self.a, created_by=separate
+        )
+        Line.objects.create(
+            document=receipt, product=self.p, quantity=5, unit_price=100
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(
+                pool.map(
+                    self.execute,
+                    [
+                        lambda: post_document(adjustment.pk, self.ceo),
+                        lambda: post_document(
+                            receipt.pk, separate, confirm_self_approval=True
+                        ),
+                    ],
+                )
+            )
+        self.assertEqual(results, ["ok", "ok"])
+        self.assertEqual(Balance.objects.get().quantity, 7)
+        self.assertEqual(
+            Movement.objects.filter(document__in=[receipt, adjustment]).count(), 2
+        )

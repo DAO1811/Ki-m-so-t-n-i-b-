@@ -5,7 +5,7 @@
     <div>
       <a class="back-link" href="{% if access.documents_view %}{% url 'documents' %}{% else %}{% url 'dashboard' %}{% endif %}">← Quay lại</a>
       <h1>
-        {% icon 'file' %}PK-{{ doc.pk|stringformat:'06d' }} <span class="badge {{ doc.status|lower }}">{{ doc.status|status_label }}</span>
+        {% icon 'file' %}PK-{{ doc.pk|stringformat:'06d' }} <span class="badge {{ doc.status|lower }}">{% if qr_session and doc.status == 'REJECTED' %}Không duyệt{% else %}{{ doc.status|status_label }}{% endif %}</span>
       </h1>
       <p>{{ doc.get_kind_display }} · Tạo ngày {{ doc.created_at|date:'d/m/Y H:i' }}</p>
     </div>
@@ -104,21 +104,22 @@
 </div>
 {% else %}
 <div class="notice warning">
-  <span><b>{{ doc.status|status_label }}</b>: {{ doc.closure_reason }}. Phiếu chưa ghi sổ, tồn kho không thay đổi.</span>
+  <span><b>{% if qr_session and doc.status == "REJECTED" %}Không duyệt điều chỉnh{% else %}{{ doc.status|status_label }}{% endif %}</b>: {{ doc.closure_reason }}. Phiếu chưa ghi sổ, tồn kho không thay đổi.</span>
 </div>
 {% endif %}
 {% if can_cancel or can_post and doc.status == 'DRAFT' %}
   <section class="panel form-panel">
-    <details class="advanced-fields">
-      <summary>Xử lý phiếu chưa ghi sổ</summary>
+    <details class="advanced-fields" {% if qr_session %}open{% endif %}>
+      <summary>{% if qr_session %}Duyệt / không duyệt kiểm kê{% else %}Xử lý phiếu chưa ghi sổ{% endif %}</summary>
       {% if can_post and doc.status == 'DRAFT' %}
         <form method="post"
-              action="{% url 'document_close' doc.pk 'reject' %}"
+              action="{% if qr_session %}{% url 'stocktake_reject' qr_session.pk %}{% else %}{% url 'document_close' doc.pk 'reject' %}{% endif %}"
               class="standard-form">
           {% csrf_token %}
-          <label for="reject-reason">Lý do yêu cầu người lập sửa</label>
+          {% if qr_session %}<input type="hidden" name="expected_revision" value="{{ doc.revision }}">{% endif %}
+          <label for="reject-reason">{% if qr_session %}Lý do không duyệt điều chỉnh{% else %}Lý do yêu cầu người lập sửa{% endif %}</label>
           <textarea id="reject-reason" name="reason" required maxlength="1000" rows="2"></textarea>
-          <button class="button secondary">Yêu cầu sửa, chưa duyệt</button>
+          <button class="button secondary">{% if qr_session %}Không duyệt điều chỉnh{% else %}Yêu cầu sửa, chưa duyệt{% endif %}</button>
         </form>
       {% endif %}
       {% if can_cancel %}

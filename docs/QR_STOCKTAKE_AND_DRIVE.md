@@ -5,8 +5,8 @@ Ngày rà soát: 16/10/2026. Nhánh `feature/qr-stocktake-product-records`, kế
 
 ## Kiểm kê theo từng kho
 
-1. Chọn **Kiểm kê QR → kho → Bắt đầu đếm bằng QR**. Phần mềm lưu số lượng, giá trị và mốc giao dịch của tồn thường tại lúc mở phiên. Không gộp tồn mượn tạm vào tồn thường.
-2. Mỗi mã hàng có một QR tự sinh ngay khi tạo, kể cả không có ảnh. Mở hồ sơ hàng hóa để tải tem hoặc in nhãn. Mã đã có trước khi nâng cấp được bổ sung QR riêng; không đổi mã hàng cũ.
+1. Chọn **Kiểm kê → chốt tồn & khóa kho → chọn kho đã chốt → kiểm bằng giấy hoặc QR**. Phần mềm lưu số lượng, giá trị và mốc giao dịch của tồn thường tại lúc mở phiên. Không gộp tồn mượn tạm vào tồn thường.
+2. Mỗi mã hàng bắt buộc có QR, tự sinh hoặc nhập mã có sẵn lúc tạo, kể cả không có ảnh. Mở hồ sơ hàng hóa để tải tem hoặc in nhãn. Mã đã có trước khi nâng cấp được bổ sung QR riêng; không đổi mã hàng cũ.
 3. Quét bằng camera, máy quét USB có phím Enter, hoặc đọc ảnh QR. Mỗi lượt hợp lệ cộng **1 đơn vị tính của mã hàng**. Với camera, đưa tem ra khỏi khung khoảng một giây rồi quét đơn vị tiếp theo; giữ yên một tem không cộng liên tục. QR chung theo mã hàng không chứng minh hai lượt quét là hai tài sản khác nhau; nhân viên phải đưa từng đơn vị qua điểm đếm đúng quy trình.
 4. Nếu đếm thủ công hoặc cần sửa, chọn **Ghi / sửa tổng số thực đếm**, nhập tổng rồi ghi. Số này thay thế tổng cũ, có lịch sử trước/sau và người sửa. Mã chưa đếm được đánh dấu riêng; không tự đổi thành 0. Không tìm thấy hàng phải xác nhận thực đếm 0.
 5. Mã có hàng thực tế ngoài sổ vẫn có thể thêm vào phiên. Phần tăng chưa có giá bình quân phải nhập đơn giá, được nhập 0 nếu có căn cứ hàng không thu tiền. Phần giảm tính theo giá trị bình quân của tồn thường, không tự chọn giá giảm.
@@ -21,7 +21,9 @@ Biên bản giữ bản chụp mã, tên và đơn vị tính tại thời đi�
 
 ## Tránh dùng số kiểm kê đã cũ
 
-Phần mềm không khóa mọi hoạt động kho suốt thời gian đếm. Thay vào đó, nếu kho phát sinh giao dịch làm thay đổi tồn sau lúc mở phiên, hệ thống chặn chốt và chặn duyệt điều chỉnh dựa trên mốc cũ, kể cả giao dịch mới của mã chưa có trong danh sách hoặc tổng biến động về 0. Cần thống nhất thời gian kiểm kê với nhân viên kho rồi mở phiên mới để đếm lại. Phiên phải mở và ghi số trong ngày hôm nay; phiên sang ngày không tiếp tục ghi số.
+Kho khóa giao dịch từ lúc chốt tồn đến khi chốt chênh lệch/gửi duyệt hoặc hủy/xóa phiên có lý do. Chốt chênh lệch xong tự mở giao dịch, không chờ Tổng giám đốc duyệt điều chỉnh. Duyệt sẽ áp dụng đúng phần tăng/giảm vào tồn hiện tại, không thay tồn bằng số đếm cũ, không xóa giao dịch phát sinh sau đó; vẫn chặn nếu làm âm tồn. Ngày kiểm kê giữ trên biên bản, ngày ghi sổ điều chỉnh là hôm duyệt. Không mở thêm phiên/phiếu kiểm kê hoặc điều chỉnh trong cùng kho khi phiếu điều chỉnh trước còn chờ quyết định, để tránh chênh lệch bị xử lý chồng. Phiên đang đếm phải ghi số trong ngày; phiên chưa chốt sang ngày cần hủy và mở lại.
+
+Tổng giám đốc có **Không duyệt điều chỉnh**, bắt buộc lý do; tồn không thay đổi, số đếm đã chốt không được sửa, cần kiểm lại bằng phiên mới. Chỉ Admin tổng có **Xóa phiếu kiểm kê**: bắt buộc lý do và nhập mã biên bản, ẩn khỏi danh sách sử dụng và gỡ khóa của chính phiên đó. Hồ sơ và bút toán đã ghi sổ giữ nguyên, không đảo tồn; Admin tra được hồ sơ đã xóa.
 
 Ghi số có mã yêu cầu duy nhất và phiên bản dòng. Mất phản hồi sau khi máy chủ đã nhận: phần mềm giữ lượt chưa xác nhận, chặn quét tiếp/chốt phiếu, cho **xác minh/gửi lại** cùng lượt đó. Không quét bù vì có thể đã được ghi. Dữ liệu đã được máy chủ xác nhận nằm trong database; máy quét không hỗ trợ kiểm đếm ngoại tuyến.
 

@@ -322,6 +322,11 @@ def post_document(
     expected_revision=None,
 ):
     doc = Document.objects.select_for_update().get(pk=pk)
+    from .models import StocktakeSession
+
+    session = StocktakeSession.objects.select_for_update().filter(document=doc).first()
+    if session and (session.is_deleted or session.status != "SUBMITTED"):
+        raise ValidationError("Biên bản kiểm kê không còn chờ duyệt điều chỉnh.")
     from .hierarchy import lock_approval_accounts
 
     user = lock_approval_accounts(doc, user)
@@ -350,6 +355,9 @@ def post_document(
         raise ValidationError(
             "Bạn đang tự duyệt phiếu do chính mình lập. Hãy đánh dấu xác nhận tự duyệt trước khi tiếp tục."
         )
+    # The count date stays on the sealed session; the ledger adjustment is today.
+    if session:
+        doc.business_date = timezone.localdate()
     validate_document(doc)
     lines = list(doc.lines.select_related("product").order_by("product_id"))
     if not lines:
@@ -377,31 +385,59 @@ def post_document(
     )
     from .stocktakes import active_sessions
 
-    blocked = active_sessions().filter(
-        locks_inventory=True,
-        warehouse_id__in=list(filter(None, [doc.source_id, doc.destination_id])),
-    ).exclude(document_id=doc.pk).select_related("warehouse").first()
+    blocked = (
+        active_sessions()
+        .filter(
+            locks_inventory=True,
+            warehouse_id__in=list(filter(None, [doc.source_id, doc.destination_id])),
+        )
+        .exclude(document_id=doc.pk)
+        .select_related("warehouse")
+        .first()
+    )
     if blocked:
         raise ValidationError(
-            f"Kho {blocked.warehouse.code} đang khóa kiểm kê theo KK-{blocked.pk:06d}. Hoàn tất duyệt điều chỉnh hoặc hủy phiên có lý do trước khi ghi sổ giao dịch."
+            f"Kho {blocked.warehouse.code} đang khóa kiểm kê theo KK-{blocked.pk:06d}. Chốt chênh lệch và gửi duyệt hoặc hủy phiên có lý do trước khi ghi sổ giao dịch."
         )
-    if doc.kind in ["COUNT", "ADJUST"]:
-        from .models import StocktakeSession
-
-        session = StocktakeSession.objects.filter(document=doc).first()
+    if (
+        doc.kind in {"COUNT", "ADJUST"}
+        and active_sessions()
+        .filter(
+            warehouse_id=doc.destination_id,
+            status="SUBMITTED",
+            document__status="DRAFT",
+        )
+        .exclude(document_id=doc.pk)
+        .exists()
+    ):
+        raise ValidationError(
+            "Kho còn phiếu điều chỉnh kiểm kê chờ quyết định. Duyệt hoặc không duyệt phiếu đó trước khi kiểm kê / điều chỉnh tiếp."
+        )
+    if session:
+        # Sealed discrepancies are deltas, never a replacement of today's balance.
+        # Validate the linkage so a stale/modified adjustment cannot escape the count.
+        changes = {
+            item.product_id: item
+            for item in session.items.all()
+            if item.difference != 0
+        }
         if (
-            session
-            and (
-                Movement.objects.filter(warehouse=doc.destination).aggregate(
-                    v=Max("id")
-                )["v"]
-                or 0
-            )
-            > session.cutoff_id
+            doc.kind != "ADJUST"
+            or doc.destination_id != session.warehouse_id
+            or (len(lines) != len(changes))
         ):
-            raise ValidationError(
-                "Kho đã biến động sau khi mở phiên kiểm kê QR. Biên bản không còn hợp lệ để điều chỉnh; cần kiểm đếm lại."
-            )
+            raise ValidationError("Phiếu điều chỉnh không khớp biên bản đã chốt.")
+        for line in lines:
+            item = changes.get(line.product_id)
+            if item is None or (
+                line.quantity != item.difference
+                or line.stocktake_quantity != item.book_quantity
+                or line.stocktake_version != item.movement_version
+                or line.unit_price != item.unit_price
+            ):
+                raise ValidationError(
+                    "Chênh lệch điều chỉnh không khớp biên bản đã chốt."
+                )
 
     def money(v):
         with localcontext() as context:
@@ -414,9 +450,7 @@ def post_document(
 
     for line in lines:
         validate_line_details(doc, line)
-        if doc.kind == "COUNT" or (
-            doc.kind == "ADJUST" and getattr(doc, "stocktake_session", None)
-        ):
+        if doc.kind == "COUNT":
             if line.stocktake_version is None:
                 raise ValidationError(
                     "Phiếu kiểm kê cần người lập mở sửa, kiểm đếm lại và lưu mốc tồn trước khi duyệt."
@@ -509,11 +543,16 @@ def post_document(
                     )
                 price = line.unit_price
                 if price is None:
-                    if not dest.quantity:
+                    if dest.quantity:
+                        price = dest.value / dest.quantity
+                    elif session and changes[line.product_id].book_quantity:
+                        # Goods may have been issued since the count was sealed.
+                        item = changes[line.product_id]
+                        price = item.book_value / item.book_quantity
+                    else:
                         raise ValidationError(
                             f"{line.product}: cần đơn giá cho hàng chưa có tồn."
                         )
-                    price = dest.value / dest.quantity
                 value_delta = money(delta * price)
             record(doc, line, doc.destination_id, delta, value_delta)
     if transfer and doc.status == "DRAFT":
@@ -526,8 +565,15 @@ def post_document(
         doc.status = "POSTED"
         doc.posted_by = user
         doc.posted_at = timezone.now()
-        doc.save(update_fields=["status", "posted_by", "posted_at"])
-        audit_document(doc, user, "POST")
+        doc.save(update_fields=["status", "posted_by", "posted_at", "business_date"])
+        audit_document(
+            doc,
+            user,
+            "POST",
+            {"stocktake_id": session.pk, "count_date": str(session.business_date)}
+            if session
+            else None,
+        )
     return doc
 
 
@@ -567,4 +613,15 @@ def close_document(pk, user, action, reason):
     doc.revision += 1
     doc.save(update_fields=["status", "closure_reason", "revision"])
     audit_document(doc, user, action)
+    if action == "REJECT":
+        from .models import StocktakeEvent, StocktakeSession
+
+        session = (
+            StocktakeSession.objects.select_for_update().filter(document=doc).first()
+        )
+        if session:
+            Warehouse.objects.select_for_update().get(pk=session.warehouse_id)
+            session.locks_inventory = False
+            session.save(update_fields=["locks_inventory"])
+            StocktakeEvent.objects.create(session=session, actor=user, action="REJECT")
     return doc

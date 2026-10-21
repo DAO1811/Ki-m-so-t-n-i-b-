@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [{
+    "name": "DHD Django · Gỡ lỗi bản thử",
+    "type": "debugpy",
+    "request": "launch",
+    "program": "${workspaceFolder}/manage.py",
+    "args": ["runserver", "0.0.0.0:8001", "--noreload"],
+    "django": true,
+    "justMyCode": true
+  }]
+}
