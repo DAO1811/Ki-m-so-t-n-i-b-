@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 
 import dj_database_url
@@ -112,3 +113,29 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_HSTS_SECONDS = 31536000
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Optional, confirmed per-database budget in MiB. Leave unset if the cloud quota
+# covers multiple databases/branches; provider usage remains the source of truth.
+DATABASE_STORAGE_LIMIT_MB = os.environ.get("DATABASE_STORAGE_LIMIT_MB") or None
+if DATABASE_STORAGE_LIMIT_MB is not None:
+    if (
+        not DATABASE_STORAGE_LIMIT_MB.isascii()
+        or not DATABASE_STORAGE_LIMIT_MB.isdigit()
+        or not 1 <= int(DATABASE_STORAGE_LIMIT_MB) <= 10**9
+    ):
+        raise RuntimeError(
+            "DATABASE_STORAGE_LIMIT_MB must be a positive MiB budget or unset"
+        )
+    DATABASE_STORAGE_LIMIT_MB = int(DATABASE_STORAGE_LIMIT_MB)
+
+# Recomputable admin metadata must survive redirects between web workers.
+# No business rows, OAuth tokens or uploaded files are stored in this alias.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "storage": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": str(Path(tempfile.gettempdir()) / "dhd-storage-metadata"),
+        "TIMEOUT": 600,
+        "OPTIONS": {"MAX_ENTRIES": 200},
+    },
+}

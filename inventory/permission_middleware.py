@@ -49,6 +49,11 @@ VIEW_KEYS = {
     "loan_return_edit": "returns_create",
 }
 ADMIN_VIEWS = {
+    "storage_settings",
+    "storage_measure",
+    "storage_download",
+    "storage_drive_usage",
+    "storage_export",
     "employee_new",
     "employee_edit",
     "drive_settings",

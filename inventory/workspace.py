@@ -69,6 +69,7 @@ def workspace_context(request):
         "stocktake_paper": "Nhập kết quả kiểm kê giấy",
         "stocktake_report": "Biên bản kiểm kê",
         "drive_settings": "Google Drive",
+        "storage_settings": "Dung lượng & báo cáo",
         "approvals": "Duyệt phiếu",
         "warehouse_list": "Kho hàng",
         "warehouse_edit": "Sửa kho",

@@ -9,7 +9,7 @@ Website: https://kiemsoatnoibolemon.onrender.com
 | Phần | Trạng thái và trách nhiệm |
 | --- | --- |
 | Quản lý kho | Danh mục, nhập/xuất/chuyển, mượn trả, kiểm kê giấy/QR, duyệt phiếu, báo cáo và Excel |
-| Quản trị hệ thống | Tài khoản, phân quyền, đổi mật khẩu; kết nối Drive dùng chung |
+| Quản trị hệ thống | Tài khoản, phân quyền, đổi mật khẩu; kết nối Drive, đo dung lượng và báo cáo Sheets |
 | Quy trình | Trang chuẩn bị, chưa có nghiệp vụ mới |
 | Quản lý nhân sự | Trang chuẩn bị, chưa có nghiệp vụ mới |
 
@@ -94,3 +94,5 @@ Production dùng PostgreSQL, `DEBUG=0`, HTTPS và bí mật từ cấu hình hos
 - [Google Drive](docs/GOOGLE_DRIVE_CONNECTION.md)
 
 Các tài liệu kiểm thử/phát hành có ngày hoặc số lượng test ở đợt cũ là bằng chứng lịch sử. Dùng kiến trúc, quy trình phát hành và kết quả CI hiện tại để tiếp tục phát triển; không suy ra phiên bản đang chạy từ số test trong báo cáo cũ. `/healthz/` công bố mã release và trạng thái sẵn sàng, không trả dữ liệu công ty.
+
+Theo dõi dung lượng và lưu báo cáo: [hướng dẫn vận hành](docs/STORAGE_AND_REPORTS.md).

@@ -1,10 +1,36 @@
 from django.urls import path
 
-from . import drive_views, issue_import_views, loan_views, product_import_views, views
+from . import (
+    drive_views,
+    issue_import_views,
+    loan_views,
+    product_import_views,
+    storage_views,
+    views,
+)
 from . import records_views as records
 from . import stocktake_views as counts
 
 urlpatterns = [
+    path("settings/storage/", storage_views.storage_settings, name="storage_settings"),
+    path(
+        "settings/storage/measure/",
+        storage_views.storage_measure,
+        name="storage_measure",
+    ),
+    path(
+        "settings/storage/download/",
+        storage_views.storage_download,
+        name="storage_download",
+    ),
+    path(
+        "settings/storage/drive-usage/",
+        storage_views.storage_drive_usage,
+        name="storage_drive_usage",
+    ),
+    path(
+        "settings/storage/export/", storage_views.storage_export, name="storage_export"
+    ),
     path("operations/out/excel/", issue_import_views.issue_import, name="issue_import"),
     path(
         "operations/out/excel/template/",

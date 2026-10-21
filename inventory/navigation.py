@@ -148,6 +148,7 @@ def navigation(request, access):
                 ("team", "employee_new", "employee_edit"),
             ),
             item("admin", "Lưu trữ Google Drive", "file", "drive_settings"),
+            item("admin", "Dung lượng & báo cáo", "grid", "storage_settings"),
         ],
     )
     return sections

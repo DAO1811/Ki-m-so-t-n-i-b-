@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+<div class="page-heading">
+  <div><h1>{% icon 'file' %}Dung lượng &amp; báo cáo lưu trữ</h1><p>Theo dõi database, tệp Drive và báo cáo đối chiếu. Chỉ quản trị viên được sử dụng.</p></div>
+  <a class="button secondary" href="{% url 'drive_settings' %}">Kết nối Google Drive</a>
+</div>
+<div class="storage-grid">
+<section class="panel storage-card">
+  <div class="panel-title"><h2>1. Dung lượng database</h2><span class="count-chip">Không xóa dữ liệu</span></div>
+  <form method="post" action="{% url 'storage_measure' %}">{% csrf_token %}<button class="button">Kiểm tra dung lượng</button></form>
+  {% if audit %}
+    <p class="hint">Thời điểm đo: {{ measured_at|date:'d/m/Y H:i:s' }} · Kết quả giữ tạm trong 10 phút; kiểm tra lại khi cần số mới.</p>
+    {% if audit.database_bytes != None %}
+      <dl class="storage-metrics"><div><dt>Database hiện tại</dt><dd>{{ audit.database_bytes|filesizeformat }}</dd></div><div><dt>Bản chụp nâng cấp nằm trong database</dt><dd>{{ audit.snapshot_bytes|filesizeformat }}</dd></div><div><dt>Nội dung tệp còn trong database</dt><dd>{{ audit.blob_bytes|filesizeformat }} · {{ audit.blob_count }} tệp</dd></div></dl>
+      {% if audit.configured_limit_bytes %}
+        <p>Ngân sách database đã cấu hình: <strong>{{ audit.configured_limit_bytes|filesizeformat }}</strong> · Còn trong ngân sách: <strong>{{ audit.remaining_bytes|filesizeformat }}</strong>.</p>
+        <progress max="100" value="{{ audit.percent }}" aria-label="Tỷ lệ sử dụng ngân sách database">{{ audit.percent }}%</progress>
+        {% if audit.percent >= 80 %}<p class="notice warning">Database đã dùng từ 80% ngân sách. Cần kiểm tra dung lượng trên nhà cung cấp trước khi nhập lượng lớn dữ liệu.</p>{% endif %}
+      {% else %}<p class="notice warning">Chưa có hạn mức database được xác nhận nên chưa tính được dung lượng còn lại. Không mặc định gói miễn phí là 512 MB.</p>{% endif %}
+      <p class="hint">Số đo dành cho database đang kết nối. Hạn mức tài khoản Neon có thể gồm database khác, nhánh và lịch sử; đối chiếu thêm trong Neon Console.</p>
+    {% else %}<p class="notice warning">Đây là môi trường thử SQLite. Không dùng số liệu này để đánh giá database PostgreSQL chính thức.</p>{% endif %}
+    <a class="button secondary" href="{% url 'storage_download' %}" data-download>Tải báo cáo dung lượng</a>
+  {% else %}<p>Chưa có số đo. Kiểm tra chỉ đọc dung lượng và thống kê, không thay đổi phiếu hoặc tồn kho.</p>{% endif %}
+</section>
+<section class="panel storage-card">
+  <h2>2. Tệp trên Google Drive</h2>
+  <p>{% if connection.folder_id %}Thư mục đang kết nối: <strong>{{ connection.folder_name }}</strong>.{% else %}Chưa chọn thư mục lưu trữ. Mở kết nối Google Drive để hoàn tất.{% endif %}</p>
+  <p>Ảnh sản phẩm và PDF được lưu trên Drive; database giữ liên kết. Drive lỗi sẽ không tự chuyển tệp vào database.</p>
+  <form method="post" action="{% url 'storage_drive_usage' %}">{% csrf_token %}<button class="button secondary" {% if not connection %}disabled{% endif %}>Kiểm tra dung lượng Google</button></form>
+  {% if drive_usage %}<dl class="storage-metrics"><div><dt>Đã sử dụng trên tài khoản Google</dt><dd>{% if drive_usage.used != None %}{{ drive_usage.used|filesizeformat }}{% else %}Google chưa cung cấp{% endif %}</dd></div><div><dt>Còn lại theo Google</dt><dd>{% if drive_usage.remaining != None %}{{ drive_usage.remaining|filesizeformat }}{% else %}Chưa xác định{% endif %}</dd></div></dl>{% endif %}
+  <p class="hint">Hạn mức do Google trả về có thể được dùng chung với Gmail và các dịch vụ khác. Báo cáo kế thừa quyền chia sẻ của thư mục gốc; không nên chia sẻ thư mục này công khai.</p>
+</section>
+</div>
+<section class="panel storage-card">
+  <div class="panel-title"><h2>3. Báo cáo tháng trên Google Sheets</h2><span class="count-chip">Bản đối chiếu</span></div>
+  <p>Tạo báo cáo trong <strong>Báo cáo quản trị / năm</strong> của thư mục Drive đã kết nối. Chỉ xuất tháng đã kết thúc.</p>
+  <form class="storage-export" method="post" action="{% url 'storage_export' %}">{% csrf_token %}<label for="report-month">Tháng giao dịch<input id="report-month" type="month" name="period" required value="{{ last_month }}" max="{{ last_month }}"></label><button class="button" {% if not connection.folder_id %}disabled{% endif %}>Xuất / kiểm tra báo cáo tháng</button></form>
+  <p>Gồm tổng hợp giao dịch, nhật ký kho, phiếu liên quan, kiểm kê trong kỳ; tồn và hàng mượn được ghi rõ <strong>tại thời điểm xuất</strong>. Không xuất mật khẩu, thông tin kết nối hoặc hội thoại riêng.</p>
+  <p>Mỗi tháng giữ một bản đầu tiên để đối chiếu. Xuất lại sẽ đọc và kiểm tra bản đó, không ghi đè chỉnh sửa trên Sheets. Mã hàng và số tiền lưu dạng văn bản để giữ nguyên giá trị.</p>
+  {% if last_report %}<p class="notice success">Báo cáo {{ last_report.period }} · {{ last_report.rows }} dòng đã đối soát. <a href="{{ last_report.url }}" target="_blank" rel="noopener noreferrer">Mở Google Sheets</a></p>{% endif %}
+  <p class="hint">Tối đa 25.000 dòng dữ liệu / 5 MB mỗi báo cáo. Báo cáo giữ nguyên dữ liệu gốc nên chưa giảm dung lượng database. Đây không phải bản sao lưu để phục hồi hệ thống.</p>
+</section>
+{% if audit %}
+<section class="panel storage-card"><h2>4. Phần cần xem xét tối ưu</h2>
+  {% if audit.snapshot_bytes %}<p>Bản chụp nâng cấp đang chiếm <strong>{{ audit.snapshot_bytes|filesizeformat }}</strong>. Chỉ di chuyển hoặc dọn khi đã có bản sao lưu bên ngoài và kiểm tra phục hồi. Chức năng này không tự xóa bản chụp.</p>{% endif %}
+  {% if audit.blob_bytes %}<p>Có nội dung tệp còn trong database. Cần kiểm tra liên kết và đối chiếu tệp trên Drive trước khi đề xuất di chuyển.</p>{% endif %}
+  <p>Giữ database cho tồn kho, phiếu, phê duyệt, kiểm kê, tài khoản và lịch sử nghiệp vụ. Chưa tự xóa dữ liệu nào.</p>
+  {% if audit.schemas %}<div class="table-scroll"><table><thead><tr><th>Nhóm lưu trữ</th><th>Dung lượng bảng và chỉ mục</th></tr></thead><tbody>{% for row in audit.schemas %}<tr><td>{{ row.name }}</td><td>{{ row.bytes|filesizeformat }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+  {% if audit.tables %}<details><summary>Chi tiết bảng lớn nhất (tối đa 50 / {{ audit.tables_count }} bảng)</summary><div class="table-scroll"><table><thead><tr><th>Nhóm / bảng</th><th>Tổng dung lượng</th><th>Chỉ mục</th><th>Số dòng ước tính</th></tr></thead><tbody>{% for row in audit.tables %}<tr><td>{{ row.schema }} / {{ row.table }}</td><td>{{ row.bytes|filesizeformat }}</td><td>{{ row.index_bytes|filesizeformat }}</td><td>{{ row.estimated_rows }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
