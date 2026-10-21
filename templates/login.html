@@ -18,6 +18,11 @@
     </header>
     <div class="auth-layout">
       <section class="auth-intro" aria-label="DHD Kiểm soát nội bộ">
+        <div class="auth-hero-title">
+          <span class="auth-eyebrow">KIỂM SOÁT NỘI BỘ</span>
+          <h2><span>Minh bạch vận hành.</span><span>Vững vàng kiểm soát.</span></h2>
+          <p>Bảo vệ tài sản. Tuân thủ quy trình.<br>Rõ trách nhiệm trong từng nghiệp vụ.</p>
+        </div>
         <div class="auth-art" aria-hidden="true">
           <svg viewBox="0 0 600 460" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -44,13 +49,13 @@
             <circle cx="128" cy="139" r="3" fill="#86ecc6"/>
           </svg>
         </div>
-        <div class="auth-hero-title"><span class="auth-eyebrow">DHD / WORKSPACE</span><h2>Kiểm soát.<br><span>Chủ động.</span></h2></div>
+
       </section>
       <main class="auth-main" id="login-content">
         <div class="auth-card">
           <div class="auth-card-topline"><span class="auth-card-line"></span>{% icon 'shield' %}</div>
-          <h1>Đăng nhập<span>.</span></h1>
-          <p class="auth-description">Chào mừng bạn trở lại.</p>
+          <h1>Đăng nhập</h1>
+          <p class="auth-description">Truy cập hệ thống kiểm soát nội bộ.</p>
         <form method="post" class="auth-form">
           {% csrf_token %}
           {% if form.non_field_errors %}
@@ -78,6 +83,6 @@
         </div>
       </main>
     </div>
-    <footer class="auth-footer"><span>DHD · KIỂM SOÁT NỘI BỘ</span><span>Không gian làm việc của bạn.</span></footer>
+    <footer class="auth-footer"><span>DHD · KIỂM SOÁT NỘI BỘ</span><span>Hệ thống quản trị nội bộ</span></footer>
   </body>
 </html>
