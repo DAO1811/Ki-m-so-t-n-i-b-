@@ -11,34 +11,46 @@
     <script src="{% static 'login.js' %}" defer></script>
   </head>
   <body class="auth-page">
-    <section class="auth-intro" aria-label="DHD Kiểm soát nội bộ">
-      <div class="auth-brand">
-        <span class="auth-brand-symbol">{% icon 'warehouse' %}</span>
-        <div>DHD KSNB<small>DHD · KIỂM SOÁT NỘI BỘ</small></div>
-      </div>
-      <div class="auth-overview">
-        <div class="auth-eyebrow"><span></span> KHÔNG GIAN LÀM VIỆC NỘI BỘ</div>
-        <h2>Quản lý tập trung.<br><span>Kiểm soát rõ ràng.</span></h2>
-        <p>Theo dõi công việc, quản lý tài sản và phối hợp vận hành trong cùng một hệ thống.</p>
-        <div class="auth-workspace">
-          <div class="auth-workspace-heading"><span>{% icon 'warehouse' %} Quản lý kho</span><span class="auth-status">Đang sử dụng</span></div>
-          <div class="auth-features">
-            <div>{% icon 'box' %}<span>Danh mục hàng hóa</span></div>
-            <div>{% icon 'transfer' %}<span>Nhập · Xuất · Chuyển</span></div>
-            <div>{% icon 'count' %}<span>Kiểm kê · QR</span></div>
-            <div>{% icon 'chart' %}<span>Báo cáo kho</span></div>
-          </div>
-          <div class="auth-upcoming"><span>Mở rộng tiếp theo</span><span>{% icon 'file' %} Quy trình</span><span>{% icon 'users' %} Quản lý nhân sự</span></div>
+    <div class="auth-atmosphere" aria-hidden="true"></div>
+    <header class="auth-header">
+      <div class="auth-brand"><span class="auth-brand-symbol">{% icon 'warehouse' %}</span><span>DHD<span class="auth-brand-divider"></span>KSNB</span></div>
+      <span class="auth-header-caption">KIỂM SOÁT NỘI BỘ</span>
+    </header>
+    <div class="auth-layout">
+      <section class="auth-intro" aria-label="DHD Kiểm soát nội bộ">
+        <div class="auth-art" aria-hidden="true">
+          <svg viewBox="0 0 600 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="top" x1="155" y1="50" x2="435" y2="250" gradientUnits="userSpaceOnUse"><stop stop-color="#9cffe1"/><stop offset=".48" stop-color="#26dbaa"/><stop offset="1" stop-color="#08775e"/></linearGradient>
+              <linearGradient id="left" x1="170" y1="190" x2="300" y2="330" gradientUnits="userSpaceOnUse"><stop stop-color="#167a67"/><stop offset="1" stop-color="#073c37"/></linearGradient>
+              <linearGradient id="right" x1="300" y1="230" x2="450" y2="160" gradientUnits="userSpaceOnUse"><stop stop-color="#0b574b"/><stop offset="1" stop-color="#159e7e"/></linearGradient>
+              <linearGradient id="edge" x1="150" y1="0" x2="440" y2="300" gradientUnits="userSpaceOnUse"><stop stop-color="#b9ffeb"/><stop offset="1" stop-color="#27dbaa" stop-opacity=".15"/></linearGradient>
+              <radialGradient id="halo"><stop stop-color="#18dba3" stop-opacity=".18"/><stop offset="1" stop-color="#18dba3" stop-opacity="0"/></radialGradient>
+            </defs>
+            <ellipse cx="300" cy="345" rx="260" ry="105" fill="url(#halo)"/>
+            <path d="m65 287 235-135 235 135-235 136L65 287Z" stroke="#285048" stroke-dasharray="3 7"/>
+            <path d="m118 265 182-105 182 105-182 105-182-105Z" fill="#10282a" stroke="#31564e"/>
+            <path d="M118 265v15l182 105 182-105v-15L300 370 118 265Z" fill="#0b1d22" stroke="#24443f"/>
+            <path d="m148 224 152-88 152 88-152 88-152-88Z" fill="#143930" stroke="#3d7e68"/>
+            <path d="M148 224v21l152 88 152-88v-21L300 312 148 224Z" fill="#0c2826" stroke="#285a4b"/>
+            <path d="m172 164 128-74 128 74-128 74-128-74Z" fill="url(#top)" stroke="url(#edge)" stroke-width="1.5"/>
+            <path d="M172 164v52l128 74v-52l-128-74Z" fill="url(#left)" stroke="#3abf99" stroke-opacity=".45"/>
+            <path d="m300 238 128-74v52l-128 74v-52Z" fill="url(#right)" stroke="#51dab0" stroke-opacity=".35"/>
+            <path d="m226 164 74-43 74 43-74 43-74-43Z" stroke="#d0fff0" stroke-opacity=".65"/>
+            <path d="m263 164 37-22 37 22-37 22-37-22Z" fill="#d5ffed" fill-opacity=".85"/>
+            <path d="M300 90V48M428 164l44-25M172 164l-44-25" stroke="#8be5c1" stroke-opacity=".35"/>
+            <circle cx="300" cy="48" r="3" fill="#86ecc6"/>
+            <circle cx="472" cy="139" r="3" fill="#86ecc6"/>
+            <circle cx="128" cy="139" r="3" fill="#86ecc6"/>
+          </svg>
         </div>
-      </div>
-      <div class="auth-intro-footer">Một hệ thống chung cho hoạt động quản lý công ty.</div>
-    </section>
-    <main class="auth-main" id="login-content">
-      <div class="auth-card">
-        <span class="auth-card-symbol">{% icon 'shield' %}</span>
-        <div class="auth-form-eyebrow">CHÀO MỪNG TRỞ LẠI</div>
-        <h1>Đăng nhập</h1>
-        <p class="auth-description">Truy cập không gian làm việc của bạn bằng tài khoản được quản trị viên cấp.</p>
+        <div class="auth-hero-title"><span class="auth-eyebrow">DHD / WORKSPACE</span><h2>Kiểm soát.<br><span>Chủ động.</span></h2></div>
+      </section>
+      <main class="auth-main" id="login-content">
+        <div class="auth-card">
+          <div class="auth-card-topline"><span class="auth-card-line"></span>{% icon 'shield' %}</div>
+          <h1>Đăng nhập<span>.</span></h1>
+          <p class="auth-description">Chào mừng bạn trở lại.</p>
         <form method="post" class="auth-form">
           {% csrf_token %}
           {% if form.non_field_errors %}
@@ -62,9 +74,10 @@
           <input type="hidden" name="next" value="{{ next }}">
           <button class="button auth-submit" type="submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
         </form>
-        <div class="auth-help">{% icon 'users' %}<p>Chưa có tài khoản hoặc cần hỗ trợ?<br><strong>Liên hệ quản trị viên của đơn vị.</strong></p></div>
-      </div>
-      <div class="auth-footer">DHD · Kiểm soát nội bộ<span>Truy cập theo quyền được cấp</span></div>
-    </main>
+          <p class="auth-help">Cần hỗ trợ? <span>Liên hệ quản trị viên.</span></p>
+        </div>
+      </main>
+    </div>
+    <footer class="auth-footer"><span>DHD · KIỂM SOÁT NỘI BỘ</span><span>Không gian làm việc của bạn.</span></footer>
   </body>
 </html>
