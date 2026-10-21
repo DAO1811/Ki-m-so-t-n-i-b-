@@ -5,6 +5,18 @@ from . import records_views as records
 from . import stocktake_views as counts
 
 urlpatterns = [
+    path(
+        "processes/",
+        views.module_placeholder,
+        {"module": "processes"},
+        name="processes",
+    ),
+    path(
+        "human-resources/",
+        views.module_placeholder,
+        {"module": "human_resources"},
+        name="human_resources",
+    ),
     path("operations/out/excel/", issue_import_views.issue_import, name="issue_import"),
     path(
         "operations/out/excel/template/",

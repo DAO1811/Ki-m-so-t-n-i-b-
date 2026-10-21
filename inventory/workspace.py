@@ -44,6 +44,9 @@ def workspace_context(request):
         return {}
     name = request.resolver_match.url_name if request.resolver_match else ""
     labels = {
+        "processes": "Quy trình",
+        "human_resources": "Quản lý nhân sự",
+        "password_change": "Đổi mật khẩu",
         "dashboard": "Tổng quan",
         "documents": "Quản lý phiếu",
         "document_new": "Lập phiếu",
@@ -82,16 +85,21 @@ def workspace_context(request):
         active = selected_warehouse(request)
     except Http404:
         active = None
-    from .navigation import navigation
+    from .navigation import module_navigation, navigation
 
     access = access_context(request.user)
+    sections = navigation(request, access)
+    modules = module_navigation(sections, name)
+    current_module = next((m for m in modules if m["active"]), None)
     return {
+        "navigation_modules": modules,
+        "current_module": current_module,
         "workspace_warehouses": warehouses_for(request.user).order_by("code"),
         "active_warehouse": active,
         "page_name": labels.get(name, "Quản lý kho"),
         "can_approve_inventory_adjustments": can_approve_adjustments(request.user),
         "access": access,
-        "navigation": navigation(request, access),
+        "navigation": sections,
         "route_name": name,
         "operation_kind": request.resolver_match.kwargs.get("kind", "").upper()
         if request.resolver_match

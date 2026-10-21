@@ -12,13 +12,24 @@
   </head>
   <body>
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="{% url 'dashboard' %}"><span class="brand-symbol">{% icon 'warehouse' %}</span><span>Quản lý kho<small>DHD · KIỂM SOÁT NỘI BỘ</small></span></a>
+      <a class="brand" href="{% url 'dashboard' %}"><span class="brand-symbol">{% icon 'warehouse' %}</span><span>DHD KSNB<small>DHD · KIỂM SOÁT NỘI BỘ</small></span></a>
       <nav aria-label="Điều hướng chính">
-        {% for section in navigation %}
-          <div class="nav-label">{{ section.label }}</div>
-          {% for entry in section.items %}
-            <a class="nav-link {% if entry.active %}active{% endif %}" href="{{ entry.url }}">{% icon entry.icon %}<span>{{ entry.label }}</span></a>
-          {% endfor %}
+        {% for module in navigation_modules %}
+          {% if module.sections %}
+            <details class="nav-module" {% if module.active %}open{% endif %}>
+              <summary class="nav-module-heading {% if module.active %}active{% endif %}">{% icon module.icon %}<span>{{ module.label }}</span>{% icon 'chevron' %}</summary>
+              <div class="nav-module-content">
+                {% for section in module.sections %}
+                  {% if module.key == 'warehouse' %}<div class="nav-label">{{ section.label }}</div>{% endif %}
+                  {% for entry in section.items %}
+                    <a class="nav-link {% if entry.active %}active{% endif %}" {% if entry.active %}aria-current="page"{% endif %} href="{{ entry.url }}">{% icon entry.icon %}<span>{{ entry.label }}</span></a>
+                  {% endfor %}
+                {% endfor %}
+              </div>
+            </details>
+          {% else %}
+            <a class="nav-module-heading {% if module.active %}active{% endif %}" {% if module.active %}aria-current="page"{% endif %} href="{{ module.url }}">{% icon module.icon %}<span>{{ module.label }}<small>Chưa triển khai</small></span></a>
+          {% endif %}
         {% endfor %}
       </nav>
       <div class="sidebar-user">
@@ -43,12 +54,12 @@
                   id="sidebar-toggle"
                   aria-label="Đóng mở menu"
                   aria-expanded="true">{% icon 'menu' %}</button>
-          <a href="/">{% icon 'home' %}<span>Kho</span></a>{% icon 'chevron' %}<strong>{{ page_name|default:'Tổng quan' }}</strong>
+          <a href="/" aria-label="Trang chủ">{% icon 'home' %}</a><span>{{ current_module.label|default:"DHD KSNB" }}</span>{% icon 'chevron' %}<strong>{{ page_name|default:'Tổng quan' }}</strong>
         </div>
         <div class="topbar-actions">
           {% if access.any_approve %}<a class="icon-button" href="{% url 'approvals' %}" aria-label="Phiếu chờ duyệt">{% icon 'bell' %}</a>{% endif %}
           <button class="icon-button" id="refresh-page" aria-label="Làm mới dữ liệu">{% icon 'refresh' %}</button>
-          {% if access.warehouse_scope %}<form method="post"
+          {% if access.warehouse_scope and current_module.key == "warehouse" %}<form method="post"
                 action="{% url 'warehouse_scope' %}"
                 class="warehouse-switcher">
             {% csrf_token %}
@@ -78,7 +89,7 @@
         {% endfor %}
         {% block content %}{% endblock %}
         <footer>
-          <span>DHD · Quản lý kho & kiểm soát nội bộ</span><span class="footer-safe">{% icon 'shield' %} Theo dõi rõ ràng · Không cho phép âm tồn</span>
+          <span>DHD · Kiểm soát nội bộ</span>{% if current_module.key == "warehouse" %}<span class="footer-safe">{% icon 'shield' %} Theo dõi rõ ràng · Không cho phép âm tồn</span>{% endif %}
         </footer>
       </div>
     </main>

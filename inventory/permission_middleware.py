@@ -72,7 +72,9 @@ class FunctionAccessMiddleware(MiddlewareMixin):
         name = request.resolver_match.url_name
         codes = function_codes(request.user)
         allowed = False
-        if name in {"dashboard", "password_change", "warehouse_scope"}:
+        if name in {"processes", "human_resources"}:
+            allowed = request.method in {"GET", "HEAD"}
+        elif name in {"dashboard", "password_change", "warehouse_scope"}:
             allowed = True
         elif name in ADMIN_VIEWS:
             allowed = False

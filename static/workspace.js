@@ -5,10 +5,24 @@
       button.addEventListener("click", () => window.print()),
     );
   const body = document.body;
+  document.querySelectorAll(".nav-module").forEach((module) => {
+    module.addEventListener("toggle", () => {
+      if (!module.open) return;
+      document.querySelectorAll(".nav-module").forEach((other) => {
+        if (other !== module) other.open = false;
+      });
+    });
+  });
   try {
     if (localStorage.getItem("warehouse-theme") === "dark")
       body.classList.add("dark");
   } catch {}
+  const activeLink = document.querySelector(".nav-module[open] .nav-link.active");
+  const activeList = activeLink?.closest(".nav-module-content");
+  if (activeList) {
+    activeList.scrollTop = Math.max(0,
+      activeLink.getBoundingClientRect().top - activeList.getBoundingClientRect().top - 80);
+  }
   const toggle = document.getElementById("sidebar-toggle");
   const backdrop = document.querySelector(".sidebar-backdrop");
   const small = () => window.matchMedia("(max-width:950px)").matches;

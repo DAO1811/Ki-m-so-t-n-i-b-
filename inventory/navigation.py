@@ -121,17 +121,25 @@ def navigation(request, access):
         "V. TIỆN ÍCH",
         [
             item("tools_qr", "In tem QR", "box", "product_labels"),
+        ],
+    )
+    group(
+        "VI. CẤU HÌNH KHO",
+        [
+            item(
+                "custom_fields_manage", "Thông tin tự thêm", "settings", "custom_fields"
+            )
+        ],
+    )
+    group(
+        "QUẢN TRỊ HỆ THỐNG",
+        [
             {
                 "label": "Đổi mật khẩu",
                 "icon": "lock",
                 "url": reverse("password_change"),
                 "active": route == "password_change",
             },
-        ],
-    )
-    group(
-        "VI. QUẢN TRỊ",
-        [
             item(
                 "team_view",
                 "Tài khoản & phân quyền" if access["admin"] else "Nhân viên",
@@ -139,10 +147,39 @@ def navigation(request, access):
                 "team",
                 ("team", "employee_new", "employee_edit"),
             ),
-            item(
-                "custom_fields_manage", "Thông tin tự thêm", "settings", "custom_fields"
-            ),
             item("admin", "Lưu trữ Google Drive", "file", "drive_settings"),
         ],
     )
     return sections
+
+
+def module_navigation(sections, route):
+    """Group existing, permission-filtered links without granting new access."""
+    warehouse = [s for s in sections if s["label"] != "QUẢN TRỊ HỆ THỐNG"]
+    administration = [s for s in sections if s["label"] == "QUẢN TRỊ HỆ THỐNG"]
+    modules = []
+    for key, label, icon, groups in [
+        ("warehouse", "Quản lý kho", "warehouse", warehouse),
+        ("processes", "Quy trình", "file", []),
+        ("human_resources", "Quản lý nhân sự", "users", []),
+        ("administration", "Quản trị hệ thống", "settings", administration),
+    ]:
+        if key in ("warehouse", "administration") and not groups:
+            continue
+        active = any(i["active"] for g in groups for i in g["items"])
+        modules.append(
+            {
+                "key": key,
+                "label": label,
+                "icon": icon,
+                "sections": groups,
+                "active": active or route == key,
+                "url": reverse(key) if not groups else "",
+            }
+        )
+    if not any(module["active"] for module in modules):
+        for module in modules:
+            if module["key"] == "warehouse":
+                module["active"] = True
+                break
+    return modules

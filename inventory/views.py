@@ -16,7 +16,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 
 from .access import (
     FUNCTION_KEYS,
@@ -1360,3 +1360,12 @@ def custom_fields(request):
             "editing": editing,
         },
     )
+
+
+@login_required
+@require_safe
+def module_placeholder(request, module):
+    labels = {"processes": "Quy trình", "human_resources": "Quản lý nhân sự"}
+    if module not in labels:
+        raise Http404
+    return render(request, "module_placeholder.html", {"module_title": labels[module]})
