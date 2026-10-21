@@ -12,7 +12,7 @@
   {% if audit %}
     <p class="hint">Thời điểm đo: {{ measured_at|date:'d/m/Y H:i:s' }} · Kết quả giữ tạm trong 10 phút; kiểm tra lại khi cần số mới.</p>
     {% if audit.database_bytes != None %}
-      <dl class="storage-metrics"><div><dt>Database hiện tại</dt><dd>{{ audit.database_bytes|filesizeformat }}</dd></div><div><dt>Bản chụp nâng cấp nằm trong database</dt><dd>{{ audit.snapshot_bytes|filesizeformat }}</dd></div><div><dt>Nội dung tệp còn trong database</dt><dd>{{ audit.blob_bytes|filesizeformat }} · {{ audit.blob_count }} tệp</dd></div></dl>
+      <dl class="storage-metrics"><div><dt>Đã dùng / Tổng dung lượng</dt><dd>{{ audit.database_bytes|filesizeformat }} / {% if audit.configured_limit_bytes %}{{ audit.configured_limit_bytes|filesizeformat }}{% else %}Chưa xác định{% endif %}</dd></div><div><dt>Database hiện tại</dt><dd>{{ audit.database_bytes|filesizeformat }}</dd></div><div><dt>Bản chụp nâng cấp nằm trong database</dt><dd>{{ audit.snapshot_bytes|filesizeformat }}</dd></div><div><dt>Nội dung tệp còn trong database</dt><dd>{{ audit.blob_bytes|filesizeformat }} · {{ audit.blob_count }} tệp</dd></div></dl>
       {% if audit.configured_limit_bytes %}
         <p>Ngân sách database đã cấu hình: <strong>{{ audit.configured_limit_bytes|filesizeformat }}</strong> · Còn trong ngân sách: <strong>{{ audit.remaining_bytes|filesizeformat }}</strong>.</p>
         <progress max="100" value="{{ audit.percent }}" aria-label="Tỷ lệ sử dụng ngân sách database">{{ audit.percent }}%</progress>
