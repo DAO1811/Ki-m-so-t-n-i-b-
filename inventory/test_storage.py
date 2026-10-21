@@ -298,8 +298,9 @@ class StorageReportsTests(TransactionTestCase):
         side_effect=["reports-root", "reports-year"],
     )
     @patch("inventory.storage_reports.drive.access_token", return_value="test-token")
+    @patch("inventory.storage_reports.require_private_folder")
     def test_retry_verifies_existing_without_creating_another_sheet(
-        self, _token, folder, check
+        self, private_folder, _token, folder, check
     ):
         payload, summary = self.payload()
         metadata = self.sheet_metadata(summary)
@@ -335,6 +336,8 @@ class StorageReportsTests(TransactionTestCase):
         uploaded = {}
 
         def google(url, **kwargs):
+            if "/permissions?" in url:
+                return {"permissions": [{"type": "user"}]}
             if url.startswith(API + "?"):
                 return {"files": []}
             if "upload/drive/v3/files" in url:
@@ -367,6 +370,30 @@ class StorageReportsTests(TransactionTestCase):
         with self.assertRaisesMessage(ValidationError, "khác thư mục"):
             reports.export_month(self.period)
         token.assert_not_called()
+
+    def test_public_permission_in_later_page_is_rejected_without_changing_acl(self):
+        with patch.object(
+            reports.drive,
+            "google_request",
+            side_effect=[
+                {"permissions": [{"type": "user"}], "nextPageToken": "next-page"},
+                {"permissions": [{"type": "anyone"}]},
+            ],
+        ) as google:
+            with self.assertRaisesMessage(ValidationError, "bất kỳ ai"):
+                reports.require_private_folder("test-token", "reports-root")
+            self.assertEqual(google.call_count, 2)
+            self.assertTrue(
+                all(
+                    call.kwargs.get("method", "GET") == "GET"
+                    for call in google.call_args_list
+                )
+            )
+        with (
+            patch.object(reports.drive, "google_request", return_value={}),
+            self.assertRaises(ValidationError),
+        ):
+            reports.require_private_folder("test-token", "reports-root")
 
     @skipUnless(connection.vendor == "postgresql", "PostgreSQL report consistency")
     def test_concurrent_warehouse_change_is_not_blocked_and_report_uses_one_snapshot(

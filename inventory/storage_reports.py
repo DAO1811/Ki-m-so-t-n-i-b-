@@ -483,6 +483,33 @@ def verify_sheet(file, token):
     }
 
 
+def require_private_folder(token, folder_id):
+    page_token = None
+    for _page in range(10):
+        query = {"fields": "permissions(type),nextPageToken", "pageSize": 100}
+        if page_token:
+            query["pageToken"] = page_token
+        result = drive.google_request(
+            metadata_url(folder_id) + "/permissions?" + urllib.parse.urlencode(query),
+            token=token,
+        )
+        permissions = result.get("permissions")
+        if not isinstance(permissions, list) or not permissions:
+            raise ValidationError(
+                "Chưa xác nhận được quyền riêng tư của thư mục báo cáo. Chưa xuất dữ liệu."
+            )
+        if any(item.get("type") == "anyone" for item in permissions):
+            raise ValidationError(
+                "Thư mục đích đang chia sẻ với bất kỳ ai có liên kết. Đổi quyền chia sẻ thành người được chỉ định trước khi xuất báo cáo quản trị; phần mềm không tự thay đổi quyền Google."
+            )
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            return
+    raise ValidationError(
+        "Danh sách quyền thư mục quá lớn để kiểm tra đầy đủ. Chưa xuất báo cáo."
+    )
+
+
 def export_month(period):
     period_dates(period)
     with export_lock(period):
@@ -490,10 +517,13 @@ def export_month(period):
         # This refresh validates the account/root; it does not change permissions.
         drive.check_connection()
         token = drive.access_token(configured)
+        require_private_folder(token, configured.folder_id)
         parent = drive.folder(
             token, configured.folder_id, "Báo cáo quản trị", "management-reports"
         )
+        require_private_folder(token, parent)
         parent = drive.folder(token, parent, period[:4], "reports-year-" + period[:4])
+        require_private_folder(token, parent)
         key = "monthly-v1-" + period
         query = f"'{parent}' in parents and trashed=false and appProperties has {{ key='dhd_report' and value='{key}' }}"
         found = drive.google_request(

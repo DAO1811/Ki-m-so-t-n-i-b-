@@ -29,7 +29,7 @@
   <p>Ảnh sản phẩm và PDF được lưu trên Drive; database giữ liên kết. Drive lỗi sẽ không tự chuyển tệp vào database.</p>
   <form method="post" action="{% url 'storage_drive_usage' %}">{% csrf_token %}<button class="button secondary" {% if not connection %}disabled{% endif %}>Kiểm tra dung lượng Google</button></form>
   {% if drive_usage %}<dl class="storage-metrics"><div><dt>Đã sử dụng trên tài khoản Google</dt><dd>{% if drive_usage.used != None %}{{ drive_usage.used|filesizeformat }}{% else %}Google chưa cung cấp{% endif %}</dd></div><div><dt>Còn lại theo Google</dt><dd>{% if drive_usage.remaining != None %}{{ drive_usage.remaining|filesizeformat }}{% else %}Chưa xác định{% endif %}</dd></div></dl>{% endif %}
-  <p class="hint">Hạn mức do Google trả về có thể được dùng chung với Gmail và các dịch vụ khác. Báo cáo kế thừa quyền chia sẻ của thư mục gốc; không nên chia sẻ thư mục này công khai.</p>
+  <p class="hint">Hạn mức do Google trả về có thể được dùng chung với Gmail và các dịch vụ khác. Báo cáo kế thừa quyền chia sẻ của thư mục gốc. Phần mềm chặn xuất nếu thư mục đích chia sẻ với bất kỳ ai có liên kết.</p>
 </section>
 </div>
 <section class="panel storage-card">

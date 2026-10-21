@@ -53,8 +53,10 @@ python manage.py export_storage_report --period 2026-09
 ```
 
 Thư mục: thư mục gốc đã chọn → **Báo cáo quản trị → năm → Báo cáo kho YYYY-MM**.
-Không đổi thư mục ảnh/hóa đơn hiện tại. Không tạo chia sẻ công khai; báo cáo kế
-thừa quyền thư mục gốc nên admin phải kiểm tra người được chia sẻ ở thư mục đó.
+Không đổi thư mục ảnh/hóa đơn hiện tại. Đọc đầy đủ danh sách quyền ở thư mục
+gốc, thư mục báo cáo và thư mục năm trước khi xuất; chặn quyền loại anyone và
+trường hợp không xác minh được. Không tự sửa ACL. Báo cáo kế thừa quyền người
+được chia sẻ trong thư mục, nên admin vẫn cần kiểm soát danh sách này.
 
 Kết nối OAuth hiện có với `drive.file` tạo Sheets bằng Drive API nhập XLSX.
 Không cần xin quyền đọc toàn Drive, đổi client secret hoặc bật Sheets API.
