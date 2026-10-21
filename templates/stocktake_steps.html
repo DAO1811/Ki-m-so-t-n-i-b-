@@ -2,5 +2,5 @@
   <span class="{% if not session %}current{% else %}complete{% endif %}"><b>1</b>Chốt tồn</span>
   <span class="{% if session.status == 'READY' %}current{% elif session %}complete{% endif %}"><b>2</b>Chọn cách kiểm</span>
   <span class="{% if session.status == 'OPEN' %}current{% elif session.status == 'SUBMITTED' or session.status == 'COMPLETED' %}complete{% endif %}"><b>3</b>Kiểm đếm</span>
-  <span class="{% if session.status == 'SUBMITTED' or session.status == 'COMPLETED' %}current{% endif %}"><b>4</b>Đối chiếu & duyệt</span>
+  <span class="{% if session.document.status == 'POSTED' or session.status == 'COMPLETED' %}complete{% elif session.status == 'SUBMITTED' %}current{% endif %}"><b>4</b>{% if session.is_deleted %}Phiếu đã xóa{% elif session.document.status == 'REJECTED' %}Không duyệt điều chỉnh{% elif session.document.status == 'POSTED' %}Đã điều chỉnh{% elif session.status == 'COMPLETED' %}Hoàn tất, khớp tồn{% else %}Đối chiếu & duyệt{% endif %}</span>
 </div>

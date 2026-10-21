@@ -65,6 +65,10 @@ class StocktakeReviewTests(TestCase):
         session.refresh_from_db()
         self.assertEqual(document.status, "REJECTED")
         self.assertEqual(document.closure_reason, "Đếm chưa đúng")
+        self.assertNotContains(
+            self.client.get(reverse("stocktake_detail", args=[session.pk])),
+            "Kho chưa mở phiên kiểm kê tiếp theo",
+        )
         self.assertFalse(session.locks_inventory)
         self.assertFalse(active_sessions().filter(pk=session.pk).exists())
         self.assertEqual(Balance.objects.get(warehouse=self.a).quantity, 3)
