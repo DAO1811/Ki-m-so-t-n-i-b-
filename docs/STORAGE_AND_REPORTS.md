@@ -107,3 +107,19 @@ Kiểm tra PostgreSQL và trình duyệt dùng dữ liệu giả lập độc l�
 được kiểm tra mô phỏng (tạo/đọc lại/retry/từ chối bản chỉnh sửa). Việc tạo
 Sheet thật cần chạy bằng kết nối OAuth của chủ thư mục trong hệ thống online;
 không lấy hoặc sao chép bí mật sản xuất vào máy kiểm thử.
+
+## Hạn mức Free đã xác nhận cho website chính thức
+
+Ngày 21/10/2026, chủ ứng dụng xác nhận dự án Neon
+`bold-resonance-26000114` dùng Free. Tài liệu chính thức tại
+https://neon.com/docs/introduction/plans ghi **1 GB Postgres / dự án**,
+tách riêng Object Storage và giới hạn tổng nhiều dự án.
+`config/storage_profiles.py` chỉ áp dụng thông tin này cho hostname Render
+`kiemsoatnoibolemon.onrender.com` kết nối database Neon. Không áp dụng mặc định
+cho các bản sao, máy phát triển, DB khác nhà cung cấp hoặc deployment khác.
+`DATABASE_STORAGE_LIMIT_MB` nếu được cấu hình sẽ ưu tiên ngân sách riêng đó.
+
+UI ghi rõ tử số là database ứng dụng, mẫu số là hạn mức toàn dự án. Không
+lấy 1 GB trừ pg_database_size để gọi là dung lượng Neon còn lại, không dùng
+số Storage 37,36 MB chủ tài khoản gửi làm số liệu tự cập nhật. Khi thay đổi
+gói/dự án phải cập nhật cấu hình. Không truy cập tài khoản Neon hoặc lưu API key.

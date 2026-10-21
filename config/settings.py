@@ -4,6 +4,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from .storage_profiles import storage_profile
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = (
     os.environ.get("DEBUG", "0" if os.environ.get("RENDER_EXTERNAL_HOSTNAME") else "1")
@@ -139,3 +141,8 @@ CACHES = {
         "OPTIONS": {"MAX_ENTRIES": 200},
     },
 }
+
+# Owner-confirmed plan for this deployment; no Neon API key is stored or needed.
+CONFIRMED_DATABASE_STORAGE_PROFILE = storage_profile(
+    render_hostname, DATABASES["default"].get("HOST", "")
+)

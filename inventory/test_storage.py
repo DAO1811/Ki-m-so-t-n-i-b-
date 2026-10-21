@@ -10,11 +10,19 @@ from django.core.cache import caches
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import connection
-from django.test import Client, TestCase, TransactionTestCase, override_settings
+from django.test import (
+    Client,
+    SimpleTestCase,
+    TestCase,
+    TransactionTestCase,
+    override_settings,
+)
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
 from psycopg import sql
+
+from config.storage_profiles import storage_profile
 
 from . import storage_reports as reports
 from .drive import API
@@ -32,6 +40,25 @@ from .storage_audit import cache_key, measure_storage
 from .test_support import grant_functions
 
 cache = caches["storage"]
+
+
+class StorageProfileTests(SimpleTestCase):
+    def test_confirmed_free_limit_is_bound_to_the_identified_deployment(self):
+        known_host = "kiemsoatnoibolemon.onrender.com"
+        profile = storage_profile(
+            known_host, "ep-synthetic-pooler.ap-southeast-1.aws.neon.tech"
+        )
+        self.assertEqual(profile["project_id"], "bold-resonance-26000114")
+        self.assertEqual(profile["limit_bytes"], 1_000_000_000)
+        self.assertEqual(profile["limit_label"], "1 GB")
+        for host, db in (
+            ("localhost", "ep-synthetic.neon.tech"),
+            ("other.onrender.com", "ep-synthetic.neon.tech"),
+            (known_host, "localhost"),
+            (known_host, "neon.tech.fake.test"),
+        ):
+            with self.subTest(host=host, database=db):
+                self.assertIsNone(storage_profile(host, db))
 
 
 class StorageAccessTests(TestCase):
@@ -74,6 +101,33 @@ class StorageAccessTests(TestCase):
         self.assertEqual(
             csrf.post(reverse("storage_export"), {"period": "2026-01"}).status_code, 403
         )
+
+    def test_project_quota_is_labelled_without_claiming_provider_usage_or_free_space(
+        self,
+    ):
+        profile = storage_profile(
+            "kiemsoatnoibolemon.onrender.com", "ep-test.neon.tech"
+        )
+        self.client.force_login(self.admin)
+        with override_settings(
+            CONFIRMED_DATABASE_STORAGE_PROFILE=profile, DATABASE_STORAGE_LIMIT_MB=None
+        ):
+            audit = measure_storage()
+            self.assertEqual(audit["limit_bytes"], 1_000_000_000)
+            self.assertEqual(audit["limit_scope"], "project")
+            self.assertIsNone(audit["remaining_bytes"])
+            self.assertIsNone(audit["percent"])
+            self.assertIsNone(audit["configured_limit_bytes"])
+            response = self.client.get(reverse("storage_settings"))
+            self.assertContains(response, "1 GB")
+            if connection.vendor == "postgresql":
+                self.assertContains(response, "Đã dùng (database này) / Hạn mức dự án")
+                self.assertNotContains(response, "Còn trong ngân sách:")
+            with override_settings(DATABASE_STORAGE_LIMIT_MB=256):
+                budget = measure_storage()
+                self.assertEqual(budget["limit_bytes"], 256 * 1024 * 1024)
+                self.assertEqual(budget["limit_scope"], "database_budget")
+                self.assertIsNone(budget["limit_profile"])
 
     @patch("inventory.storage_views.drive.google_request")
     def test_get_never_exports_or_requests_google_and_no_unknown_quota_guess(

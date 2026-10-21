@@ -20,7 +20,7 @@ def cache_key():
             connection.settings_dict.get(k) for k in ("ENGINE", "HOST", "PORT", "NAME")
         )
     )
-    return "storage-audit-v1:" + hashlib.sha256(identity.encode()).hexdigest()
+    return "storage-audit-v2:" + hashlib.sha256(identity.encode()).hexdigest()
 
 
 def measure_storage():
@@ -85,7 +85,21 @@ def measure_storage():
     )
     configured_mb = getattr(settings, "DATABASE_STORAGE_LIMIT_MB", None)
     limit = int(configured_mb) * 1024 * 1024 if configured_mb else None
+    profile = (
+        getattr(settings, "CONFIRMED_DATABASE_STORAGE_PROFILE", None)
+        if limit is None
+        else None
+    )
+    project_limit = profile["limit_bytes"] if profile else None
     result = {
+        "limit_bytes": limit or project_limit,
+        "limit_scope": "database_budget"
+        if limit
+        else "project"
+        if profile
+        else "unknown",
+        "limit_label": profile["limit_label"] if profile else None,
+        "limit_profile": profile,
         "measured_at": timezone.now().isoformat(),
         "engine": connection.vendor,
         "database_bytes": total,

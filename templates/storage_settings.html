@@ -12,13 +12,16 @@
   {% if audit %}
     <p class="hint">Thời điểm đo: {{ measured_at|date:'d/m/Y H:i:s' }} · Kết quả giữ tạm trong 10 phút; kiểm tra lại khi cần số mới.</p>
     {% if audit.database_bytes != None %}
-      <dl class="storage-metrics"><div><dt>Đã dùng / Tổng dung lượng</dt><dd>{{ audit.database_bytes|filesizeformat }} / {% if audit.configured_limit_bytes %}{{ audit.configured_limit_bytes|filesizeformat }}{% else %}Chưa xác định{% endif %}</dd></div><div><dt>Database hiện tại</dt><dd>{{ audit.database_bytes|filesizeformat }}</dd></div><div><dt>Bản chụp nâng cấp nằm trong database</dt><dd>{{ audit.snapshot_bytes|filesizeformat }}</dd></div><div><dt>Nội dung tệp còn trong database</dt><dd>{{ audit.blob_bytes|filesizeformat }} · {{ audit.blob_count }} tệp</dd></div></dl>
-      {% if audit.configured_limit_bytes %}
+      <dl class="storage-metrics"><div><dt>{% if audit.limit_scope == 'project' %}Đã dùng (database này) / Hạn mức dự án{% else %}Đã dùng / Tổng dung lượng{% endif %}</dt><dd>{{ audit.database_bytes|filesizeformat }} / {% if audit.limit_label %}{{ audit.limit_label }}{% elif audit.limit_bytes %}{{ audit.limit_bytes|filesizeformat }}{% else %}Chưa xác định{% endif %}</dd></div><div><dt>Database hiện tại</dt><dd>{{ audit.database_bytes|filesizeformat }}</dd></div><div><dt>Bản chụp nâng cấp nằm trong database</dt><dd>{{ audit.snapshot_bytes|filesizeformat }}</dd></div><div><dt>Nội dung tệp còn trong database</dt><dd>{{ audit.blob_bytes|filesizeformat }} · {{ audit.blob_count }} tệp</dd></div></dl>
+      {% if audit.limit_scope == 'project' %}
+        <p>Hạn mức <strong>{{ audit.limit_label }} cho toàn dự án</strong> theo <a href="{{ audit.limit_profile.source_url }}" target="_blank" rel="noopener noreferrer">{{ audit.limit_profile.plan }}</a>, xác nhận ngày {{ audit.limit_profile.confirmed_at }}. Cần cập nhật hạn mức khi đổi gói.</p>
+        <p class="hint">Số đã dùng ở trên là database ứng dụng do PostgreSQL đo. Neon Storage đo toàn dự án nên có thể khác; xem Neon Console để biết dung lượng còn lại của dự án.</p>
+      {% elif audit.configured_limit_bytes %}
         <p>Ngân sách database đã cấu hình: <strong>{{ audit.configured_limit_bytes|filesizeformat }}</strong> · Còn trong ngân sách: <strong>{{ audit.remaining_bytes|filesizeformat }}</strong>.</p>
         <progress max="100" value="{{ audit.percent }}" aria-label="Tỷ lệ sử dụng ngân sách database">{{ audit.percent }}%</progress>
         {% if audit.percent >= 80 %}<p class="notice warning">Database đã dùng từ 80% ngân sách. Cần kiểm tra dung lượng trên nhà cung cấp trước khi nhập lượng lớn dữ liệu.</p>{% endif %}
       {% else %}<p class="notice warning">Chưa có hạn mức database được xác nhận nên chưa tính được dung lượng còn lại. Không mặc định gói miễn phí là 512 MB.</p>{% endif %}
-      <p class="hint">Số đo dành cho database đang kết nối. Hạn mức tài khoản Neon có thể gồm database khác, nhánh và lịch sử; đối chiếu thêm trong Neon Console.</p>
+      <p class="hint">Với Neon, hạn mức dự án dùng chung cho các database và nhánh trong dự án. Storage, History và Object Storage là các chỉ số riêng trên Neon Console.</p>
     {% else %}<p class="notice warning">Đây là môi trường thử SQLite. Không dùng số liệu này để đánh giá database PostgreSQL chính thức.</p>{% endif %}
     <a class="button secondary" href="{% url 'storage_download' %}" data-download>Tải báo cáo dung lượng</a>
   {% else %}<p>Chưa có số đo. Kiểm tra chỉ đọc dung lượng và thống kê, không thay đổi phiếu hoặc tồn kho.</p>{% endif %}
