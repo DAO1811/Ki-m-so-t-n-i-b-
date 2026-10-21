@@ -39,6 +39,7 @@
     {% if access.tools_export %}<button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>{% endif %}
   </form>
   <section class="panel">
+    <p class="hint">Tổng cộng {{ page_obj.paginator.count }} dòng tồn kho phù hợp · Hiển thị {{ page_obj.start_index }}–{{ page_obj.end_index }}. Mỗi dòng là một mã hàng tại một kho.</p>
     <div class="table-scroll">
       <table>
         <thead>
@@ -88,6 +89,7 @@
         </tbody>
       </table>
     </div>
+    {% include 'pagination.html' %}
   </section>
-  <p class="hint">Hiển thị tối đa 500 dòng. Xuất CSV để xem toàn bộ dữ liệu đã lọc trong Excel.</p>
+  <p class="hint">Dùng Trang sau để xem tiếp, hoặc xuất CSV để đối chiếu toàn bộ dữ liệu đã lọc trong Excel.</p>
 {% endblock %}

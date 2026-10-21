@@ -34,6 +34,7 @@
     {% if access.tools_export %}<button name="export" value="1" class="button secondary">{% icon 'download' %}Xuất Excel / CSV</button>{% endif %}
   </form>
   <section class="panel">
+    <p class="hint">Tổng cộng {{ page_obj.paginator.count }} biến động phù hợp · Hiển thị {{ page_obj.start_index }}–{{ page_obj.end_index }}.</p>
     <div class="table-scroll">
       <table>
         <thead>
@@ -81,6 +82,7 @@
         </tbody>
       </table>
     </div>
+    {% include 'pagination.html' %}
   </section>
-  <p class="hint">Hiển thị 500 biến động mới nhất. Tồn mượn tạm theo dõi tại Mượn & trả, không trộn với tồn khả dụng.</p>
+  <p class="hint">Dùng Trang sau để xem tiếp lịch sử. Tồn mượn tạm theo dõi tại Mượn & trả, không trộn với tồn khả dụng.</p>
 {% endblock %}

@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, F, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -61,18 +62,25 @@ def stock(request):
                 for b in qs
             ),
         )
+    page = Paginator(qs, 100).get_page(request.GET.get("page"))
     return render(
         request,
         "stock.html",
-        {"balances": qs[:500], "warehouses": warehouses_for(request.user)},
+        {
+            "balances": page,
+            "page_obj": page,
+            "warehouses": warehouses_for(request.user),
+        },
     )
 
 
 @login_required
 def ledger(request):
-    qs = Movement.objects.filter(
-        warehouse__in=warehouses_for(request.user)
-    ).select_related("document", "product", "warehouse")
+    qs = (
+        Movement.objects.filter(warehouse__in=warehouses_for(request.user))
+        .select_related("document", "product", "warehouse")
+        .order_by("-created_at", "-pk")
+    )
     warehouse = selected_warehouse(request)
     if warehouse:
         qs = qs.filter(warehouse=warehouse)
@@ -115,11 +123,13 @@ def ledger(request):
                 for m in qs
             ),
         )
+    page = Paginator(qs, 100).get_page(request.GET.get("page"))
     return render(
         request,
         "ledger.html",
         {
-            "movements": qs[:500],
+            "movements": page,
+            "page_obj": page,
             "warehouses": warehouses_for(request.user),
             "products": Product.objects.all(),
         },
