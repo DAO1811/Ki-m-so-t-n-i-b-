@@ -14,6 +14,7 @@ Mở nhánh `preview/shared-review` trong VS Code + Docker Desktop theo [hướn
 | --- | --- |
 | Quản lý kho | Danh mục, nhập/xuất/chuyển, mượn trả, kiểm kê giấy/QR, duyệt phiếu, báo cáo và Excel |
 | Quản trị hệ thống | Tài khoản, phân quyền, đổi mật khẩu; kết nối Drive, đo dung lượng và báo cáo Sheets |
+| Xử lý sai lệch | Phân hệ riêng, trang chuẩn bị; nghiệp vụ và quyền xử lý chờ thống nhất |
 | Quy trình | Trang chuẩn bị, chưa có nghiệp vụ mới |
 | Quản lý nhân sự | Trang chuẩn bị, chưa có nghiệp vụ mới |
 
@@ -29,6 +30,7 @@ core/                    Tài khoản, quản trị dùng chung, tiện ích xu�
 inventory/               Mô hình dữ liệu và nghiệp vụ kho
   views/                 Màn hình tách theo nghiệp vụ
   migrations/            Lịch sử thay đổi cấu trúc dữ liệu
+deviations/              Điểm vào phân hệ Xử lý sai lệch
 workflows/               Điểm vào phân hệ Quy trình
 people/                  Điểm vào phân hệ Nhân sự
 assets/styles/           CSS nguồn: màu sắc, bố cục, thành phần và nghiệp vụ

@@ -21,7 +21,13 @@ class ModuleNavigationTests(TestCase):
         modules = {m["key"]: m for m in response.context["navigation_modules"]}
         self.assertEqual(
             list(modules),
-            ["warehouse", "processes", "human_resources", "administration"],
+            [
+                "warehouse",
+                "deviations",
+                "processes",
+                "human_resources",
+                "administration",
+            ],
         )
 
         def links(key):
@@ -40,7 +46,7 @@ class ModuleNavigationTests(TestCase):
     def test_placeholders_are_authenticated_read_only_and_do_not_grant_permissions(
         self,
     ):
-        for route in ["processes", "human_resources"]:
+        for route in ["deviations", "processes", "human_resources"]:
             url = reverse(route)
             self.assertEqual(self.client.get(url).status_code, 302)
             self.client.force_login(self.reader)
@@ -60,5 +66,6 @@ class ModuleNavigationTests(TestCase):
         self.assertContains(response, 'href="/products/"')
         self.assertNotContains(response, 'href="/operations/in/"')
         self.assertNotContains(response, 'href="/approvals/"')
+        self.assertContains(response, reverse("deviations"))
         self.assertContains(response, reverse("processes"))
         self.assertContains(response, reverse("human_resources"))

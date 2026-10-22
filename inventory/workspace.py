@@ -46,6 +46,7 @@ def workspace_context(request):
     labels = {
         "processes": "Quy trình",
         "human_resources": "Quản lý nhân sự",
+        "deviations": "Xử lý sai lệch",
         "password_change": "Đổi mật khẩu",
         "dashboard": "Tổng quan",
         "documents": "Quản lý phiếu",

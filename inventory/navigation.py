@@ -161,6 +161,7 @@ def module_navigation(sections, route):
     modules = []
     for key, label, icon, groups in [
         ("warehouse", "Quản lý kho", "warehouse", warehouse),
+        ("deviations", "Xử lý sai lệch", "alert", []),
         ("processes", "Quy trình", "file", []),
         ("human_resources", "Quản lý nhân sự", "users", []),
         ("administration", "Quản trị hệ thống", "settings", administration),

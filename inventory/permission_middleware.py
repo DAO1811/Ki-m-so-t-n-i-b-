@@ -71,7 +71,7 @@ class FunctionAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view, args, kwargs):
         if (
             not view.__module__.startswith(
-                ("inventory.", "core.", "workflows.", "people.")
+                ("inventory.", "core.", "workflows.", "people.", "deviations.")
             )
             or not request.user.is_authenticated
         ):
@@ -81,7 +81,7 @@ class FunctionAccessMiddleware(MiddlewareMixin):
         name = request.resolver_match.url_name
         codes = function_codes(request.user)
         allowed = False
-        if name in {"processes", "human_resources"}:
+        if name in {"processes", "human_resources", "deviations"}:
             allowed = request.method in {"GET", "HEAD"}
         elif name in {"dashboard", "password_change", "warehouse_scope"}:
             allowed = True

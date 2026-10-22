@@ -1,6 +1,6 @@
 # Kiến trúc DHD Kiểm soát nội bộ
 
-Cập nhật cấu trúc ngày 21/10/2026. Đây là một ứng dụng Django chia phân hệ, dùng một database PostgreSQL và một quy trình triển khai. Ranh giới được tách để bảo trì; không cần tách thành nhiều dịch vụ riêng khi chưa có nhu cầu vận hành tương ứng.
+Cập nhật cấu trúc ngày 22/10/2026. Đây là một ứng dụng Django chia phân hệ, dùng một database PostgreSQL và một quy trình triển khai. Ranh giới được tách để bảo trì; không cần tách thành nhiều dịch vụ riêng khi chưa có nhu cầu vận hành tương ứng.
 
 ## Điểm vào và trách nhiệm
 
@@ -11,6 +11,7 @@ Cập nhật cấu trúc ngày 21/10/2026. Đây là một ứng dụng Django c
 | `inventory/` | Mô hình dữ liệu, giao dịch kho, quyền, Drive, Excel, QR và kiểm kê |
 | `workflows/` | App/URL riêng cho Quy trình; hiện chỉ là trang chuẩn bị |
 | `people/` | App/URL riêng cho Nhân sự; hiện chỉ là trang chuẩn bị |
+| `deviations/` | App/URL riêng cho Xử lý sai lệch toàn công ty; nghiệp vụ chờ chốt quyền xem và người xác nhận hoàn tất |
 | `assets/styles/` | Nguồn CSS theo thành phần và nghiệp vụ |
 | `static/app.css` | Bundle CSS sinh từ nguồn, được kiểm tra đồng bộ khi build |
 | `templates/` | Các template Django, dùng chung `base.html` |
@@ -37,7 +38,7 @@ Cập nhật cấu trúc ngày 21/10/2026. Đây là một ứng dụng Django c
 
 Tất cả model hiện có vẫn thuộc app `inventory`, kể cả `FunctionAccess` hoặc kết nối Drive được dùng chung. Không đổi tên bảng, khóa ngoại, `app_label` hay migration lịch sử trong một lần tổ chức lại mã. `core.views` sử dụng các model/quyền đó qua import rõ ràng. Việc chuyển model sang app khác nếu có sẽ là một thiết kế migration riêng có kiểm thử dữ liệu.
 
-`FunctionAccessMiddleware` áp dụng cho namespace `core`, `inventory`, `workflows`, `people`. Tài khoản thường bị từ chối khi truy cập một route chưa đăng ký quyền; hai route chuẩn bị chỉ cho xem thông báo. Thêm endpoint ở app mới không được tự bỏ kiểm tra quyền. View phải bảo vệ truy cập chưa đăng nhập; nghiệp vụ tiếp tục kiểm tra quyền, cấp duyệt, phạm vi kho và trạng thái chứng từ tại máy chủ.
+`FunctionAccessMiddleware` áp dụng cho namespace `core`, `inventory`, `workflows`, `people`, `deviations`. Tài khoản thường bị từ chối khi truy cập một route chưa đăng ký quyền; các route chuẩn bị chỉ cho xem thông báo, chưa có dữ liệu nghiệp vụ. Thêm endpoint ở app mới không được tự bỏ kiểm tra quyền. View phải bảo vệ truy cập chưa đăng nhập; nghiệp vụ tiếp tục kiểm tra quyền, cấp duyệt, phạm vi kho và trạng thái chứng từ tại máy chủ.
 
 Admin dùng toàn bộ chức năng theo yêu cầu chủ dự án. Người duyệt thường phải cao cấp hơn người lập và có quyền phù hợp. Admin tự duyệt phải xác nhận cảnh báo, được ghi lịch sử. Chi tiết hiện hành ở `APPROVAL_HIERARCHY.md`, thay cho mô tả cũ về cấm admin tự duyệt.
 
