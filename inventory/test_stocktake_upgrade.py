@@ -12,7 +12,10 @@ from .stocktakes import product_from_scan
 class StocktakeUpgradeTests(TransactionTestCase):
     def test_schema_17_qr_labels_open_sessions_and_rolling_inserts_survive(self):
         old = [("inventory", "0017_approval_hierarchy")]
-        latest = [("inventory", "0018_product_qr_stocktake_workflow")]
+        latest = sorted(
+            MigrationExecutor(connection).loader.graph.leaf_nodes(),
+            key=lambda node: node[0] != "inventory",
+        )
         try:
             executor = MigrationExecutor(connection)
             executor.migrate(old)

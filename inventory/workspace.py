@@ -43,9 +43,13 @@ def workspace_context(request):
     if not request.user.is_authenticated:
         return {}
     name = request.resolver_match.url_name if request.resolver_match else ""
+    from deviations.navigation import LABELS
+
     labels = {
+        **LABELS,
         "processes": "Quy trình",
         "human_resources": "Quản lý nhân sự",
+        "deviations": "Xử lý sai lệch",
         "password_change": "Đổi mật khẩu",
         "dashboard": "Tổng quan",
         "documents": "Quản lý phiếu",
@@ -90,7 +94,7 @@ def workspace_context(request):
 
     access = access_context(request.user)
     sections = navigation(request, access)
-    modules = module_navigation(sections, name)
+    modules = module_navigation(sections, name, access)
     current_module = next((m for m in modules if m["active"]), None)
     return {
         "navigation_modules": modules,

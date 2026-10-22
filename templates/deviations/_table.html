@@ -1,0 +1,53 @@
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Hồ sơ</th>
+                <th>Nhóm / phòng ban</th>
+                <th>Trạng thái</th>
+                <th>Phụ trách</th>
+                <th>Hạn công việc gần nhất</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in cases %}
+                <tr>
+                    <td>
+                        <a class="deviation-code" href="{% url 'deviation_detail' case.pk %}">{{ case.code }}</a>
+                        <div>{{ case.title }}</div>
+                        <small>{{ case.created_at|date:'d/m/Y H:i' }}</small>
+                    </td>
+                    <td>
+                        {{ case.category }}<small class="deviation-block">{{ case.department }}</small>
+                    </td>
+                    <td>
+                        <span class="deviation-badge" data-state="{{ case.status }}">{{ case.get_status_display }}</span><small class="deviation-block">{{ case.get_severity_display }}</small>
+                    </td>
+                    <td>
+                        {% if case.owner %}
+                            {{ case.owner.get_full_name|default:case.owner.username }}
+                        {% else %}
+                            Chưa phân công
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if case.next_due and not case.is_terminal %}
+                            {{ case.next_due|date:'d/m/Y' }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <strong>Chưa có hồ sơ phù hợp</strong>
+                            <p>Hồ sơ đã ghi nhận sẽ xuất hiện tại đây.</p>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

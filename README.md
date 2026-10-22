@@ -10,6 +10,7 @@ Website: https://kiemsoatnoibolemon.onrender.com
 | --- | --- |
 | Quản lý kho | Danh mục, nhập/xuất/chuyển, mượn trả, kiểm kê giấy/QR, duyệt phiếu, báo cáo và Excel |
 | Quản trị hệ thống | Tài khoản, phân quyền, đổi mật khẩu; kết nối Drive, đo dung lượng và báo cáo Sheets |
+| Xử lý sai lệch | Hồ sơ sự việc, hành động, bằng chứng và lịch sử riêng; mở xử lý sau khi Admin cấu hình quy tắc công ty |
 | Quy trình | Trang chuẩn bị, chưa có nghiệp vụ mới |
 | Quản lý nhân sự | Trang chuẩn bị, chưa có nghiệp vụ mới |
 

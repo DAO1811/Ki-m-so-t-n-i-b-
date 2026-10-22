@@ -18,7 +18,7 @@ def _unknown_view(module):
 
 urlpatterns = [
     path(module + "/", _unknown_view(module), name="unknown_" + module)
-    for module in ("core", "inventory", "workflows", "people")
+    for module in ("core", "inventory", "workflows", "people", "deviations")
 ] + [path("", include("config.urls"))]
 
 
@@ -31,13 +31,13 @@ class FailClosedNamespaceTests(TestCase):
 
     def test_moving_a_view_to_a_company_app_does_not_bypass_authorization(self):
         self.client.force_login(self.reader)
-        for module in ("core", "inventory", "workflows", "people"):
+        for module in ("core", "inventory", "workflows", "people", "deviations"):
             with self.subTest(module=module):
                 self.assertEqual(self.client.get("/" + module + "/").status_code, 403)
 
     def test_admin_retains_company_wide_access(self):
         self.client.force_login(self.admin)
-        for module in ("core", "inventory", "workflows", "people"):
+        for module in ("core", "inventory", "workflows", "people", "deviations"):
             with self.subTest(module=module):
                 self.assertEqual(self.client.get("/" + module + "/").status_code, 200)
 
@@ -50,6 +50,7 @@ class PublicRouteCompatibilityTests(TestCase):
             "password_change": ("/account/password/", "core.views"),
             "processes": ("/processes/", "workflows.views"),
             "human_resources": ("/human-resources/", "people.views"),
+            "deviations": ("/deviations/", "deviations.views"),
             "products": ("/products/", "inventory.views.catalog"),
         }
         for name, (url, module) in expected.items():
