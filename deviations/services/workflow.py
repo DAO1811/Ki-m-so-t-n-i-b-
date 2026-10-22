@@ -151,7 +151,9 @@ def evaluate(
         or type(effective) is not bool
         or not checked_at
         or checked_at > timezone.now()
-        or checked_at < case.submitted_at
+        # The datetime-local form records minutes, not sub-minute precision.
+        or checked_at.replace(second=0, microsecond=0)
+        < case.submitted_at.replace(second=0, microsecond=0)
     ):
         raise ValidationError(
             "Ghi tiêu chí, kết quả, kết luận và thời điểm kiểm tra hợp lệ sau khi báo cáo."

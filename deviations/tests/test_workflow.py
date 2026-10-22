@@ -358,3 +358,28 @@ class WorkflowTests(DeviationTestCase):
             )
         self.assertFalse(Evaluation.objects.exists())
         self.assertEqual(Case.objects.get(pk=case.pk).status, "VERIFYING")
+
+    def test_same_minute_evaluation_does_not_require_waiting_for_clock_tick(self):
+        case, _ = self.verifying()
+        case.submitted_at = timezone.now()
+        case.save(update_fields=["submitted_at"])
+        with self.assertRaises(ValidationError):
+            workflow.evaluate(
+                case.pk,
+                self.reviewer,
+                case.revision,
+                criteria="Đối chiếu đủ",
+                result="Đạt yêu cầu",
+                effective=True,
+                checked_at=case.submitted_at - timedelta(minutes=1),
+            )
+        workflow.evaluate(
+            case.pk,
+            self.reviewer,
+            case.revision,
+            criteria="Đối chiếu đủ",
+            result="Đạt yêu cầu",
+            effective=True,
+            checked_at=case.submitted_at.replace(second=0, microsecond=0),
+        )
+        self.assertEqual(Case.objects.get(pk=case.pk).status, "CLOSED")
