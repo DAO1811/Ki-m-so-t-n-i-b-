@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "inventory",
     "workflows.apps.WorkflowsConfig",
     "people.apps.PeopleConfig",
+    "deviations.apps.DeviationsConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

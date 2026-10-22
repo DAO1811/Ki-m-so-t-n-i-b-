@@ -120,6 +120,16 @@ FUNCTION_ROWS = [
     ),
     ("custom_fields", "Trường bổ sung", [("manage", "Quản lý trường hàng hóa")]),
     ("team", "Nhân viên", [("view", "Xem danh sách nhân viên")]),
+    (
+        "deviations",
+        "Xử lý sai lệch",
+        [
+            ("create", "Lập / bổ sung hồ sơ của mình"),
+            ("manage", "Tiếp nhận / phân công / quản lý hồ sơ được giao"),
+            ("work", "Thực hiện công việc được giao"),
+            ("review", "Xem xét kế hoạch / gia hạn / đánh giá / kết thúc theo quy tắc"),
+        ],
+    ),
 ]
 FUNCTION_CHOICES = [
     (f"{module}_{action}", f"{title}: {label}")
