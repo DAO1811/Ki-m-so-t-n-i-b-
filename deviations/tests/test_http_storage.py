@@ -303,3 +303,81 @@ class AttachmentTests(DeviationTestCase):
         )
         self.assertIn(response.status_code, (404, 302))
         self.assertIsNone(Attachment.objects.get().voided_at)
+
+
+class ConfigurationAndStorageIntegrationTests(DeviationTestCase):
+    def test_category_concurrent_edit_cannot_overwrite_saved_version(self):
+        self.client.force_login(self.admin)
+        url = reverse("deviation_category_edit", args=[self.category.pk])
+        old_revision = self.category.revision
+        response = self.client.post(
+            url,
+            dict(
+                name="Nhóm đã chỉnh",
+                active="on",
+                revision=old_revision,
+                reason="Thống nhất nhóm",
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+        response = self.client.post(
+            url,
+            dict(
+                name="Ghi đè bản cũ",
+                active="on",
+                revision=old_revision,
+                reason="Màn hình chưa tải lại",
+            ),
+        )
+        self.assertContains(response, "Nhóm vừa được cập nhật")
+        self.category.refresh_from_db()
+        self.assertEqual(self.category.name, "Nhóm đã chỉnh")
+        self.assertEqual(PolicyEvent.objects.count(), 1)
+
+    def test_drive_deviation_namespace_keeps_existing_product_and_receipt_paths(self):
+        from inventory import drive
+        from inventory.models import DriveConnection
+
+        DriveConnection.objects.create(
+            pk=1,
+            folder_id="fake-authorized-root",
+            account_email="fake@example.invalid",
+            connected_by=self.admin,
+            encrypted_refresh_token="not-a-real-token",
+        )
+        expectations = {
+            "product": [("Hàng hóa", "products"), ("Mã giả lập", "product-token")],
+            "receipt": [
+                ("Hóa đơn", "receipts"),
+                ("2026", "year-2026"),
+                ("Mã giả lập", "receipt-token"),
+            ],
+            "deviation": [
+                ("XuLySaiLech", "deviations"),
+                ("2026", "deviation-year-2026"),
+                ("Mã giả lập", "deviation-token"),
+            ],
+        }
+        for kind, expected in expectations.items():
+            with (
+                self.subTest(kind=kind),
+                patch("inventory.drive.access_token", return_value="fake-test-token"),
+                patch(
+                    "inventory.drive.folder", return_value="fake-subfolder"
+                ) as folders,
+                patch(
+                    "inventory.drive.google_request",
+                    return_value={"files": [{"id": "fake-file", "size": 3}]},
+                ),
+            ):
+                result = drive.upload(
+                    b"abc",
+                    "image/png",
+                    sha256(b"abc").hexdigest(),
+                    dict(kind=kind, name="Mã giả lập", key="token", year="2026"),
+                    "test.png",
+                )
+                self.assertEqual(result, "fake-file")
+                self.assertEqual(
+                    [(c.args[2], c.args[3]) for c in folders.call_args_list], expected
+                )

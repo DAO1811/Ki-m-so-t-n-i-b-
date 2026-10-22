@@ -1,1 +1,74 @@
-{% load static %}<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ case.code }} · Hồ sơ sai lệch</title><link rel="stylesheet" href="{% static 'app.css' %}"></head><body class="deviation-print"><a class="back-link" href="{% url 'deviation_detail' case.pk %}">← Về hồ sơ</a><p>DHD · KIỂM SOÁT NỘI BỘ</p><h1>HỒ SƠ XỬ LÝ SAI LỆCH</h1><h2>{{ case.code }} · {{ case.title }}</h2><p>{{ case.get_status_display }} · {{ case.category }} · {{ case.department }}</p><p>Ghi nhận: {{ case.created_by }} · {{ case.created_at|date:'d/m/Y H:i' }} · Phụ trách: {{ case.owner|default:'Chưa phân công' }}</p><h2>1. Sự việc</h2><p>Phát hiện: {{ case.detected_at|date:'d/m/Y H:i' }} · Xảy ra: {{ case.occurred_at|date:'d/m/Y H:i'|default:'Chưa xác định' }} · Địa điểm: {{ case.location }}</p><h3>Thực tế</h3>{{ case.actual|linebreaks }}<h3>Yêu cầu / căn cứ</h3>{{ case.expected|linebreaks }}<h3>Xử lý tức thời</h3>{{ case.immediate_response|linebreaks }}<h3>Ảnh hưởng</h3>{{ case.impact|linebreaks }}<h2>2. Xác minh & nguyên nhân</h2><p>Mức độ: {{ case.get_severity_display }}</p>{{ case.findings|linebreaks }}<h3>Nguyên nhân trực tiếp</h3>{{ case.direct_cause|linebreaks }}<h3>Nguyên nhân gốc</h3>{{ case.root_cause|linebreaks }}<h3>Người / bộ phận liên quan và căn cứ</h3>{{ case.related_people|linebreaks }}<h2>3. Hành động</h2>{% for action in actions %}<h3>Lượt {{ action.round }} · {{ action.get_kind_display }} · {{ action.title }}</h3><p>{{ action.assignee }} · Hạn {{ action.due_date|date:'d/m/Y' }} · {{ action.get_status_display }}</p>{{ action.result|linebreaks }}{% empty %}<p>Chưa có hành động.</p>{% endfor %}<h2>4. Đánh giá</h2>{% for evaluation in evaluations %}<h3>Lượt {{ evaluation.round }} · {% if evaluation.effective %}Có hiệu quả{% else %}Chưa hiệu quả{% endif %}</h3><p>{{ evaluation.checked_by }} · {{ evaluation.checked_at|date:'d/m/Y H:i' }}</p>{{ evaluation.criteria|linebreaks }}{{ evaluation.result|linebreaks }}{% endfor %}<h2>5. Tệp và lịch sử</h2>{% for item in attachments %}<p>{{ item.filename }} · {{ item.description }}{% if item.voided_at %} · Không sử dụng: {{ item.void_reason }}{% endif %}</p>{% endfor %}{% for event in events %}<p>{{ event.created_at|date:'d/m/Y H:i:s' }} · {{ event.actor }} · {{ event.action }} · {{ event.reason }}</p>{% endfor %}<p>Bản thể hiện hồ sơ để theo dõi nội bộ; in hoặc lưu PDF bằng Ctrl+P. Chữ ký/phê duyệt theo quy trình công ty được xác lập riêng.</p></body></html>
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{{ case.code }} · Hồ sơ sai lệch</title>
+        <link rel="stylesheet" href="{% static 'app.css' %}">
+    </head>
+    <body class="deviation-print">
+        <a class="back-link" href="{% url 'deviation_detail' case.pk %}">← Về hồ sơ</a>
+        <p>DHD · KIỂM SOÁT NỘI BỘ</p>
+        <h1>HỒ SƠ XỬ LÝ SAI LỆCH</h1>
+        <h2>{{ case.code }} · {{ case.title }}</h2>
+        <p>{{ case.get_status_display }} · {{ case.category }} · {{ case.department }}</p>
+        <p>
+            Ghi nhận: {{ case.created_by }} · {{ case.created_at|date:'d/m/Y H:i' }} · Phụ trách: {{ case.owner|default:'Chưa phân công' }}
+        </p>
+        <h2>1. Sự việc</h2>
+        <p>
+            Phát hiện: {{ case.detected_at|date:'d/m/Y H:i' }} · Xảy ra: {{ case.occurred_at|date:'d/m/Y H:i'|default:'Chưa xác định' }} · Địa điểm: {{ case.location }}
+        </p>
+        <h3>Thực tế</h3>
+        {{ case.actual|linebreaks }}
+        <h3>Yêu cầu / căn cứ</h3>
+        {{ case.expected|linebreaks }}
+        <h3>Xử lý tức thời</h3>
+        {{ case.immediate_response|linebreaks }}
+        <h3>Ảnh hưởng</h3>
+        {{ case.impact|linebreaks }}
+        <h2>2. Xác minh & nguyên nhân</h2>
+        <p>Mức độ: {{ case.get_severity_display }}</p>
+        {{ case.findings|linebreaks }}
+        <h3>Nguyên nhân trực tiếp</h3>
+        {{ case.direct_cause|linebreaks }}
+        <h3>Nguyên nhân gốc</h3>
+        {{ case.root_cause|linebreaks }}
+        <h3>Người / bộ phận liên quan và căn cứ</h3>
+        {{ case.related_people|linebreaks }}
+        <h2>3. Hành động</h2>
+        {% for action in actions %}
+            <h3>Lượt {{ action.round }} · {{ action.get_kind_display }} · {{ action.title }}</h3>
+            <p>{{ action.assignee }} · Hạn {{ action.due_date|date:'d/m/Y' }} · {{ action.get_status_display }}</p>
+            {{ action.result|linebreaks }}{% empty %}
+            <p>Chưa có hành động.</p>
+        {% endfor %}
+        <h2>4. Đánh giá</h2>
+        {% for evaluation in evaluations %}
+            <h3>
+                Lượt {{ evaluation.round }} ·
+                {% if evaluation.effective %}
+                    Có hiệu quả
+                {% else %}
+                    Chưa hiệu quả
+                {% endif %}
+            </h3>
+            <p>{{ evaluation.checked_by }} · {{ evaluation.checked_at|date:'d/m/Y H:i' }}</p>
+            {{ evaluation.criteria|linebreaks }}{{ evaluation.result|linebreaks }}
+        {% endfor %}
+        <h2>5. Tệp và lịch sử</h2>
+        {% for item in attachments %}
+            <p>
+                {{ item.filename }} · {{ item.description }}
+                {% if item.voided_at %}· Không sử dụng: {{ item.void_reason }}{% endif %}
+            </p>
+        {% endfor %}
+        {% for event in events %}
+            <p>{{ event.created_at|date:'d/m/Y H:i:s' }} · {{ event.actor }} · {{ event.action }} · {{ event.reason }}</p>
+        {% endfor %}
+        <p>
+            Bản thể hiện hồ sơ để theo dõi nội bộ; in hoặc lưu PDF bằng Ctrl+P. Chữ ký/phê duyệt theo quy trình công ty được xác lập riêng.
+        </p>
+    </body>
+</html>

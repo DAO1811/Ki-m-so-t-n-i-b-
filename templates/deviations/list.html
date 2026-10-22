@@ -1,6 +1,71 @@
-{% extends 'base.html' %}{% load ui %}
-{% block content %}<div class="deviation-page">
-<div class="page-heading"><div><h1>Hồ sơ sai lệch</h1><p>{{ page_obj.paginator.count }} hồ sơ · Một nơi theo dõi toàn bộ sự việc.</p></div>{% if can_create %}<a class="button" href="{% url 'deviation_new' %}">{% icon 'plus' %}Ghi nhận sai lệch</a>{% endif %}</div>
-<nav class="deviation-tabs" aria-label="Nhóm hồ sơ"><a {% if tab == 'all' %}aria-current="page"{% endif %} href="{% url 'deviation_list' %}">Tất cả</a><a {% if tab == 'mine' %}aria-current="page"{% endif %} href="?tab=mine">Tôi ghi nhận</a><a {% if tab == 'assigned' %}aria-current="page"{% endif %} href="?tab=assigned">Liên quan đến tôi</a><a {% if tab == 'overdue' %}aria-current="page"{% endif %} href="?tab=overdue">Quá hạn</a><a {% if tab == 'closed' %}aria-current="page"{% endif %} href="?tab=closed">Đã kết thúc</a></nav>
-<section class="panel"><form class="deviation-filters" method="get"><input type="hidden" name="tab" value="{{ tab }}"><div class="field"><label for="case-search">Tìm hồ sơ</label><input id="case-search" name="q" value="{{ request.GET.q }}" placeholder="Mã, tiêu đề, sự việc, phòng ban"></div><div class="field"><label for="case-category">Nhóm</label><select id="case-category" name="category"><option value="">Tất cả nhóm</option>{% for category in categories %}<option value="{{ category.pk }}" {% if request.GET.category == category.pk|stringformat:'s' %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></div><div class="field"><label for="case-status">Trạng thái</label><select id="case-status" name="status"><option value="">Tất cả trạng thái</option>{% for value,label in statuses %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="field"><label for="case-severity">Mức độ</label><select id="case-severity" name="severity"><option value="">Tất cả mức độ</option>{% for value,label in severities %}{% if value %}<option value="{{ value }}" {% if request.GET.severity == value %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></div><button class="button secondary">Lọc hồ sơ</button></form>
-{% include 'deviations/_table.html' %}{% include 'pagination.html' %}</section></div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+    <div class="deviation-page">
+        <div class="page-heading">
+            <div>
+                <h1>Hồ sơ sai lệch</h1>
+                <p>{{ page_obj.paginator.count }} hồ sơ · Một nơi theo dõi toàn bộ sự việc.</p>
+            </div>
+            {% if can_create %}
+                <a class="button" href="{% url 'deviation_new' %}">{% icon 'plus' %}Ghi nhận sai lệch</a>
+            {% endif %}
+        </div>
+        <nav class="deviation-tabs" aria-label="Nhóm hồ sơ">
+            <a {% if tab == 'all' %}aria-current="page"{% endif %}
+               href="{% url 'deviation_list' %}">Tất cả</a><a {% if tab == 'mine' %}aria-current="page"{% endif %} href="?tab=mine">Tôi ghi nhận</a><a {% if tab == 'assigned' %}aria-current="page"{% endif %}
+   href="?tab=assigned">Liên quan đến tôi</a><a {% if tab == 'overdue' %}aria-current="page"{% endif %}
+   href="?tab=overdue">Quá hạn</a><a {% if tab == 'closed' %}aria-current="page"{% endif %}
+   href="?tab=closed">Đã kết thúc</a>
+        </nav>
+        <section class="panel">
+            <form class="deviation-filters" method="get">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                <div class="field">
+                    <label for="case-search">Tìm hồ sơ</label>
+                    <input id="case-search"
+                           name="q"
+                           value="{{ request.GET.q }}"
+                           placeholder="Mã, tiêu đề, sự việc, phòng ban">
+                </div>
+                <div class="field">
+                    <label for="case-category">Nhóm</label>
+                    <select id="case-category" name="category">
+                        <option value="">Tất cả nhóm</option>
+                        {% for category in categories %}
+                            <option value="{{ category.pk }}"
+                                    {% if request.GET.category == category.pk|stringformat:'s' %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="case-status">Trạng thái</label>
+                    <select id="case-status" name="status">
+                        <option value="">Tất cả trạng thái</option>
+                        {% for value,label in statuses %}
+                            <option value="{{ value }}"
+                                    {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="case-severity">Mức độ</label>
+                    <select id="case-severity" name="severity">
+                        <option value="">Tất cả mức độ</option>
+                        {% for value,label in severities %}
+                            {% if value %}
+                                <option value="{{ value }}"
+                                        {% if request.GET.severity == value %}selected{% endif %}>{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="button secondary">Lọc hồ sơ</button>
+            </form>
+            {% include 'deviations/_table.html' %}
+            {% include 'pagination.html' %}
+        </section>
+    </div>
+{% endblock %}

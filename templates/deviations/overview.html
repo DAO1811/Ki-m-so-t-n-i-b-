@@ -1,16 +1,42 @@
-{% extends 'base.html' %}{% load ui %}
+{% extends 'base.html' %}
+{% load ui %}
 {% block content %}
-<div class="deviation-page">
-  <div class="page-heading"><div><h1>{% icon 'alert' %}Xử lý sai lệch</h1><p>Ghi nhận rõ sự việc · Theo dõi khắc phục · Ngăn ngừa tái diễn.</p></div>{% if can_create %}<a class="button" href="{% url 'deviation_new' %}">{% icon 'plus' %}Ghi nhận sai lệch</a>{% endif %}</div>
-  {% include 'deviations/_policy_notice.html' %}
-  <div class="deviation-stats">
-    <a class="panel" href="{% url 'deviation_list' %}"><small>TẤT CẢ HỒ SƠ</small><strong>{{ metrics.total }}</strong></a>
-    <a class="panel" href="{% url 'deviation_list' %}?status=REPORTED"><small>CHỜ TIẾP NHẬN</small><strong>{{ metrics.reported }}</strong></a>
-    <a class="panel" href="{% url 'deviation_list' %}?tab=overdue"><small>CÓ CÔNG VIỆC QUÁ HẠN</small><strong>{{ metrics.overdue }}</strong></a>
-    <a class="panel" href="{% url 'deviation_list' %}?tab=closed"><small>ĐÃ KẾT THÚC</small><strong>{{ metrics.closed }}</strong></a>
-  </div>
-  <section class="panel deviation-intro"><div class="deviation-symbol">{% icon 'shield' %}</div><div><h2>Mỗi sai lệch, một hồ sơ xuyên suốt</h2><p>Theo dõi từ sự việc ban đầu đến kết quả xử lý trong cùng một mã hồ sơ. Mỗi công việc có người phụ trách và hạn riêng; đánh giá hiệu quả được ghi nhận sau khi thực hiện.</p><a href="{% url 'deviation_list' %}?tab=assigned">Công việc liên quan đến tôi →</a></div></section>
-  <section class="panel"><div class="panel-title"><h2>Hồ sơ mới nhất</h2><a href="{% url 'deviation_list' %}">Xem tất cả →</a></div>{% include 'deviations/_table.html' with cases=recent %}</section>
-  <p class="helptext">Tất cả nhân viên đăng nhập được xem hồ sơ. Quyền ghi nhận, phụ trách xử lý, thực hiện và xác nhận được Admin cấp riêng.</p>
-</div>
+    <div class="deviation-page">
+        <div class="page-heading">
+            <div>
+                <h1>{% icon 'alert' %}Xử lý sai lệch</h1>
+                <p>Ghi nhận rõ sự việc · Theo dõi khắc phục · Ngăn ngừa tái diễn.</p>
+            </div>
+            {% if can_create %}
+                <a class="button" href="{% url 'deviation_new' %}">{% icon 'plus' %}Ghi nhận sai lệch</a>
+            {% endif %}
+        </div>
+        {% include 'deviations/_policy_notice.html' %}
+        <div class="deviation-stats">
+            <a class="panel" href="{% url 'deviation_list' %}"><small>TẤT CẢ HỒ SƠ</small><strong>{{ metrics.total }}</strong></a>
+            <a class="panel" href="{% url 'deviation_list' %}?status=REPORTED"><small>CHỜ TIẾP NHẬN</small><strong>{{ metrics.reported }}</strong></a>
+            <a class="panel" href="{% url 'deviation_list' %}?tab=overdue"><small>CÓ CÔNG VIỆC QUÁ HẠN</small><strong>{{ metrics.overdue }}</strong></a>
+            <a class="panel" href="{% url 'deviation_list' %}?tab=closed"><small>ĐÃ KẾT THÚC</small><strong>{{ metrics.closed }}</strong></a>
+        </div>
+        <section class="panel deviation-intro">
+            <div class="deviation-symbol">{% icon 'shield' %}</div>
+            <div>
+                <h2>Mỗi sai lệch, một hồ sơ xuyên suốt</h2>
+                <p>
+                    Theo dõi từ sự việc ban đầu đến kết quả xử lý trong cùng một mã hồ sơ. Mỗi công việc có người phụ trách và hạn riêng; đánh giá hiệu quả được ghi nhận sau khi thực hiện.
+                </p>
+                <a href="{% url 'deviation_list' %}?tab=assigned">Công việc liên quan đến tôi →</a>
+            </div>
+        </section>
+        <section class="panel">
+            <div class="panel-title">
+                <h2>Hồ sơ mới nhất</h2>
+                <a href="{% url 'deviation_list' %}">Xem tất cả →</a>
+            </div>
+            {% include 'deviations/_table.html' with cases=recent %}
+        </section>
+        <p class="helptext">
+            Tất cả nhân viên đăng nhập được xem hồ sơ. Quyền ghi nhận, phụ trách xử lý, thực hiện và xác nhận được Admin cấp riêng.
+        </p>
+    </div>
 {% endblock %}

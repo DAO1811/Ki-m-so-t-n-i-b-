@@ -4,7 +4,7 @@ from unittest import skipUnless
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from deviations.models import Case, Category, Event
@@ -39,7 +39,8 @@ class ConcurrentCaseTests(TransactionTestCase):
             except ValidationError:
                 return "stale"
             finally:
-                close_old_connections()
+                # Test worker connections must close even with persistent connections.
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=len(operations)) as pool:
             return list(pool.map(run, operations))

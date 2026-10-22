@@ -1,8 +1,57 @@
-{% extends 'base.html' %}{% load ui %}
-{% block content %}<div class="deviation-page deviation-form-page">
-<div class="page-heading"><div><a class="back-link" href="{% if case %}{% url 'deviation_detail' case.pk %}{% else %}{% url 'deviation_list' %}{% endif %}">← {% if case %}{{ case.code }}{% else %}Hồ sơ sai lệch{% endif %}</a><h1>{{ form_title }}</h1><p>Các ô có dấu * là thông tin bắt buộc.</p></div></div>
-<form method="post" class="deviation-form">{% csrf_token %}{{ form.non_field_errors }}{% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
-<section class="panel form-panel"><div class="form-grid">{% for field in form.visible_fields %}{% if field.name != 'source_document' and field.name != 'source_product' and field.name != 'source_stocktake' %}{% include 'deviations/_field.html' %}{% endif %}{% endfor %}</div></section>
-{% if form.source_document %}<details class="panel deviation-section"><summary>Liên kết hồ sơ nguồn (nếu có)</summary><p class="helptext">Chỉ dùng khi sự việc liên quan dữ liệu kho đã có. Thao tác này không sửa dữ liệu nguồn.</p><div class="form-grid">{% include 'deviations/_field.html' with field=form.source_document %}{% include 'deviations/_field.html' with field=form.source_product %}{% include 'deviations/_field.html' with field=form.source_stocktake %}</div></details>{% endif %}
-{% if require_reason %}<section class="panel form-panel"><div class="field"><label for="category-reason">Lý do thay đổi *</label><textarea name="reason" id="category-reason" required maxlength="1000">{{ request.POST.reason }}</textarea></div></section>{% endif %}
-<div class="form-actions"><button class="button" type="submit">{% icon 'check' %}Lưu thông tin</button><a class="button secondary" href="{% if case %}{% url 'deviation_detail' case.pk %}{% else %}{% url 'deviation_list' %}{% endif %}">Quay lại</a></div></form></div>{% endblock %}
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+    <div class="deviation-page deviation-form-page">
+        <div class="page-heading">
+            <div>
+                <a class="back-link"
+                   href="{% if case %}{% url 'deviation_detail' case.pk %}{% else %}{% url 'deviation_list' %}{% endif %}">←
+                    {% if case %}
+                        {{ case.code }}
+                    {% else %}
+                        Hồ sơ sai lệch
+                    {% endif %}
+                </a>
+                <h1>{{ form_title }}</h1>
+                <p>Các ô có dấu * là thông tin bắt buộc.</p>
+            </div>
+        </div>
+        <form method="post" class="deviation-form">
+            {% csrf_token %}{{ form.non_field_errors }}
+            {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+            <section class="panel form-panel">
+                <div class="form-grid">
+                    {% for field in form.visible_fields %}
+                        {% if field.name != 'source_document' and field.name != 'source_product' and field.name != 'source_stocktake' %}
+                            {% include 'deviations/_field.html' %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% if form.source_document %}
+                <details class="panel deviation-section">
+                    <summary>Liên kết hồ sơ nguồn (nếu có)</summary>
+                    <p class="helptext">Chỉ dùng khi sự việc liên quan dữ liệu kho đã có. Thao tác này không sửa dữ liệu nguồn.</p>
+                    <div class="form-grid">
+                        {% include 'deviations/_field.html' with field=form.source_document %}
+                        {% include 'deviations/_field.html' with field=form.source_product %}
+                        {% include 'deviations/_field.html' with field=form.source_stocktake %}
+                    </div>
+                </details>
+            {% endif %}
+            {% if require_reason %}
+                <section class="panel form-panel">
+                    <div class="field">
+                        <label for="category-reason">Lý do thay đổi *</label>
+                        <textarea name="reason" id="category-reason" required maxlength="1000">{{ request.POST.reason }}</textarea>
+                    </div>
+                </section>
+            {% endif %}
+            <div class="form-actions">
+                <button class="button" type="submit">{% icon 'check' %}Lưu thông tin</button>
+                <a class="button secondary"
+                   href="{% if case %}{% url 'deviation_detail' case.pk %}{% else %}{% url 'deviation_list' %}{% endif %}">Quay lại</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
