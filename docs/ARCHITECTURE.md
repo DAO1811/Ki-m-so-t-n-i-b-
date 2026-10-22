@@ -11,7 +11,7 @@ Cập nhật cấu trúc ngày 22/10/2026. Đây là một ứng dụng Django c
 | `inventory/` | Mô hình dữ liệu, giao dịch kho, quyền, Drive, Excel, QR và kiểm kê |
 | `workflows/` | App/URL riêng cho Quy trình; hiện chỉ là trang chuẩn bị |
 | `people/` | App/URL riêng cho Nhân sự; hiện chỉ là trang chuẩn bị |
-| `deviations/` | App/URL riêng cho Xử lý sai lệch toàn công ty; nghiệp vụ chờ chốt quyền xem và người xác nhận hoàn tất |
+| `deviations/` | Hồ sơ sai lệch toàn công ty; bảng, services, workflow và quyền riêng; mở xử lý sau khi cấu hình quy tắc đã chốt |
 | `assets/styles/` | Nguồn CSS theo thành phần và nghiệp vụ |
 | `static/app.css` | Bundle CSS sinh từ nguồn, được kiểm tra đồng bộ khi build |
 | `templates/` | Các template Django, dùng chung `base.html` |
@@ -68,3 +68,7 @@ Kiểm thử PostgreSQL bao gồm tồn/giá vốn, cạnh tranh cập nhật, q
 `safe_migrate` có khóa triển khai và snapshot nhất quán trước thay đổi schema. Snapshot cùng Neon phục vụ khôi phục migration; cần backup độc lập cho sự cố toàn database. Refactor cấu trúc này không có migration dữ liệu mới.
 
 Xem `RELEASE_PROCESS.md` để phát hành. Quy trình CI chạy tự động theo file workflow; bảo vệ nhánh và chế độ tự triển khai Render phải được quản lý trong cấu hình GitHub/Render, không tự suy ra đã bật từ việc có workflow.
+
+## Phân hệ sai lệch bổ sung
+
+Bản nền và ranh giới thay đổi được mô tả tại [deviations/README.md](../deviations/README.md). Bảng mới `deviations_*` không thay cấu trúc bảng kho. Tích hợp dùng các điểm thêm menu, quyền và một loại lưu trữ tệp; các nhánh xử lý cũ giữ nguyên. Quy trình chi tiết chưa chốt thì giữ đóng xử lý; không tự thêm nghiệp vụ Nhân sự/Quy trình.

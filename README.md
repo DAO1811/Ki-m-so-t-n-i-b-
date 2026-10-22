@@ -14,7 +14,7 @@ Mở nhánh `preview/shared-review` trong VS Code + Docker Desktop theo [hướn
 | --- | --- |
 | Quản lý kho | Danh mục, nhập/xuất/chuyển, mượn trả, kiểm kê giấy/QR, duyệt phiếu, báo cáo và Excel |
 | Quản trị hệ thống | Tài khoản, phân quyền, đổi mật khẩu; kết nối Drive, đo dung lượng và báo cáo Sheets |
-| Xử lý sai lệch | Phân hệ riêng, trang chuẩn bị; nghiệp vụ và quyền xử lý chờ thống nhất |
+| Xử lý sai lệch | Bản nền hồ sơ, hành động, bằng chứng và lịch sử; quy tắc xử lý chờ cấu hình trên bản thử |
 | Quy trình | Trang chuẩn bị, chưa có nghiệp vụ mới |
 | Quản lý nhân sự | Trang chuẩn bị, chưa có nghiệp vụ mới |
 
@@ -30,7 +30,7 @@ core/                    Tài khoản, quản trị dùng chung, tiện ích xu�
 inventory/               Mô hình dữ liệu và nghiệp vụ kho
   views/                 Màn hình tách theo nghiệp vụ
   migrations/            Lịch sử thay đổi cấu trúc dữ liệu
-deviations/              Điểm vào phân hệ Xử lý sai lệch
+deviations/              Hồ sơ sai lệch: models, services, workflow, quyền và màn hình
 workflows/               Điểm vào phân hệ Quy trình
 people/                  Điểm vào phân hệ Nhân sự
 assets/styles/           CSS nguồn: màu sắc, bố cục, thành phần và nghiệp vụ
@@ -41,7 +41,7 @@ templates/              Các màn hình Django
 docs/                   Kiến trúc, quy trình nghiệp vụ và phát hành
 ```
 
-`inventory.views` giữ các tên hàm cũ để tương thích; code màn hình nằm trong `inventory/views/`. Các bảng và lịch sử migration vẫn thuộc `inventory`, kể cả những dữ liệu hiện được dùng chung. Tách giao diện/phân hệ trong đợt này không chuyển bảng hoặc ghi lại dữ liệu. Chi tiết tại [kiến trúc](docs/ARCHITECTURE.md).
+`inventory.views` giữ các tên hàm cũ để tương thích; code màn hình nằm trong `inventory/views/`. Các bảng và lịch sử migration vẫn thuộc `inventory`, kể cả những dữ liệu hiện được dùng chung. Các bảng mới của Xử lý sai lệch thuộc app `deviations`, không chuyển hoặc ghi lại dữ liệu cũ. Xem [cách bảo trì phân hệ mới](deviations/README.md). Chi tiết tại [kiến trúc](docs/ARCHITECTURE.md).
 
 ## Khởi chạy ở máy phát triển
 

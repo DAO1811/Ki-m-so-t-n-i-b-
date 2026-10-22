@@ -81,7 +81,11 @@ class FunctionAccessMiddleware(MiddlewareMixin):
         name = request.resolver_match.url_name
         codes = function_codes(request.user)
         allowed = False
-        if name in {"processes", "human_resources", "deviations"}:
+        if view.__module__.startswith("deviations."):
+            from deviations.access import route_allowed
+
+            allowed = route_allowed(request.user, name, request.method)
+        elif name in {"processes", "human_resources"}:
             allowed = request.method in {"GET", "HEAD"}
         elif name in {"dashboard", "password_change", "warehouse_scope"}:
             allowed = True

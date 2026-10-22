@@ -1,0 +1,3 @@
+{% if not policy.enabled %}
+<div class="deviation-notice" role="note"><strong>Đang mở ghi nhận hồ sơ.</strong> Các bước xử lý chờ cấu hình quy trình công ty.{% if is_admin %} <a href="{% url 'deviation_settings' %}">Xem danh mục & cấu hình →</a>{% endif %}</div>
+{% endif %}

@@ -46,7 +46,7 @@ class ModuleNavigationTests(TestCase):
     def test_placeholders_are_authenticated_read_only_and_do_not_grant_permissions(
         self,
     ):
-        for route in ["deviations", "processes", "human_resources"]:
+        for route in ["processes", "human_resources"]:
             url = reverse(route)
             self.assertEqual(self.client.get(url).status_code, 302)
             self.client.force_login(self.reader)
