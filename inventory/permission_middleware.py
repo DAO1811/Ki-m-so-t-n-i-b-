@@ -13,6 +13,7 @@ from .access import (
 )
 
 VIEW_KEYS = {
+    "stocktake_reject": "adjustments_approve",
     "products": "products_view",
     "product_detail": "products_view",
     "qr_landing": "products_view",
@@ -49,6 +50,7 @@ VIEW_KEYS = {
     "loan_return_edit": "returns_create",
 }
 ADMIN_VIEWS = {
+    "stocktake_delete",
     "storage_settings",
     "storage_measure",
     "storage_download",
@@ -69,7 +71,7 @@ class FunctionAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view, args, kwargs):
         if (
             not view.__module__.startswith(
-                ("inventory.", "core.", "workflows.", "people.")
+                ("inventory.", "core.", "workflows.", "people.", "deviations.")
             )
             or not request.user.is_authenticated
         ):
@@ -79,7 +81,11 @@ class FunctionAccessMiddleware(MiddlewareMixin):
         name = request.resolver_match.url_name
         codes = function_codes(request.user)
         allowed = False
-        if name in {"processes", "human_resources"}:
+        if view.__module__.startswith("deviations."):
+            from deviations.access import route_allowed
+
+            allowed = route_allowed(request.user, name, request.method)
+        elif name in {"processes", "human_resources"}:
             allowed = request.method in {"GET", "HEAD"}
         elif name in {"dashboard", "password_change", "warehouse_scope"}:
             allowed = True

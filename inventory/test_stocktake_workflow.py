@@ -338,21 +338,22 @@ class StocktakeWorkflowTests(TestCase):
         self.receipt()
         self.assertEqual(Balance.objects.get(warehouse=self.a).quantity, 6)
 
-    def test_only_own_adjustment_can_post_then_unlocks(self):
+    def test_submit_unlocks_before_approval_and_keeps_later_receipts(self):
         self.receipt()
         session = begin_session(freeze_session(self.a, self.maker).pk, self.maker, "QR")
         self.assertEqual(product_from_scan("ASSET-0001"), self.p)
         self.count(session)
         doc = submit_session(session.pk, self.maker, "Thiếu một, đề nghị điều chỉnh")
         self.assertEqual(Balance.objects.get().quantity, 3)
-        with self.assertRaises(ValidationError):
-            self.receipt()
+        session.refresh_from_db()
+        self.assertFalse(session.locks_inventory)
+        self.receipt()
         with self.assertRaises(PermissionDenied):
             post_document(doc.pk, self.maker)
         post_document(doc.pk, self.ceo)
-        self.assertEqual(Balance.objects.get().quantity, 2)
-        self.receipt()
         self.assertEqual(Balance.objects.get().quantity, 5)
+        self.receipt()
+        self.assertEqual(Balance.objects.get().quantity, 8)
 
     def test_no_difference_or_cancel_unlocks_without_adjustment(self):
         self.receipt()

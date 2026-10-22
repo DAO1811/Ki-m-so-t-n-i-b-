@@ -204,21 +204,26 @@ class QRStocktakeTests(TestCase):
         post_document(doc.pk, self.ceo)
         self.assertEqual(Balance.objects.get(product=self.q).quantity, 1)
 
-    def test_warehouse_movement_blocks_before_and_after_submission(self):
+    def test_warehouse_reopens_on_submission_and_later_movements_are_preserved(self):
         self.receipt()
         session = start_session(self.a, self.maker)
         self.count(session, quantity=2, mode="SET")
-        doc = submit_session(session.pk, self.maker, "Thiếu 1")
         with self.assertRaises(ValidationError):
             self.receipt(product=self.q)
-        # Pre-upgrade sessions are not silently locked. Their original cutoff
-        # protection still rejects changes made while those sessions were open.
+        doc = submit_session(session.pk, self.maker, "Thiếu 1")
+        self.receipt(product=self.q)
+        post_document(doc.pk, self.ceo)
+        self.assertEqual(Balance.objects.get(product=self.p).quantity, 2)
+        self.assertEqual(Balance.objects.get(product=self.q).quantity, 3)
+
+    def test_legacy_unlocked_open_session_still_requires_unchanged_cutoff(self):
+        self.receipt()
+        session = start_session(self.a, self.maker)
+        self.count(session, quantity=2, mode="SET")
         StocktakeSession.objects.filter(pk=session.pk).update(locks_inventory=False)
         self.receipt(product=self.q)
         with self.assertRaises(ValidationError):
-            post_document(doc.pk, self.ceo)
-        with self.assertRaises(ValidationError):
-            submit_session(start_session(self.a, self.maker).pk, self.maker, "Chưa đếm")
+            submit_session(session.pk, self.maker, "Không thể chốt mốc đã biến động")
         self.assertEqual(Balance.objects.get(product=self.p).quantity, 3)
 
     def test_session_frozen_after_submit_and_origin_document_not_editable(self):

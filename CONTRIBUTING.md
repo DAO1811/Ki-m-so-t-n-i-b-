@@ -26,6 +26,10 @@ Sửa nguồn tại `assets/styles/`, chạy `python scripts/build_styles.py`, r
 
 Kiểm tra trang bị ảnh hưởng ở sáng/tối, máy tính/điện thoại, dữ liệu trống/có dữ liệu và trạng thái lỗi. Thay đổi giao diện phải giữ nhãn biểu mẫu, khả năng dùng bàn phím và độ tương phản. Khi refactor CSS, so sánh trước–sau để phát hiện thay đổi ngoài ý muốn.
 
+## Duyệt bản thử trước khi phát hành
+
+Chủ phần mềm phải xem và đồng ý bản thử cụ thể trước khi cập nhật main/Render. Yêu cầu này thay thế quyền tự cập nhật trước đó. Chuẩn bị trên nhánh preview với dữ liệu riêng theo [hướng dẫn VS Code](docs/PREVIEW_IN_VSCODE.md).
+
 ## Kiểm tra và bàn giao
 
 Chạy các lệnh ở README trên PostgreSQL riêng. Thêm kiểm thử cho quy tắc hoặc ranh giới quyền mới; không thêm kiểm thử chỉ để khớp lại cách triển khai. Không sửa migration lịch sử trong một refactor. Chạy kiểm tra migration và static trước khi đề nghị phát hành.

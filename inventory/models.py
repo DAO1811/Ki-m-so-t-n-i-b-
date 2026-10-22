@@ -606,14 +606,31 @@ class StocktakeSession(models.Model):
 
     @property
     def workflow_status(self):
+        if self.is_deleted:
+            return "Đã xóa bởi Admin tổng, giữ hồ sơ đối chiếu"
         if self.document_id:
             return {
                 "DRAFT": "Chờ Tổng giám đốc duyệt điều chỉnh",
                 "POSTED": "Hoàn tất, đã điều chỉnh tồn",
-                "REJECTED": "Yêu cầu kiểm đếm lại bằng phiên mới",
+                "REJECTED": "Không duyệt điều chỉnh, giữ nguyên tồn",
                 "CANCELLED": "Phiếu điều chỉnh đã hủy",
             }.get(self.document.status, self.get_status_display())
         return self.get_status_display()
+
+    @property
+    def is_deleted(self):
+        return hasattr(self, "deletion")
+
+
+class StocktakeDeletion(models.Model):
+    session = models.OneToOneField(
+        StocktakeSession, on_delete=models.PROTECT, related_name="deletion"
+    )
+    deleted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    deleted_at = models.DateTimeField(auto_now_add=True)
+    reason = models.CharField(max_length=1000)
+    previous_status = models.CharField(max_length=12)
+    previous_document_status = models.CharField(max_length=10, blank=True)
 
 
 class StocktakeItem(models.Model):
@@ -700,6 +717,8 @@ class StocktakeEvent(models.Model):
             ("ADD", "Quét cộng 1"),
             ("SUBMIT", "Gửi duyệt"),
             ("CANCEL", "Hủy phiên"),
+            ("REJECT", "Tổng giám đốc không duyệt"),
+            ("DELETE", "Admin tổng xóa phiếu, giữ hồ sơ"),
         ],
     )
     before = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)

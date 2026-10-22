@@ -14,11 +14,16 @@
     {% if session.document %}
       <a class="button" href="{% url 'document_detail' session.document_id %}">Phiếu điều chỉnh</a>
     {% endif %}
+    {% if can_delete %}<a class="button secondary" href="#stocktake-delete">Xóa phiếu kiểm kê</a>{% endif %}
   </div>
   {% include 'stocktake_steps.html' %}
   <div class="notice">
-    <span><b>Mốc tồn: {{ session.created_at|date:'d/m/Y H:i:s' }}.</b> {% if session.locks_inventory %}Kho tạm khóa giao dịch trong khi kiểm và chờ duyệt điều chỉnh.{% else %}Phiên cũ chưa khóa giao dịch: nếu tồn biến động thì phải hủy và kiểm lại.{% endif %} Hàng mượn tạm không tính vào tồn thường; chưa kiểm không được coi là 0.</span>
+    <span><b>Mốc tồn: {{ session.created_at|date:'d/m/Y H:i:s' }}.</b> {% if inventory_locked %}Kho tạm khóa giao dịch trong thời gian kiểm đếm.{% else %}Biên bản này không giữ khóa giao dịch kho.{% endif %} Hàng mượn tạm không tính vào tồn thường; chưa kiểm không được coi là 0.</span>
   </div>
+  {% if session.status == "SUBMITTED" and session.document.status == "DRAFT" and not session.is_deleted %}<div class="notice"><span><b>Đã chốt chênh lệch, kho đã mở giao dịch.</b> Tồn chỉ thay đổi khi phiếu điều chỉnh được duyệt. Các giao dịch mới vẫn được giữ nguyên. Kho chưa mở phiên kiểm kê tiếp theo khi phiếu này còn chờ quyết định.</span></div>{% endif %}
+  {% if session.is_deleted %}<div class="notice warning"><span><b>Phiếu đã xóa khỏi danh sách sử dụng.</b> {{ session.deletion.deleted_by }} · {{ session.deletion.deleted_at|date:'d/m/Y H:i' }} · Lý do: {{ session.deletion.reason }}. Chỉ giữ hồ sơ đối chiếu, không đảo số tồn đã ghi sổ.</span></div>{% endif %}
+  {% if session.document.status == 'REJECTED' %}<div class="notice warning"><span><b>Tổng giám đốc không duyệt:</b> {{ session.document.closure_reason }}. Không điều chỉnh tồn; kiểm lại bằng một phiên mới.</span></div>{% endif %}
+  {% if can_reject %}<section class="panel form-panel record-panel"><h2>Tổng giám đốc xem xét kiểm kê</h2><p><a href="{% url 'document_detail' session.document_id %}">Mở phiếu điều chỉnh để kiểm tra và duyệt</a>. Nếu không đồng ý, ghi lý do bên dưới. Không duyệt điều chỉnh sẽ giữ nguyên tồn. Kho đã mở giao dịch từ khi chốt chênh lệch.</p><form class="standard-form" method="post" action="{% url 'stocktake_reject' session.pk %}" data-confirm="Không duyệt điều chỉnh? Tồn giữ nguyên; muốn kiểm lại cần phiên mới.">{% csrf_token %}<input type="hidden" name="expected_revision" value="{{ session.document.revision }}"><label for="stocktake-reject-reason">Lý do không duyệt điều chỉnh</label><textarea id="stocktake-reject-reason" name="reason" rows="2" maxlength="1000" required></textarea><button class="button secondary" type="submit">Không duyệt điều chỉnh</button></form></section>{% endif %}
   {% if session.status == 'READY' %}
     <section class="panel form-panel count-method"><h2>Chọn cách tiến hành kiểm kê</h2><p>Danh sách đã chốt: {{ item_count }} mã tại {{ session.warehouse }}. Hai cách cùng đối chiếu mốc tồn này. Người có quyền tại kho nhận kiểm; chỉ người nhận và Admin tổng được ghi số sau khi bắt đầu.</p>
       {% if can_manage and not expired %}<div class="count-method-grid"><form method="post" action="{% url 'stocktake_begin' session.pk %}">{% csrf_token %}<input type="hidden" name="method" value="PAPER"><h3>{% icon 'file' %}Kiểm bằng giấy</h3><p>In bảng kiểm đếm, đi kiểm thực tế và nhập kết quả trở lại đúng biên bản.</p><button class="button secondary" type="submit">Chọn kiểm bằng giấy</button></form><form method="post" action="{% url 'stocktake_begin' session.pk %}">{% csrf_token %}<input type="hidden" name="method" value="QR"><h3>{% icon 'count' %}Kiểm bằng QR</h3><p>Camera hoặc máy quét; mỗi lượt quét một QR cộng 1 đơn vị của mã hàng.</p><button class="button" type="submit">Chọn quét QR</button></form></div>{% else %}<p>Người có quyền kiểm kê tại kho nhận kiểm trong ngày đã chốt. Nếu đã qua ngày, hủy phiên và chốt tồn mới.</p>{% endif %}
@@ -153,7 +158,7 @@
       <h2>Kết thúc kiểm kê</h2>
       <form method="post"
             action="{% url 'stocktake_submit' session.pk %}"
-            data-confirm="Chốt số đếm và lập phiếu điều chỉnh? Phiếu cần Tổng giám đốc duyệt, tồn chưa thay đổi.">
+            data-confirm="Chốt số đếm và lập phiếu điều chỉnh? Kho sẽ tự mở giao dịch. Phiếu cần Tổng giám đốc duyệt, tồn chưa thay đổi.">
         {% csrf_token %}
         <label for="conclusion">Kết luận / lý do chênh lệch</label>
         <textarea id="conclusion" name="note" rows="3" required maxlength="4000"></textarea>
@@ -209,6 +214,7 @@
       </form>
     </section>
   {% endif %}
+  {% if can_delete %}<section class="panel form-panel record-panel" id="stocktake-delete"><h2>Xóa phiếu kiểm kê · Chỉ Admin tổng</h2><p>Xóa khỏi danh sách sử dụng và mở lại giao dịch nếu phiếu này đang khóa kho. Hồ sơ đếm và bút toán đã ghi sổ được giữ nguyên; không hoàn số tồn đã điều chỉnh. Khóa của phiên kiểm kê khác vẫn được giữ.</p><form class="standard-form" method="post" action="{% url 'stocktake_delete' session.pk %}" data-confirm="Xóa phiếu kiểm kê khỏi danh sách sử dụng? Lịch sử và số tồn đã ghi sổ vẫn được giữ.">{% csrf_token %}<input type="hidden" name="expected_status" value="{{ session.status }}"><input type="hidden" name="expected_document_status" value="{{ session.document.status|default:'' }}"><input type="hidden" name="expected_revision" value="{{ session.document.revision|default:0 }}"><label for="stocktake-delete-reason">Lý do xóa</label><textarea id="stocktake-delete-reason" name="reason" rows="2" maxlength="1000" required></textarea><label for="stocktake-delete-confirmation">Nhập KK-{{ session.pk|stringformat:'06d' }} để xác nhận</label><input id="stocktake-delete-confirmation" name="confirmation" required autocomplete="off"><button class="button secondary" type="submit">Xác nhận xóa phiếu kiểm kê</button></form></section>{% endif %}
 {% endblock %}
 {% block scripts %}
   {% if can_edit and session.method == 'QR' %}

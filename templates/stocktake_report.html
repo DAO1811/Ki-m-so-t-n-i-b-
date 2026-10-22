@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load ui %}
 {% block content %}
+{% if session.is_deleted %}<div class="notice warning"><span>HỒ SƠ PHIẾU ĐÃ XÓA · {{ session.deletion.deleted_by }} · {{ session.deletion.deleted_at|date:'d/m/Y H:i' }} · {{ session.deletion.reason }}. Giữ hồ sơ đối chiếu; không đảo tồn đã ghi sổ.</span></div>{% endif %}
   <div class="page-heading">
     <a class="back-link" href="{% url 'stocktake_detail' session.pk %}">← Phiên kiểm kê</a>
     <button type="button" data-print class="button">In / lưu PDF biên bản</button>

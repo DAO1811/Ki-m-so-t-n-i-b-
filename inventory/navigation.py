@@ -154,13 +154,17 @@ def navigation(request, access):
     return sections
 
 
-def module_navigation(sections, route):
+def module_navigation(sections, route, access=None):
     """Group existing, permission-filtered links without granting new access."""
     warehouse = [s for s in sections if s["label"] != "QUẢN TRỊ HỆ THỐNG"]
     administration = [s for s in sections if s["label"] == "QUẢN TRỊ HỆ THỐNG"]
+    from deviations.navigation import sections as deviation_sections
+
+    deviations = deviation_sections(route, access or {})
     modules = []
     for key, label, icon, groups in [
         ("warehouse", "Quản lý kho", "warehouse", warehouse),
+        ("deviations", "Xử lý sai lệch", "alert", deviations),
         ("processes", "Quy trình", "file", []),
         ("human_resources", "Quản lý nhân sự", "users", []),
         ("administration", "Quản trị hệ thống", "settings", administration),

@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -12,15 +12,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .access import has_function
+from .access import has_function, is_admin
 from .forms import StocktakeCountForm
 from .models import LoanHolding, StocktakeSession
 from .services import can_approve_adjustments, warehouses_for
 from .stocktakes import (
+    active_sessions,
     begin_session,
     cancel_session,
+    delete_session,
     freeze_session,
     product_from_scan,
+    reject_session,
     require_open,
     save_count,
     submit_session,
@@ -36,10 +39,13 @@ def session_for(request, pk):
         if can_approve_adjustments(request.user)
         else warehouses_for(request.user)
     )
+    sessions = StocktakeSession.objects.select_related(
+        "warehouse", "created_by", "counted_by", "document", "deletion__deleted_by"
+    )
+    if not is_admin(request.user):
+        sessions = sessions.filter(deletion__isnull=True)
     return get_object_or_404(
-        StocktakeSession.objects.select_related(
-            "warehouse", "created_by", "counted_by", "document"
-        ),
+        sessions,
         pk=pk,
         warehouse__in=scope,
     )
@@ -69,17 +75,27 @@ def stocktakes(request):
         else StocktakeSession.objects.filter(warehouse__in=warehouses)
     )
     sessions = sessions.select_related(
-        "warehouse", "created_by", "counted_by", "document"
+        "warehouse", "created_by", "counted_by", "document", "deletion__deleted_by"
     )
+    deleted = request.GET.get("deleted") == "1"
+    if deleted and not is_admin(request.user):
+        raise PermissionDenied("Chỉ Admin tổng được xem hồ sơ phiếu đã xóa.")
+    sessions = sessions.filter(deletion__isnull=not deleted)
     ready = sessions.filter(status="READY")
     current = selected_warehouse(request)
     if current:
         sessions = sessions.filter(warehouse=current)
+    page = Paginator(sessions.exclude(status="READY"), 25).get_page(
+        request.GET.get("page")
+    )
     return render(
         request,
         "stocktakes.html",
         {
-            "sessions": sessions.exclude(status="READY")[:100],
+            "sessions": page,
+            "page_obj": page,
+            "deleted_view": deleted,
+            "is_admin": is_admin(request.user),
             "ready_sessions": ready,
             "warehouses": warehouses,
         },
@@ -89,11 +105,21 @@ def stocktakes(request):
 @login_required
 def stocktake_detail(request, pk):
     session = session_for(request, pk)
+    from .services import can_approve
+
     return render(
         request,
         "stocktake_detail.html",
         {
             "session": session,
+            "inventory_locked": active_sessions()
+            .filter(pk=session.pk, locks_inventory=True)
+            .exists(),
+            "can_reject": not session.is_deleted
+            and session.document_id is not None
+            and session.document.status == "DRAFT"
+            and can_approve(session.document, request.user),
+            "can_delete": is_admin(request.user) and not session.is_deleted,
             "expired": session.business_date != timezone.localdate(),
             "items": session.items.select_related("product"),
             "events": session.events.select_related("item__product", "actor")[:100],
@@ -202,12 +228,12 @@ def stocktake_submit(request, pk):
         if doc is None:
             messages.success(
                 request,
-                "Đã chốt biên bản, không có chênh lệch nên không tạo phiếu điều chỉnh. Tồn không đổi.",
+                "Đã chốt biên bản và mở giao dịch kho. Không có chênh lệch nên không tạo phiếu điều chỉnh; tồn không đổi.",
             )
             return redirect("stocktake_detail", pk=pk)
         messages.success(
             request,
-            "Đã chốt biên bản và lập phiếu điều chỉnh chờ Tổng giám đốc duyệt. Tồn chưa thay đổi.",
+            "Đã chốt chênh lệch và mở giao dịch kho. Phiếu điều chỉnh chờ Tổng giám đốc duyệt; tồn chưa thay đổi.",
         )
         return redirect("document_detail", pk=doc.pk)
     except ValidationError as exc:
@@ -222,6 +248,55 @@ def stocktake_cancel(request, pk):
     try:
         cancel_session(pk, request.user, request.POST.get("reason", "")[:1000])
         messages.success(request, "Đã hủy phiên, giữ lịch sử quét; tồn không thay đổi.")
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    return redirect("stocktake_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def stocktake_reject(request, pk):
+    session_for(request, pk)
+    try:
+        raw = request.POST.get("expected_revision", "")
+        if not raw.isascii() or not raw.isdigit() or len(raw) > 10:
+            raise ValidationError("Tải lại phiếu trước khi không duyệt.")
+        reject_session(
+            pk, request.user, request.POST.get("reason", ""), expected_revision=int(raw)
+        )
+        messages.success(
+            request,
+            "Đã không duyệt kiểm kê, giữ nguyên tồn và mở lại giao dịch kho. Kiểm lại bằng phiên mới.",
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    return redirect("stocktake_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def stocktake_delete(request, pk):
+    if not is_admin(request.user):
+        raise PermissionDenied("Chỉ Admin tổng được xóa phiếu kiểm kê.")
+    session_for(request, pk)
+    try:
+        raw = request.POST.get("expected_revision", "")
+        if not raw.isascii() or not raw.isdigit() or len(raw) > 10:
+            raise ValidationError("Tải lại biên bản trước khi xóa.")
+        delete_session(
+            pk,
+            request.user,
+            request.POST.get("reason", ""),
+            confirmation=request.POST.get("confirmation", ""),
+            expected_status=request.POST.get("expected_status", ""),
+            expected_document_status=request.POST.get("expected_document_status", ""),
+            expected_revision=int(raw),
+        )
+        messages.success(
+            request,
+            "Đã xóa phiếu khỏi danh sách sử dụng và giải phóng khóa do phiếu này giữ. Lịch sử và số tồn đã ghi sổ được giữ nguyên.",
+        )
+        return redirect("stocktakes")
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
     return redirect("stocktake_detail", pk=pk)

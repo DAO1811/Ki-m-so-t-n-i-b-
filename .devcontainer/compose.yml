@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/dhd-ksnb:cached
+    working_dir: /workspaces/dhd-ksnb
+    environment:
+      DHD_PREVIEW: "1"
+      DEBUG: "1"
+      DATABASE_URL: postgresql://dhd_preview:preview-only-local@db:5432/dhd_preview
+      PRIVATE_MEDIA_PROVIDER: database
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: dhd_preview
+      POSTGRES_USER: dhd_preview
+      POSTGRES_PASSWORD: preview-only-local
+    volumes:
+      - preview_database:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dhd_preview -d dhd_preview"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  preview_database:

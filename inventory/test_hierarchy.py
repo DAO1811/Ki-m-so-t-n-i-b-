@@ -288,14 +288,15 @@ class HierarchyTests(TestCase):
         self.assertContains(response, "Tên thông tin này đã có")
 
 
-
-
 class HierarchyMigrationTests(TransactionTestCase):
     def test_schema_0016_accounts_documents_drive_and_values_survive(self):
         from . import release_backup as backup
 
         old = [("inventory", "0016_preserve_assigned_function_access")]
-        latest = [("inventory", "0018_product_qr_stocktake_workflow")]
+        latest = sorted(
+            MigrationExecutor(connection).loader.graph.leaf_nodes(),
+            key=lambda node: node[0] != "inventory",
+        )
         try:
             executor = MigrationExecutor(connection)
             executor.migrate(old)
