@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+    <div class="deviation-page deviation-form-page">
+        <div class="page-heading">
+            <div>
+                <a class="back-link" href="{% url 'deviation_detail' case.pk %}">← {{ case.code }}</a>
+                <h1>Phiếu điều tra và phân tích nguyên nhân</h1>
+                <p>Lưu từng phần khi điều tra; hệ thống kiểm tra đầy đủ trước khi gửi duyệt.</p>
+            </div>
+        </div>
+        <form method="post" class="deviation-form" data-deviation-analysis>
+            {% csrf_token %}{{ form.non_field_errors }}
+            {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+            <section class="panel form-panel">
+                <h2>1. Đánh giá tác động ban đầu — 5W1H</h2>
+                <p class="helptext">
+                    Đối chiếu từng câu trả lời với dữ liệu/căn cứ. Nội dung gợi ý lấy từ báo cáo ban đầu, cần xác minh lại.
+                </p>
+                {% for row in form.question_rows %}
+                    <div class="deviation-investigation-row">
+                        <h3>{{ row.label }}</h3>
+                        <div class="form-grid">
+                            {% include 'deviations/_field.html' with field=row.answer %}
+                            {% include 'deviations/_field.html' with field=row.evidence %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </section>
+            {% for section in form.sections %}
+                <section class="panel form-panel">
+                    <h2>{{ section.title }}</h2>
+                    <div class="form-grid">
+                        {% for field in section.fields %}
+                            {% include 'deviations/_field.html' %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+            <section class="panel form-panel">
+                <h2>3b. Phân tích nguyên nhân — xương cá</h2>
+                <p class="helptext">Chọn kết luận và ghi căn cứ cho từng nhóm; không mặc định quy lỗi cho con người.</p>
+                {% for row in form.factor_rows %}
+                    <div class="deviation-investigation-row">
+                        <h3>{{ row.label }}</h3>
+                        <div class="form-grid">
+                            {% include 'deviations/_field.html' with field=row.status %}
+                            {% include 'deviations/_field.html' with field=row.details %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </section>
+            <section class="panel form-panel">
+                <h2>3c. Nguyên nhân tiềm tàng — 5 Why</h2>
+                <p class="helptext">
+                    Mỗi dòng là một nguyên nhân. Điền chuỗi Tại sao liên tục; có thể dừng khi đã tìm được nguyên nhân, không tạo câu trả lời giả để đủ 5.
+                </p>
+                {{ whys.management_form }}{{ whys.non_form_errors }}
+                <div data-why-rows>
+                    {% for why in whys %}
+                        <fieldset class="deviation-why-row">
+                            <legend>Nguyên nhân {{ forloop.counter }}</legend>
+                            {{ why.non_field_errors }}
+                            <div class="form-grid">
+                                {% for field in why %}
+                                    {% include 'deviations/_field.html' %}
+                                {% endfor %}
+                            </div>
+                        </fieldset>
+                    {% endfor %}
+                </div>
+                <template data-why-template>
+                    <fieldset class="deviation-why-row">
+                        <legend>Nguyên nhân bổ sung</legend>
+                        <div class="form-grid">
+                            {% for field in whys.empty_form %}
+                                {% include 'deviations/_field.html' %}
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                </template>
+                <button class="button secondary small" type="button" data-add-why>+ Thêm nguyên nhân</button>
+            </section>
+            <section class="panel form-panel">
+                <h2>4. Đánh giá nguy cơ xảy ra</h2>
+                <div class="form-grid">
+                    {% for field in form.risk_fields %}
+                        {% include 'deviations/_field.html' %}
+                    {% endfor %}
+                </div>
+                <div class="deviation-notice">
+                    RIV = Khả năng xảy ra × Hậu quả: <output data-risk-score>Chưa đánh giá</output>. <span data-risk-band></span>
+                </div>
+                <p class="helptext">
+                    Dưới 5: thấp · 5–9: trung bình · Từ 10: cao. Phân loại Nhỏ/Lớn/Nghiêm trọng do người có quyền chọn theo căn cứ, không tự quy đổi từ RIV.
+                </p>
+            </section>
+            <section class="panel form-panel">
+                <h2>5. Kết luận nguyên nhân và phân loại</h2>
+                <div class="form-grid">
+                    {% for field in form.conclusion_fields %}
+                        {% include 'deviations/_field.html' %}
+                    {% endfor %}
+                </div>
+            </section>
+            <div class="form-actions">
+                <button class="button">Lưu điều tra</button>
+                <a class="button secondary" href="{% url 'deviation_detail' case.pk %}">Quay lại</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+{% block scripts %}
+    <script src="{% static 'deviation-form.js' %}" defer></script>
+{% endblock %}

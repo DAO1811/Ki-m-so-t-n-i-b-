@@ -1,0 +1,41 @@
+<article class="deviation-action">
+    <div class="deviation-action-heading">
+        <h3>{{ run.stage_label }} · Lượt {{ run.round }} / Lần gửi {{ run.cycle }}</h3>
+        <span class="deviation-badge">{{ run.get_status_display }}</span>
+    </div>
+    <p>
+        Người gửi: {{ run.proposer_name }}
+        {% if run.proposer_job_title %}· {{ run.proposer_job_title }}{% endif %}
+        · {{ run.created_at|date:'d/m/Y H:i' }}
+    </p>
+    <ol class="deviation-approval-steps">
+        {% for step in run.steps %}
+            <li {% if step.current %}aria-current="step"{% endif %}>
+                <strong>{{ step.label }}</strong>
+                {% if step.decision %}
+                    <span>{{ step.decision.get_decision_display }} · {{ step.decision.actor_name }}
+                        {% if step.decision.actor_job_title %}· {{ step.decision.actor_job_title }}{% endif %}
+                    · {{ step.decision.created_at|date:'d/m/Y H:i' }}</span>
+                    {% if step.decision.classification %}
+                        <p>
+                            Phân loại đã chọn: <strong>{{ step.decision.get_classification_display }}</strong>
+                        </p>
+                    {% endif %}
+                    {% if step.decision.reason %}<p>{{ step.decision.reason }}</p>{% endif %}
+                    {% if step.decision.admin_override %}<small>Admin xử lý thay người được phân công.</small>{% endif %}
+                    {% if step.decision.self_confirmed %}<small>Đã xác nhận cảnh báo Admin tự duyệt / kiêm nhiệm.</small>{% endif %}
+                {% else %}
+                    <span>{{ step.assigned }} ·
+                        {% if step.current %}
+                            Đang chờ xác nhận
+                        {% else %}
+                            Chưa đến bước
+                        {% endif %}
+                    </span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+    <a href="{% url 'deviation_approval_print' case.pk run.pk %}"
+       target="_blank"
+       rel="noopener">Xem bản đã gửi và các xác nhận →</a></article>

@@ -8,6 +8,8 @@ class CaseStatus(models.TextChoices):
     REPORTED = "REPORTED", "Đã ghi nhận"
     NEEDS_INFO = "NEEDS_INFO", "Cần bổ sung thông tin"
     INVESTIGATING = "INVESTIGATING", "Đang xác minh"
+    ANALYSIS_REVIEW = "ANALYSIS_REVIEW", "Chờ duyệt điều tra"
+    PLAN_REVIEW = "PLAN_REVIEW", "Chờ duyệt kế hoạch CAPA"
     PLANNING = "PLANNING", "Đang lập kế hoạch"
     EXECUTING = "EXECUTING", "Đang thực hiện"
     VERIFYING = "VERIFYING", "Chờ đánh giá hiệu quả"
@@ -27,6 +29,7 @@ class ActionKind(models.TextChoices):
     IMMEDIATE = "IMMEDIATE", "Xử lý tức thời"
     CORRECTIVE = "CORRECTIVE", "Khắc phục nguyên nhân"
     PREVENTIVE = "PREVENTIVE", "Phòng ngừa tái diễn"
+    COMBINED = "COMBINED", "Khắc phục & phòng ngừa"
 
 
 SEVERITIES = [
@@ -56,6 +59,7 @@ READ_ROUTES = {
     "deviation_detail",
     "deviation_reports",
     "deviation_print",
+    "deviation_approval_print",
     "deviation_file",
 }
 ROUTE_PERMISSIONS = {
@@ -67,12 +71,14 @@ ROUTE_PERMISSIONS = {
     "deviation_action_edit": "deviations_manage",
     "deviation_action_work": "deviations_work",
     "deviation_extension": "deviations_work",
-    "deviation_extension_decide": "deviations_review",
+    "deviation_extension_decide": "authenticated",
     "deviation_settings": "admin",
     "deviation_category": "admin",
     "deviation_category_edit": "admin",
     "deviation_transition": "authenticated",
     "deviation_upload": "authenticated",
     "deviation_void_file": "admin",
-    "deviation_evaluate": "deviations_review",
+    "deviation_evaluate": "authenticated",
+    "deviation_approval_decide": "authenticated",
+    "deviation_approval_recall": "authenticated",
 }

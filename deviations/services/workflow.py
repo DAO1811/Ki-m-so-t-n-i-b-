@@ -39,6 +39,19 @@ def guard_actions(case, *, completed=False):
 def transition(
     pk, user, revision, command, *, reason="", confirm=False, duplicate_of=None
 ):
+    # New forms have their own serial approvals; never fall through V1 shortcuts.
+    candidate = Case.objects.filter(pk=pk).only("form_version").first()
+    if candidate and candidate.form_version >= 2:
+        from .form_workflow import transition_locked
+
+        return transition_locked(
+            locked_case(pk, revision),
+            user,
+            command,
+            reason,
+            confirm,
+            duplicate_of=duplicate_of,
+        )
     spec = TRANSITIONS.get(command)
     if spec is None:
         raise ValidationError("Thao tác không hợp lệ.")
@@ -141,7 +154,7 @@ def evaluate(
     actors = active_actors(user, case.created_by)
     user, case.created_by = actors[user.pk], actors[case.created_by_id]
     require_enabled()
-    access.review(case, user, confirm)
+    access.control_review(case, user, confirm)
     if case.status != CaseStatus.VERIFYING:
         raise ValidationError("Chỉ đánh giá hồ sơ đang chờ đánh giá hiệu quả.")
     guard_actions(case, completed=True)
@@ -158,6 +171,28 @@ def evaluate(
         raise ValidationError(
             "Ghi tiêu chí, kết quả, kết luận và thời điểm kiểm tra hợp lệ sau khi báo cáo."
         )
+    if case.form_version >= 2:
+        capa = (
+            case.approval_runs.filter(stage="CAPA", round=case.round, status="APPROVED")
+            .order_by("-pk")
+            .first()
+        )
+        if not capa:
+            raise ValidationError("Chưa có kế hoạch CAPA được duyệt cho lượt này.")
+        earliest = max(
+            [capa.finished_at]
+            + list(
+                case.actions.filter(round=case.round).values_list(
+                    "completed_at", flat=True
+                )
+            )
+        )
+        if checked_at.replace(second=0, microsecond=0) < earliest.replace(
+            second=0, microsecond=0
+        ):
+            raise ValidationError(
+                "Thời điểm đánh giá không được trước khi hoàn thành CAPA."
+            )
     before = snapshot(case)
     evaluation = Evaluation(
         case=case,
@@ -169,12 +204,19 @@ def evaluate(
         checked_by=user,
         policy_snapshot=case.policy_snapshot,
     )
+    if case.form_version >= 2:
+        from .form_data import display_name, job_title
+
+        evaluation.checked_by_name = display_name(user)
+        evaluation.checked_by_job_title = job_title(user)
     evaluation.full_clean()
     evaluation.save()
     if effective:
         case.status, case.closed_at = CaseStatus.CLOSED, timezone.now()
     else:
-        case.status = CaseStatus.PLANNING
+        case.status = (
+            CaseStatus.INVESTIGATING if case.form_version >= 2 else CaseStatus.PLANNING
+        )
         case.round += 1
     return record(
         case,

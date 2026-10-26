@@ -4533,3 +4533,228 @@ pre.deviation-audit {
     widows: 3;
   }
 }
+
+/* Approved company forms: contained tables and serial approval cards. */
+.deviation-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 15px 0;
+}
+
+.deviation-table-scroll table {
+  min-width: 660px;
+}
+
+.deviation-table-scroll td {
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.deviation-approval-steps {
+  display: grid;
+  gap: 12px;
+  padding-left: 24px;
+}
+
+.deviation-approval-steps li {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.deviation-approval-steps li[aria-current] {
+  background: var(--accent-soft);
+  border-color: var(--accent-ink);
+}
+
+.deviation-approval-steps span,
+.deviation-approval-steps small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.deviation-investigation-row {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 8px;
+}
+
+.deviation-why-row {
+  min-width: 0;
+  border: 1px solid var(--line);
+  padding: 18px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+
+.deviation-why-row legend {
+  color: var(--accent-ink);
+  padding: 0 8px;
+}
+
+.deviation-paper {
+  padding-top: 20px;
+  margin-top: 25px;
+  border-top: 1px solid var(--line);
+}
+
+@media print {
+  .deviation-paper {
+    break-before: page;
+  }
+
+  .deviation-paper:first-of-type {
+    break-before: auto;
+  }
+
+  .deviation-print-v2 .deviation-table-scroll {
+    overflow: visible;
+  }
+
+  .deviation-print-v2 table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+    font-size: 10px;
+  }
+
+  .deviation-print-v2 td,
+  .deviation-print-v2 th {
+    padding: 7px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .deviation-print-v2 .deviation-action {
+    break-inside: avoid;
+  }
+
+  .deviation-print-v2 a {
+    color: inherit;
+  }
+}
+
+@page deviation-v2 {
+  size: A4;
+  margin: 14mm 12mm;
+
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-size: 9px;
+    color: #697383;
+  }
+}
+
+@media print {
+  .deviation-print-v2 {
+    page: deviation-v2;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .deviation-print-v2 h1 {
+    font-size: 21px;
+    line-height: 1.35;
+  }
+
+  .deviation-print-v2 h2 {
+    font-size: 17px;
+  }
+
+  .deviation-print-v2 h3 {
+    font-size: 14px;
+    margin: 10px 0 6px;
+  }
+
+  .deviation-print-v2 h4 {
+    font-size: 13px;
+    margin: 12px 0 6px;
+  }
+
+  .deviation-print-v2 h2,
+  .deviation-print-v2 h3,
+  .deviation-print-v2 h4 {
+    break-after: avoid;
+  }
+
+  .deviation-print-v2 .deviation-table-scroll {
+    break-before: avoid;
+  }
+
+  .deviation-print-v2 .deviation-facts {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .deviation-print-v2 .deviation-paper {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .deviation-print-v2 .deviation-action {
+    padding: 12px;
+    margin: 12px 0;
+  }
+
+  .deviation-print-v2 .deviation-approval-steps {
+    gap: 6px;
+    display: flex;
+    padding: 0;
+    list-style-position: inside;
+  }
+
+  .deviation-print-v2 .deviation-approval-steps li {
+    flex: 1;
+    min-width: 0;
+    padding: 7px;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .deviation-print-v2 .deviation-action>a {
+    display: none;
+  }
+
+  .deviation-print-v2 .deviation-action p,
+  .deviation-print-v2 .deviation-approval-steps span,
+  .deviation-print-v2 .deviation-approval-steps small {
+    font-size: 11px;
+  }
+
+  .deviation-print-v2 .deviation-prose {
+    line-height: 1.5;
+  }
+
+  .deviation-print-v2 p {
+    margin: 7px 0;
+  }
+
+  .deviation-print-v2 thead {
+    display: table-header-group;
+  }
+
+  .deviation-print-v2 tr {
+    break-inside: avoid;
+  }
+}
+
+.deviation-investigation-row .form-grid>.field,
+.deviation-why-row .form-grid>.field {
+  grid-column: auto;
+}
+
+.deviation-why-row .form-grid>.field:first-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 700px) {
+
+  .deviation-investigation-row .form-grid,
+  .deviation-why-row .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

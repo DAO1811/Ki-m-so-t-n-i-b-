@@ -128,6 +128,11 @@ FUNCTION_ROWS = [
             ("manage", "Tiếp nhận / phân công / quản lý hồ sơ được giao"),
             ("work", "Thực hiện công việc được giao"),
             ("review", "Xem xét kế hoạch / gia hạn / đánh giá / kết thúc theo quy tắc"),
+            ("department_approve", "Trưởng bộ phận: duyệt báo cáo sai lệch"),
+            ("specialist_approve", "TBP chuyên môn: duyệt điều tra nguyên nhân"),
+            ("related_approve", "Bộ phận liên quan: duyệt kế hoạch CAPA"),
+            ("control_approve", "KSNB: duyệt theo mẫu, gia hạn, đánh giá và kết thúc"),
+            ("director_approve", "Tổng giám đốc: duyệt kế hoạch CAPA"),
         ],
     ),
 ]

@@ -24,7 +24,9 @@ from .services.common import (
 
 
 def can_upload(case, user):
-    if case.is_terminal:
+    if case.is_terminal or (
+        case.form_version >= 2 and case.approval_runs.filter(status="PENDING").exists()
+    ):
         return False
     return bool(
         is_admin(user)
@@ -128,6 +130,10 @@ def void_attachment(pk, user, revision, attachment_id, reason):
     user = active_actors(user)[user.pk]
     if not is_admin(user):
         raise PermissionDenied
+    if case.form_version >= 2 and case.approval_runs.filter(status="PENDING").exists():
+        raise ValidationError(
+            "Rút phiếu trước khi thay đổi bằng chứng đang được xác nhận."
+        )
     if case.is_terminal:
         raise ValidationError(
             "Mở lại hồ sơ đúng quy trình trước khi thay đổi việc sử dụng bằng chứng."

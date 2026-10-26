@@ -23,7 +23,7 @@ def health(request):
                 app="inventory", name="0018_product_qr_stocktake_workflow"
             ).exists()
             and MigrationRecorder.Migration.objects.filter(
-                app="deviations", name="0003_category_revision"
+                app="deviations", name="0005_reviewer_classification"
             ).exists()
         )
         snapshot = snapshot_status()

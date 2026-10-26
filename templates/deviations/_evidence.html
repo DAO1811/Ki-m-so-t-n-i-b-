@@ -1,0 +1,70 @@
+<section id="evidence" class="panel form-panel">
+    <h2>5. Bằng chứng & lịch sử</h2>
+    {% if can_upload %}
+        <details class="deviation-section">
+            <summary>+ Bổ sung ảnh / PDF</summary>
+            <p class="helptext">Tối đa 8 MB/tệp · JPG, PNG, WebP, PDF · Tối đa 50 tệp/hồ sơ.</p>
+            <form method="post"
+                  enctype="multipart/form-data"
+                  action="{% url 'deviation_upload' case.pk %}"
+                  class="deviation-form">
+                {% csrf_token %}{{ upload_form.as_p }}
+                <button class="button">Lưu bằng chứng</button>
+            </form>
+        </details>
+    {% endif %}
+    {% for item in attachments %}
+        <article class="deviation-attachment">
+            <div>
+                <a href="{% url 'deviation_file' item.pk %}"
+                   target="_blank"
+                   rel="noopener">{{ item.filename }}</a> · {{ item.file.size|filesizeformat }}
+                <p>{{ item.description }}</p>
+                <small>{{ item.uploaded_by }} · {{ item.created_at|date:'d/m/Y H:i' }} · Lượt {{ item.round }}
+                    {% if item.action %}· {{ item.action.title }}{% endif %}
+                </small>
+                {% if item.voided_at %}
+                    <p class="deviation-danger">Không sử dụng: {{ item.void_reason }} · {{ item.voided_by }}</p>
+                {% endif %}
+            </div>
+            {% if is_admin and not item.voided_at and not case.is_terminal %}
+                <details>
+                    <summary>Đánh dấu không sử dụng</summary>
+                    <form method="post"
+                          action="{% url 'deviation_void_file' case.pk item.pk %}"
+                          class="deviation-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="revision" value="{{ case.revision }}">
+                        <label for="void-reason-{{ item.pk }}">Lý do *</label>
+                        <input id="void-reason-{{ item.pk }}"
+                               name="reason"
+                               maxlength="1000"
+                               required>
+                        <button class="button secondary small">Xác nhận, giữ bản gốc</button>
+                    </form>
+                </details>
+            {% endif %}
+        </article>{% empty %}
+        <p class="helptext">Chưa có tệp bằng chứng.</p>
+    {% endfor %}
+    <h3>Lịch sử thay đổi</h3>
+    {% for event in events %}
+        <details class="deviation-event">
+            <summary>
+                <strong>{{ event.action }}</strong><small>{{ event.created_at|date:'d/m/Y H:i:s' }} · {{ event.actor }}
+                    {% if event.reason %}· {{ event.reason }}{% endif %}
+                </small>
+            </summary>
+            <div class="deviation-audit">
+                <strong>Trước</strong><pre>{{ event.before }}</pre><strong>Sau</strong><pre>{{ event.after }}</pre>
+            </div>
+        </details>
+    {% endfor %}
+    {% include 'pagination.html' %}
+    {% if case.policy_snapshot %}
+        <details class="deviation-event">
+            <summary>Phiên bản quy tắc đã chốt cho hồ sơ</summary>
+            <pre class="deviation-audit">{{ case.policy_snapshot }}</pre>
+        </details>
+    {% endif %}
+</section>

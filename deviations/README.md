@@ -64,3 +64,8 @@ python manage.py makemigrations --check --dry-run
 ```
 
 Chạy thử giao diện bằng Python và PostgreSQL riêng theo README gốc. Chỉ push nhánh preview; không merge main hoặc gọi deploy trước khi chủ phần mềm xem và chấp thuận đúng bản thử. Tệp Drive thực tế cần kiểm tra đọc/ghi trong môi trường thử đã được chủ thư mục cấp quyền; kiểm thử tự động giả lập HTTP không thay thế bước này.
+
+
+## Biểu mẫu công ty phiên bản 2 — bản thử
+
+Áp dụng biểu mẫu mới và các quyết định ngày 26/10/2026; xem [đối chiếu và kiểm soát](../docs/DEVIATION_FORM_2026_10_26.md). Hồ sơ cũ vẫn phiên bản 1. Các bản gửi V2 chụp nội dung/thứ tự/người duyệt, có trả lại và rút có lý do; KSNB đánh giá và kết thúc theo phân công. Không tự phát hành bản thử.

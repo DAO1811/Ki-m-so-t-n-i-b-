@@ -1,0 +1,286 @@
+{% with d=document.data %}
+    {% if document.stage == 'REPORT' %}
+        <dl class="deviation-facts">
+            <div>
+                <dt>Ngày giờ xảy ra</dt>
+                <dd>
+                    {{ document.occurred }}
+                </dd>
+            </div>
+            <div>
+                <dt>Ngày giờ phát hiện</dt>
+                <dd>
+                    {{ document.detected }}
+                </dd>
+            </div>
+            <div>
+                <dt>Đã báo Trưởng bộ phận lúc</dt>
+                <dd>
+                    {{ document.reported }}
+                </dd>
+            </div>
+            <div>
+                <dt>Người lập — chức danh</dt>
+                <dd>
+                    {{ d.reporter_name }} · {{ d.reporter_job_title }}
+                </dd>
+            </div>
+        </dl>
+        <h3>2. Mô tả sai lệch</h3>
+        <dl class="deviation-facts">
+            <div>
+                <dt>2.1. Ai phát hiện?</dt>
+                <dd>
+                    {{ d.discoverer_name|default:'Chưa bổ sung' }} · {{ d.discoverer_job_title }}
+                </dd>
+            </div>
+            <div>
+                <dt>2.2. Khi nào?</dt>
+                <dd>
+                    {{ document.detected }}
+                </dd>
+            </div>
+            <div>
+                <dt>2.3. Ở đâu?</dt>
+                <dd>
+                    {{ d.location|default:'Chưa bổ sung' }}
+                </dd>
+            </div>
+        </dl>
+        <h4>2.4. Điều gì xảy ra?</h4>
+        <div class="deviation-prose">{{ d.actual|linebreaksbr }}</div>
+        <h4>2.5. Cái gì thay đổi?</h4>
+        <div class="deviation-prose">{{ d.what_changed|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h4>2.6. Phát hiện bằng cách nào?</h4>
+        <div class="deviation-prose">{{ d.detection_method|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h3>3. Phân tích chênh lệch</h3>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thực tế</th>
+                        <th>Điều nên xảy ra</th>
+                        <th>Phân tích chênh lệch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ d.actual|linebreaksbr }}</td>
+                        <td>{{ d.expected|linebreaksbr }}</td>
+                        <td>{{ d.gap_analysis|default:'Chưa bổ sung'|linebreaksbr }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <h3>4. Nghi vấn / nhận xét đặc biệt</h3>
+        <div class="deviation-prose">{{ d.special_comments|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h3>5. Biện pháp tức thời đã thực hiện</h3>
+        <div class="deviation-prose">{{ d.immediate_response|default:'Chưa bổ sung'|linebreaksbr }}</div>
+    {% elif document.stage == 'ANALYSIS' %}
+        <h3>1. Đánh giá tác động ban đầu — 5W1H</h3>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>5W1H</th>
+                        <th>Trả lời</th>
+                        <th>Dữ liệu / căn cứ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in document.questions %}
+                        <tr>
+                            <th>{{ row.label }}</th>
+                            <td>{{ row.answer|default:'Chưa bổ sung'|linebreaksbr }}</td>
+                            <td>{{ row.evidence|default:'Chưa bổ sung'|linebreaksbr }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <h3>2. Phân tích chênh lệch</h3>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Điều đã xảy ra</th>
+                        <th>Điều nên xảy ra</th>
+                        <th>Chênh lệch</th>
+                        <th>Khâu ảnh hưởng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ d.findings|linebreaksbr }}</td>
+                        <td>{{ d.investigation_expected|linebreaksbr }}</td>
+                        <td>{{ d.investigation_gap|linebreaksbr }}</td>
+                        <td>{{ d.affected_steps|linebreaksbr }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <h3>3. Chi tiết điều tra nguyên nhân</h3>
+        <p>Đã từng xảy ra: {{ d.has_history|yesno:'Có,Không,Chưa xác định' }}</p>
+        <h4>Lịch sử và kết quả tra cứu</h4>
+        <div class="deviation-prose">{{ d.history_details|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h4>Trình tự sự cố</h4>
+        <div class="deviation-prose">{{ d.event_sequence|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h4>Phân tích xương cá</h4>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nhóm nguyên nhân</th>
+                        <th>Kết luận</th>
+                        <th>Diễn giải / căn cứ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in document.factors %}
+                        <tr>
+                            <th>{{ row.label }}</th>
+                            <td>{{ row.conclusion }}</td>
+                            <td>{{ row.details|default:'Chưa bổ sung'|linebreaksbr }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <h4>Phân tích 5 Why</h4>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nguyên nhân</th>
+                        <th>Tại sao 1</th>
+                        <th>Tại sao 2</th>
+                        <th>Tại sao 3</th>
+                        <th>Tại sao 4</th>
+                        <th>Tại sao 5</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in d.five_whys %}
+                        <tr>
+                            <td>{{ row.cause }}</td>
+                            <td>{{ row.why1 }}</td>
+                            <td>{{ row.why2 }}</td>
+                            <td>{{ row.why3 }}</td>
+                            <td>{{ row.why4 }}</td>
+                            <td>{{ row.why5 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">Chưa bổ sung.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <h4>Nhân tố liên quan nguyên nhân và hậu quả</h4>
+        <div class="deviation-prose">{{ d.causal_factors|linebreaksbr }}</div>
+        <h3>4. Đánh giá nguy cơ</h3>
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Khả năng xảy ra</th>
+                        <th>Hậu quả</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in document.risk_scale %}
+                        <tr>
+                            <td>
+                                {% if row.likelihood_selected %}
+                                    ☑
+                                {% else %}
+                                    ☐
+                                {% endif %}
+                                {{ row.number }} — {{ row.likelihood }}
+                            </td>
+                            <td>
+                                {% if row.consequence_selected %}
+                                    ☑
+                                {% else %}
+                                    ☐
+                                {% endif %}
+                                {{ row.number }} — {{ row.consequence }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p>
+            RIV = {{ d.likelihood|default:'—' }} × {{ d.consequence|default:'—' }} = <strong>{{ document.score|default_if_none:'—' }}</strong> · Nguy cơ <strong>{{ document.risk_level }}</strong>
+        </p>
+        <div class="deviation-prose">{{ d.risk_details|linebreaksbr }}</div>
+        <h3>5. Phân loại sai lệch</h3>
+        <p>
+            Đề xuất: {{ document.proposed_severity_label }}
+            {% if document.final_severity_label %}
+                · Kết luận KSNB: <strong>{{ document.final_severity_label }}</strong>
+            {% else %}
+                · Chờ kết luận cấp duyệt
+            {% endif %}
+        </p>
+        <h3>6. Kết luận nguyên nhân cơ bản</h3>
+        <h4>Nguyên nhân trực tiếp</h4>
+        <div class="deviation-prose">{{ d.direct_cause|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h4>Nguyên nhân gốc rễ</h4>
+        <div class="deviation-prose">{{ d.root_cause|default:'Chưa bổ sung'|linebreaksbr }}</div>
+        <h4>Phạm vi tác động và người / bộ phận liên quan</h4>
+        <div class="deviation-prose">{{ d.impact|linebreaksbr }}</div>
+        <div class="deviation-prose">{{ d.related_people|linebreaksbr }}</div>
+    {% else %}
+        <div class="deviation-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>STT / Mã CAPA</th>
+                        <th>Phân loại</th>
+                        <th>Tồn tại</th>
+                        <th>Khắc phục</th>
+                        <th>Ngăn ngừa</th>
+                        <th>Trách nhiệm</th>
+                        <th>Thời hạn</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in document.rows %}
+                        <tr>
+                            <td>
+                                {{ forloop.counter }}
+                                <br>
+                                {{ row.code }}
+                            </td>
+                            <td>{{ row.kind_label }}</td>
+                            <td>{{ row.problem|linebreaksbr }}</td>
+                            <td>{{ row.corrective_action|linebreaksbr }}</td>
+                            <td>{{ row.preventive_action|linebreaksbr }}</td>
+                            <td>
+                                {{ row.assignee_name }}
+                                <br>
+                                {{ row.responsible_department }}
+                            </td>
+                            <td>{{ row.due_date }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">Chưa lập kế hoạch cho lượt này.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endwith %}
+{% if document.evidence %}
+    <h3>Bằng chứng kèm bản này</h3>
+    {% for item in document.evidence %}
+        <p>
+            <a href="{% url 'deviation_file' item.id %}">{{ item.filename }}</a> · {{ item.description }}
+        </p>
+    {% endfor %}
+{% endif %}

@@ -4,9 +4,11 @@ from django.utils import timezone
 
 from deviations import access
 from deviations.constants import ActionStatus, CaseStatus
+from deviations.form_schema import ACTION_EXTRA
 from deviations.models import Action, Extension
 from inventory.access import has_function
 
+from . import form_data
 from .common import active_actors, locked_case, reason_required, record, snapshot
 from .policies import require_enabled
 
@@ -41,6 +43,8 @@ def save_action(pk, user, revision, data, *, action_id=None, action_revision=Non
         raise ValidationError(
             "Chỉ sửa kế hoạch trong bước xác minh/lập kế hoạch; không thay kế hoạch đã xác nhận."
         )
+    if case.form_version >= 2 and case.status != CaseStatus.PLANNING:
+        raise ValidationError("Chỉ lập/sửa CAPA sau khi điều tra đã được duyệt.")
     if not assignee.is_active or not has_function(assignee, "deviations_work"):
         raise ValidationError(
             "Người thực hiện cần tài khoản hoạt động và quyền thực hiện công việc sai lệch."
@@ -54,6 +58,11 @@ def save_action(pk, user, revision, data, *, action_id=None, action_revision=Non
     old = action_snapshot(action) if action_id else {}
     for key in ("kind", "title", "assignee", "collaborators", "due_date"):
         setattr(action, key, data[key])
+    if case.form_version >= 2:
+        for key in ACTION_EXTRA:
+            if key in data:
+                setattr(action, key, data[key])
+        form_data.action(action)
     if action_id:
         action.revision += 1
     action.full_clean()
@@ -179,7 +188,7 @@ def decide_extension(
     actors = active_actors(user, case.created_by)
     user, case.created_by = actors[user.pk], actors[case.created_by_id]
     require_enabled()
-    access.review(case, user, confirm, extra_people=[extension.requested_by_id])
+    access.control_review(case, user, confirm, extra_people=[extension.requested_by_id])
     action = Action.objects.select_for_update().get(pk=extension.action_id)
     if (
         type(approve) is not bool
