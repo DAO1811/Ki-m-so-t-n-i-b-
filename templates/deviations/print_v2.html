@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>{{ case.code }} · Bộ hồ sơ sai lệch</title>
+        <link rel="stylesheet" href="{% static 'app.css' %}">
+    </head>
+    <body class="deviation-print deviation-print-v2 deviation-page">
+        <a class="back-link" href="{% url 'deviation_detail' case.pk %}">← Về hồ sơ</a>
+        <header>
+            <p>DHD · KIỂM SOÁT NỘI BỘ</p>
+            <h1>{{ case.code }} — {{ document_title }}</h1>
+            <p>{{ case.get_status_display }} · Lượt xử lý {{ case.round }}</p>
+        </header>
+        {% for document in documents %}
+            <article class="deviation-paper">
+                <h2>{{ document.title|upper }}</h2>
+                <p>
+                    Bộ phận: {{ document.department }}
+                    {% if document.run %}
+                        · Lượt {{ document.run.round }} / Lần gửi {{ document.run.cycle }} · {{ document.run.get_status_display }}
+                    {% else %}
+                        · BẢN ĐANG SOẠN — CHƯA XÁC NHẬN
+                    {% endif %}
+                </p>
+                {% include 'deviations/_form_document.html' %}
+                {% if document.run %}
+                    {% include 'deviations/_approval_run.html' with run=document.run %}
+                {% endif %}
+            </article>
+        {% endfor %}
+        {% if not single_run %}
+            <article class="deviation-paper">
+                <h2>ĐÁNH GIÁ HIỆU QUẢ & KẾT THÚC</h2>
+                <h3>Kết quả thực hiện CAPA</h3>
+                <p>Kết quả cập nhật sau phê duyệt; kế hoạch gốc và các xác nhận được giữ ở phần trên.</p>
+                {% for action in work_actions %}
+                    <h4>{{ action.capa_code }} · Lượt {{ action.round }} · {{ action.get_status_display }}</h4>
+                    <p>{{ action.title }} · Hạn hiện tại: {{ action.due_date|date:'d/m/Y' }}</p>
+                    <p>Hoàn thành: {{ action.completed_at|date:'d/m/Y H:i'|default:'Chưa hoàn thành' }}</p>
+                    <div class="deviation-prose">{{ action.result|default:'Chưa có kết quả'|linebreaksbr }}</div>
+                {% empty %}
+                    <p>Chưa có công việc CAPA.</p>
+                {% endfor %}
+                {% for item in evaluations %}
+                    <h3>
+                        Lượt {{ item.round }} —
+                        {% if item.effective %}
+                            Có hiệu quả
+                        {% else %}
+                            Chưa hiệu quả
+                        {% endif %}
+                    </h3>
+                    <p>KSNB xác nhận: {{ item.checked_by_name|default:item.checked_by }} · {{ item.checked_at|date:'d/m/Y H:i' }}</p>
+                    <h4>Tiêu chí</h4>
+                    {{ item.criteria|linebreaks }}
+                    <h4>Kết quả</h4>
+                    {{ item.result|linebreaks }}{% empty %}
+                    <p>Chưa có kết quả đánh giá; hồ sơ chưa được xác nhận kết thúc.</p>
+                {% endfor %}
+                <h3>Tệp bằng chứng</h3>
+                {% for item in attachments %}
+                    <p>
+                        {{ item.filename }} · {{ item.description }}
+                        {% if item.voided_at %}· Không sử dụng: {{ item.void_reason }}{% endif %}
+                    </p>
+                {% endfor %}
+                <h3>Tra cứu các lần gửi cũ</h3>
+                {% for run in runs %}
+                    <p>
+                        <a href="{% url 'deviation_approval_print' case.pk run.pk %}">{{ run.get_stage_display }} · Lượt {{ run.round }} / Lần gửi {{ run.cycle }} · {{ run.get_status_display }}</a>
+                    </p>
+                {% endfor %}
+            </article>
+        {% endif %}
+        <p class="helptext">
+            Xác nhận ghi nhận theo tài khoản và thời điểm trên phần mềm. In hoặc lưu PDF bằng Ctrl+P. Các bản đã gửi được lưu riêng cùng nội dung và kết quả xác nhận.
+        </p>
+    </body>
+</html>

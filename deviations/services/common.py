@@ -26,10 +26,23 @@ def record(case, actor, action, before, reason="", extra=None):
     case.revision += 1
     case.save()
     after = snapshot(case)
+    event_before = before
+    if case.form_version >= 2:
+        # A full signed submission lives on ApprovalRun. Avoid repeating every
+        # long analysis field for each signature while retaining actual changes.
+        changed = {key for key, value in after.items() if value != before.get(key)}
+        event_before = {key: before.get(key) for key in changed}
+        after = {key: after[key] for key in changed}
+        after["_format"] = "delta-v2"
     if extra:
         after.update(extra)
     Event.objects.create(
-        case=case, actor=actor, action=action, before=before, after=after, reason=reason
+        case=case,
+        actor=actor,
+        action=action,
+        before=event_before,
+        after=after,
+        reason=reason,
     )
     return case
 

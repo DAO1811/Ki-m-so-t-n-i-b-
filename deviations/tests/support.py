@@ -4,8 +4,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from deviations.models import Category, WorkflowPolicy
+from deviations.models import Case, Category, Event, WorkflowPolicy
 from deviations.services import actions, cases, policies, workflow
+from deviations.services.common import snapshot
+from inventory.hierarchy import approval_level
 from inventory.test_support import grant_functions
 
 
@@ -45,7 +47,16 @@ class DeviationTestCase(TestCase):
         )
 
     def create(self, user=None):
-        return cases.create_case(user or self.maker, self.payload())
+        # Existing-production dossiers predate the company form. Keep this V1
+        # regression fixture independent from the new V2 creation service.
+        actor = user or self.maker
+        case = Case.objects.create(
+            created_by=actor, creator_level=approval_level(actor), **self.payload()
+        )
+        Event.objects.create(
+            case=case, actor=actor, action="Tạo hồ sơ", after=snapshot(case)
+        )
+        return case
 
     def enable(self, **overrides):
         data = dict(

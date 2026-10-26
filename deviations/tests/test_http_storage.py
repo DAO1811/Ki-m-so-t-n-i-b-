@@ -69,6 +69,18 @@ class HttpTests(DeviationTestCase):
             department="Vận hành",
             actual="Thiếu biên bản",
             detected_at="2026-01-01T09:00",
+            reported_at="2026-01-01T09:01",
+            reporter_job_title="Nhân viên",
+            discoverer_name="Người phát hiện giả lập",
+            discoverer_job_title="Nhân viên",
+            location="Văn phòng",
+            what_changed="Thiếu hồ sơ",
+            detection_method="Đối chiếu",
+            expected="Đủ hồ sơ",
+            gap_analysis="Thiếu một biên bản",
+            immediate_response="Đã báo cáo TBP",
+            department_reviewer=self.admin.pk,
+            control_reviewer=self.admin.pk,
         )
         response = self.client.post(reverse("deviation_new"), data)
         self.assertEqual(response.status_code, 302)

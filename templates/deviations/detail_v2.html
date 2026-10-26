@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+    <div class="deviation-page">
+        <div class="page-heading">
+            <div>
+                <a class="back-link" href="{% url 'deviation_list' %}">← Hồ sơ sai lệch</a>
+                <h1>{{ case.code }}</h1>
+                <p>{{ case.title }} · Biểu mẫu công ty</p>
+            </div>
+            <div class="deviation-buttons">
+                {% if can_edit %}
+                    <a class="button" href="{% url 'deviation_edit' case.pk %}">Sửa báo cáo</a>
+                {% endif %}
+                <a class="button secondary"
+                   href="{% url 'deviation_print' case.pk %}"
+                   target="_blank"
+                   rel="noopener">In bộ hồ sơ</a>
+            </div>
+        </div>
+        {% if not case.is_terminal %}
+            {% include 'deviations/_policy_notice.html' %}
+        {% endif %}
+        <section class="panel deviation-summary">
+            <span class="deviation-badge">{{ case.get_status_display }}</span><span>Lượt xử lý {{ case.round }}</span><span>Phụ trách: {{ case.owner|default:'Chưa phân công' }}</span><span>RIV: {{ case.risk_score|default_if_none:'—' }} · Nguy cơ {{ case.risk_level }}</span><span>{{ classification_caption }}: {{ case.get_severity_display }}</span>
+        </section>
+        <nav class="deviation-tabs" aria-label="Nội dung hồ sơ">
+            <a href="#report">Báo cáo</a><a href="#investigation">Điều tra</a><a href="#capa">CAPA</a><a href="#evaluation">Hiệu quả & kết thúc</a><a href="#evidence">Bằng chứng & lịch sử</a>
+        </nav>
+        {% if pending_run %}
+            <section class="panel form-panel">
+                <h2>Đang chờ: {{ pending_run.current_role_label }}</h2>
+                {% include 'deviations/_approval_run.html' with run=pending_run %}
+                {% if can_decide %}
+                    <form method="post"
+                          action="{% url 'deviation_approval_decide' case.pk pending_run.pk %}"
+                          class="deviation-form">
+                        {% csrf_token %}{{ approval_form.as_p }}
+                        <button class="button">Ghi nhận quyết định</button>
+                    </form>
+                {% endif %}
+                {% if can_recall %}
+                    <details class="deviation-section">
+                        <summary>Rút phiếu để bổ sung / thay người duyệt</summary>
+                        <form method="post"
+                              action="{% url 'deviation_approval_recall' case.pk pending_run.pk %}"
+                              class="deviation-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="revision" value="{{ case.revision }}">
+                            <label for="recall-reason">Lý do *</label>
+                            <textarea name="reason" id="recall-reason" required maxlength="1000"></textarea>
+                            <button class="button secondary">Rút phiếu, giữ lịch sử</button>
+                        </form>
+                    </details>
+                {% endif %}
+            </section>
+        {% endif %}
+        {% if can_assign %}
+            <details class="panel deviation-section">
+                <summary>Phân công người phụ trách và các cấp xác nhận</summary>
+                <p class="helptext">
+                    Chỉ liệt kê tài khoản đang hoạt động, đã được Admin cấp đúng quyền. Các cấp đang chờ được giữ cố định theo bản đã gửi.
+                </p>
+                <form method="post"
+                      action="{% url 'deviation_assign' case.pk %}"
+                      class="deviation-form">
+                    {% csrf_token %}{{ assignment_form.as_p }}
+                    <button class="button secondary">Lưu phân công</button>
+                </form>
+            </details>
+        {% endif %}
+        {% if transitions %}
+            <section class="panel form-panel">
+                <h2>Thao tác bước hiện tại</h2>
+                <div class="deviation-transition-grid">
+                    {% for option in transitions %}
+                        <details class="deviation-transition">
+                            <summary>{{ option.label }}</summary>
+                            <form method="post"
+                                  action="{% url 'deviation_transition' case.pk %}"
+                                  class="deviation-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="revision" value="{{ case.revision }}">
+                                <input type="hidden" name="command" value="{{ option.command }}">
+                                {% if option.reason %}
+                                    <label>Lý do *</label>
+                                    <textarea name="reason" required maxlength="1000"></textarea>
+                                {% endif %}
+                                {% if option.review and is_admin %}
+                                    <label>
+                                        <input type="checkbox" name="confirm">
+                                        Tôi đã kiểm tra cảnh báo Admin tự xác nhận.
+                                    </label>
+                                {% endif %}
+                                <button class="button">{{ option.label }}</button>
+                            </form>
+                        </details>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+        <section id="report" class="panel form-panel">
+            <h2>1. Phiếu báo cáo phát hiện sai lệch</h2>
+            <p class="helptext">
+                Tạo trên phần mềm: {{ case.created_at|date:'d/m/Y H:i' }} · Gửi lần đầu: {{ case.submitted_at|date:'d/m/Y H:i'|default:'Chưa gửi' }}
+            </p>
+            {% include 'deviations/_form_document.html' with document=report_document %}
+            {% if source_document_visible %}
+                <p>
+                    Phiếu liên quan: <a href="{% url 'document_detail' case.source_document_id %}">Mở phiếu #{{ case.source_document_id }}</a>
+                </p>
+            {% endif %}
+            {% if case.source_product_id and source_product_visible %}
+                <p>
+                    Hàng hóa liên quan: <a href="{% url 'product_detail' case.source_product_id %}">Mở hàng hóa #{{ case.source_product_id }}</a>
+                </p>
+            {% endif %}
+        </section>
+        <section id="investigation" class="panel form-panel">
+            <div class="panel-title">
+                <h2>2. Phiếu điều tra và phân tích nguyên nhân</h2>
+                {% if can_analyze %}
+                    <a class="button secondary small"
+                       href="{% url 'deviation_analysis' case.pk %}">Cập nhật điều tra</a>
+                {% endif %}
+            </div>
+            {% include 'deviations/_form_document.html' with document=analysis_document %}
+        </section>
+        <section id="capa" class="panel form-panel">
+            <div class="panel-title">
+                <h2>3. Kế hoạch CAPA & thực hiện</h2>
+                {% if can_plan_actions %}
+                    <a class="button secondary small"
+                       href="{% url 'deviation_action_new' case.pk %}">+ Thêm dòng CAPA</a>
+                {% endif %}
+            </div>
+            {% include 'deviations/_form_document.html' with document=capa_document %}
+            {% for action in actions %}
+                <article class="deviation-action">
+                    <h3>{{ action.capa_code }} · {{ action.title }}</h3>
+                    <p>
+                        Lượt {{ action.round }} · {{ action.get_status_display }} · {{ action.assignee }} · Hạn {{ action.due_date|date:'d/m/Y' }}
+                        {% if action.overdue %}· Quá hạn{% endif %}
+                    </p>
+                    {% if action.result %}<div class="deviation-prose">{{ action.result|linebreaksbr }}</div>{% endif %}
+                    <div class="deviation-buttons">
+                        {% if action.can_edit %}
+                            <a href="{% url 'deviation_action_edit' case.pk action.pk %}">Sửa dòng CAPA</a>
+                        {% endif %}
+                        {% if action.can_work %}
+                            <a class="button secondary small"
+                               href="{% url 'deviation_action_work' case.pk action.pk %}">Cập nhật thực hiện</a>
+                        {% endif %}
+                        {% if action.can_extend %}
+                            <a href="{% url 'deviation_extension' case.pk action.pk %}">Đề nghị gia hạn</a>
+                        {% endif %}
+                    </div>
+                    {% for extension in action.extensions.all %}
+                        <div class="deviation-extension">
+                            Gia hạn {{ extension.old_due_date|date:'d/m/Y' }} → {{ extension.new_due_date|date:'d/m/Y' }} · {{ extension.get_status_display }}
+                            <p>{{ extension.reason }}</p>
+                            {% if extension.decision_reason %}<p>{{ extension.decided_by }} · {{ extension.decision_reason }}</p>{% endif %}
+                            {% if extension.status == 'PENDING' and can_review %}
+                                <a href="{% url 'deviation_extension_decide' case.pk extension.pk %}">KSNB xem xét gia hạn</a>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </article>
+            {% endfor %}
+        </section>
+        <section id="evaluation" class="panel form-panel">
+            <h2>4. Kiểm tra hiệu quả & kết thúc — KSNB</h2>
+            <p class="helptext">
+                Hoàn thành hành động chưa đồng nghĩa hồ sơ kết thúc. KSNB được phân công xác nhận kết quả; chưa hiệu quả sẽ mở lượt điều tra/CAPA tiếp theo.
+            </p>
+            {% for item in evaluations %}
+                <article class="deviation-action"><strong>Lượt {{ item.round }} ·
+                    {% if item.effective %}
+                        Có hiệu quả — kết thúc
+                    {% else %}
+                        Chưa hiệu quả
+                    {% endif %}
+                </strong>
+                <p>{{ item.checked_by_name|default:item.checked_by }} · {{ item.checked_at|date:'d/m/Y H:i' }}</p>
+                <h3>Tiêu chí</h3>
+                {{ item.criteria|linebreaks }}
+                <h3>Kết quả</h3>
+            {{ item.result|linebreaks }}</article>
+        {% endfor %}
+        {% if can_evaluate %}
+            <details class="deviation-section">
+                <summary>Ghi đánh giá hiệu quả</summary>
+                <form method="post"
+                      action="{% url 'deviation_evaluate' case.pk %}"
+                      class="deviation-form">
+                    {% csrf_token %}{{ evaluation_form.as_p }}
+                    <button class="button">Lưu đánh giá & kết luận</button>
+                </form>
+            </details>
+        {% endif %}
+    </section>
+    <section class="panel form-panel">
+        <h2>Các lần gửi và xác nhận</h2>
+        {% for run in approval_runs %}
+            {% include 'deviations/_approval_run.html' %}
+        {% empty %}
+            <p>Chưa gửi xác nhận.</p>
+        {% endfor %}
+    </section>
+    {% include 'deviations/_evidence.html' %}
+</div>
+{% endblock %}

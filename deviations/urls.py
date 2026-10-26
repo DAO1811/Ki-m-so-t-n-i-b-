@@ -3,6 +3,21 @@ from django.urls import path
 from . import configuration, mutations, views
 
 urlpatterns = [
+    path(
+        "cases/<int:pk>/approvals/<int:run_id>/print/",
+        views.approval_print,
+        name="deviation_approval_print",
+    ),
+    path(
+        "cases/<int:pk>/approvals/<int:run_id>/decide/",
+        mutations.approval_decide,
+        name="deviation_approval_decide",
+    ),
+    path(
+        "cases/<int:pk>/approvals/<int:run_id>/recall/",
+        mutations.approval_recall,
+        name="deviation_approval_recall",
+    ),
     path("", views.overview, name="deviations"),
     path("cases/", views.case_list, name="deviation_list"),
     path("cases/new/", mutations.case_form, name="deviation_new"),

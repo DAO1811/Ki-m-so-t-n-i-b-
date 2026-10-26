@@ -8,9 +8,9 @@ from django.views.decorators.http import require_POST
 
 from inventory.access import is_admin
 
-from . import access, forms, storage
-from .models import Action, Attachment, Extension
-from .services import actions, cases, workflow
+from . import access, forms, storage, template_forms
+from .models import Action, ApprovalRun, Attachment, Extension
+from .services import actions, approvals, cases, workflow
 from .views import case_for
 
 
@@ -42,7 +42,12 @@ def case_form(request, pk=None):
         raise PermissionDenied(
             "Chỉ sửa bản nháp hoặc phần được yêu cầu bổ sung của mình."
         )
-    form = forms.ReportForm(request.POST or None, instance=case, user=request.user)
+    form_class = (
+        template_forms.ReportForm
+        if not case or case.form_version >= 2
+        else forms.ReportForm
+    )
+    form = form_class(request.POST or None, instance=case, user=request.user)
     if request.method == "POST" and form.is_valid():
         try:
             saved = (
@@ -73,8 +78,30 @@ def case_form(request, pk=None):
 def analysis(request, pk):
     case = case_for(request.user, pk)
     access.manage(case, request.user)
-    form = forms.AnalysisForm(request.POST or None, instance=case)
-    if request.method == "POST" and form.is_valid():
+    form_class = (
+        template_forms.AnalysisForm if case.form_version >= 2 else forms.AnalysisForm
+    )
+    form = form_class(request.POST or None, instance=case)
+    whys = (
+        template_forms.WhyFormSet(
+            request.POST if request.method == "POST" else None,
+            prefix="whys",
+            initial=case.five_whys,
+        )
+        if case.form_version >= 2
+        else None
+    )
+    if (
+        request.method == "POST"
+        and form.is_valid()
+        and (whys is None or whys.is_valid())
+    ):
+        if whys is not None:
+            form.cleaned_data["five_whys"] = [
+                {key: value for key, value in row.items() if key != "DELETE"}
+                for row in whys.cleaned_data
+                if row and not row.get("DELETE")
+            ]
         try:
             cases.save_analysis(
                 pk, request.user, form.cleaned_data["revision"], form.cleaned_data
@@ -83,17 +110,37 @@ def analysis(request, pk):
             return redirect("deviation_detail", pk=pk)
         except ValidationError as exc:
             form.add_error(None, exc)
+    if case.form_version >= 2:
+        return render(
+            request,
+            "deviations/analysis_form.html",
+            {
+                "form": form,
+                "whys": whys,
+                "case": case,
+                "form_title": "Phiếu điều tra và phân tích nguyên nhân",
+            },
+        )
     return form_page(request, form, "Xác minh & nguyên nhân", case)
 
 
 @login_required
 @require_POST
 def assign(request, pk):
-    case_for(request.user, pk)
-    form = forms.AssignmentForm(request.POST)
+    case = case_for(request.user, pk)
+    form = (
+        template_forms.AssignmentForm(request.POST, instance=case)
+        if case.form_version >= 2
+        else forms.AssignmentForm(request.POST)
+    )
     if form.is_valid():
         try:
-            cases.assign_case(pk, request.user, **form.cleaned_data)
+            if case.form_version >= 2:
+                cases.assign_participants(
+                    pk, request.user, form.cleaned_data["revision"], form.cleaned_data
+                )
+            else:
+                cases.assign_case(pk, request.user, **form.cleaned_data)
             messages.success(request, "Đã phân công người phụ trách.")
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
@@ -126,7 +173,10 @@ def action_form(request, pk, action_id=None):
     case = case_for(request.user, pk)
     access.manage(case, request.user)
     action = get_object_or_404(Action, pk=action_id, case=case) if action_id else None
-    form = forms.ActionForm(request.POST or None, instance=action, case=case)
+    form_class = (
+        template_forms.ActionForm if case.form_version >= 2 else forms.ActionForm
+    )
+    form = form_class(request.POST or None, instance=action, case=case)
     if request.method == "POST" and form.is_valid():
         try:
             data = form.cleaned_data.copy()
@@ -267,6 +317,48 @@ def void_file(request, pk, attachment_id):
             )
             messages.success(
                 request, "Đã đánh dấu tệp không sử dụng; bản gốc vẫn giữ trong lịch sử."
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+    else:
+        error_messages(request, form)
+    return redirect("deviation_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def approval_decide(request, pk, run_id):
+    case = case_for(request.user, pk)
+    run = get_object_or_404(ApprovalRun, pk=run_id, case=case)
+    form = template_forms.ApprovalForm(
+        request.POST,
+        allow_owner=run.stage == "REPORT" and approvals.current_role(run) == "control",
+        allow_classification=run.stage == "ANALYSIS",
+    )
+    if form.is_valid():
+        try:
+            approvals.decide(pk, request.user, run_id=run_id, **form.cleaned_data)
+            messages.success(
+                request, "Đã ghi nhận quyết định đúng bước và lưu bản xác nhận."
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+    else:
+        error_messages(request, form)
+    return redirect("deviation_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def approval_recall(request, pk, run_id):
+    case = case_for(request.user, pk)
+    get_object_or_404(ApprovalRun, pk=run_id, case=case)
+    form = forms.VoidForm(request.POST)
+    if form.is_valid():
+        try:
+            approvals.recall(pk, request.user, run_id=run_id, **form.cleaned_data)
+            messages.success(
+                request, "Đã rút phiếu, giữ nguyên các xác nhận trước trong lịch sử."
             )
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))

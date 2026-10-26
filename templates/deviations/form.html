@@ -19,15 +19,33 @@
         <form method="post" class="deviation-form">
             {% csrf_token %}{{ form.non_field_errors }}
             {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
-            <section class="panel form-panel">
-                <div class="form-grid">
-                    {% for field in form.visible_fields %}
-                        {% if field.name != 'source_document' and field.name != 'source_product' and field.name != 'source_stocktake' %}
-                            {% include 'deviations/_field.html' %}
-                        {% endif %}
-                    {% endfor %}
+            {% if form.reporter_label %}
+                <div class="deviation-notice">
+                    Người lập: <strong>{{ form.reporter_label }}</strong>. Có thể lưu nháp trước; khi gửi duyệt cần hoàn tất thông tin theo biểu mẫu.
                 </div>
-            </section>
+            {% endif %}
+            {% if form.sections %}
+                {% for section in form.sections %}
+                    <section class="panel form-panel">
+                        <h2>{{ section.title }}</h2>
+                        <div class="form-grid">
+                            {% for field in section.fields %}
+                                {% include 'deviations/_field.html' %}
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endfor %}
+            {% else %}
+                <section class="panel form-panel">
+                    <div class="form-grid">
+                        {% for field in form.visible_fields %}
+                            {% if field.name != 'source_document' and field.name != 'source_product' and field.name != 'source_stocktake' %}
+                                {% include 'deviations/_field.html' %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
             {% if form.source_document %}
                 <details class="panel deviation-section">
                     <summary>Liên kết hồ sơ nguồn (nếu có)</summary>

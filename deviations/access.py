@@ -34,7 +34,15 @@ def work(action, user):
 
 
 def review(case, user, confirm=False, *, extra_people=()):
-    require(user, "deviations_review")
+    return review_as(
+        case, user, "deviations_review", confirm, extra_people=extra_people
+    )
+
+
+def review_as(
+    case, user, permission, confirm=False, *, extra_people=(), proposer_level=0
+):
+    require(user, permission)
     policy = case.policy_snapshot
     if policy.get("schema_version") != 1 or not {
         "minimum_review_level",
@@ -61,7 +69,7 @@ def review(case, user, confirm=False, *, extra_people=()):
             "Người xác nhận phải độc lập với người lập, phụ trách và thực hiện."
         )
     if policy["require_higher_level"] and approval_level(user) <= max(
-        case.creator_level, approval_level(case.created_by)
+        case.creator_level, approval_level(case.created_by), proposer_level
     ):
         raise PermissionDenied("Người xác nhận phải cao cấp hơn người lập.")
 
@@ -79,3 +87,15 @@ def route_allowed(user, name, method):
     if permission == "authenticated":
         return True  # Case ownership and operation-specific grants checked in services.
     return bool(permission and has_function(user, permission))
+
+
+def control_review(case, user, confirm=False, *, extra_people=()):
+    if case.form_version < 2:
+        return review(case, user, confirm, extra_people=extra_people)
+    if not is_admin(user) and case.control_reviewer_id != user.pk:
+        raise PermissionDenied(
+            "Chỉ KSNB được phân công hoặc Admin được đánh giá/kết thúc hồ sơ này."
+        )
+    return review_as(
+        case, user, "deviations_control_approve", confirm, extra_people=extra_people
+    )

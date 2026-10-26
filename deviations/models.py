@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -43,6 +43,108 @@ class WorkflowPolicy(models.Model):
 
 
 class Case(models.Model):
+    form_version = models.PositiveSmallIntegerField(
+        default=1, db_default=1, editable=False
+    )
+    reporter_name = models.CharField(
+        max_length=200, blank=True, editable=False, default="", db_default=""
+    )
+    reporter_job_title = models.CharField(
+        "Chức danh người lập", max_length=120, blank=True, default="", db_default=""
+    )
+    reported_at = models.DateTimeField(
+        "Thời điểm đã báo Trưởng bộ phận", null=True, blank=True
+    )
+    discoverer_name = models.CharField(
+        "Họ tên người phát hiện", max_length=200, blank=True, default="", db_default=""
+    )
+    discoverer_job_title = models.CharField(
+        "Chức danh người phát hiện",
+        max_length=120,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    what_changed = models.TextField(
+        "Cái gì thay đổi?", max_length=4000, blank=True, default="", db_default=""
+    )
+    detection_method = models.TextField(
+        "Đã phát hiện bằng cách nào?",
+        max_length=3000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    gap_analysis = models.TextField(
+        "Phân tích chênh lệch ban đầu",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    special_comments = models.TextField(
+        "Nghi vấn / nhận xét đặc biệt",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    investigation_5w1h = models.JSONField(default=dict, blank=True, db_default={})
+    investigation_expected = models.TextField(
+        "Điều gì nên xảy ra — sau xác minh",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    investigation_gap = models.TextField(
+        "Phân tích chênh lệch sau xác minh",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    affected_steps = models.TextField(
+        "Các khâu bị ảnh hưởng", max_length=4000, blank=True, default="", db_default=""
+    )
+    has_history = models.BooleanField(
+        "Đã từng xảy ra trước đây?", null=True, blank=True
+    )
+    history_details = models.TextField(
+        "Lịch sử / kết quả tra cứu tái diễn",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    event_sequence = models.TextField(
+        "Trình tự xảy ra sự cố", max_length=5000, blank=True, default="", db_default=""
+    )
+    cause_factors = models.JSONField(default=dict, blank=True, db_default={})
+    five_whys = models.JSONField(default=list, blank=True, db_default=[])
+    causal_factors = models.TextField(
+        "Nhân tố liên quan nguyên nhân và hậu quả",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    likelihood = models.PositiveSmallIntegerField(
+        "Khả năng xảy ra",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    consequence = models.PositiveSmallIntegerField(
+        "Hậu quả",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    risk_details = models.TextField(
+        "Căn cứ đánh giá rủi ro", max_length=4000, blank=True, default="", db_default=""
+    )
+
     token = models.UUIDField(default=uuid4, unique=True, editable=False)
     title = models.CharField("Tiêu đề sai lệch", max_length=200)
     category = models.ForeignKey(
@@ -88,6 +190,41 @@ class Case(models.Model):
     source_stocktake = models.ForeignKey(
         "inventory.StocktakeSession", null=True, blank=True, on_delete=models.SET_NULL
     )
+    department_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="deviation_department_reviews",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
+    control_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="deviation_control_reviews",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
+    specialist_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="deviation_specialist_reviews",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
+    related_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="deviation_related_reviews",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
+    director_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="deviation_director_reviews",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+    )
     creator_level = models.PositiveSmallIntegerField(default=10, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -132,6 +269,20 @@ class Case(models.Model):
         return f"SL-{self.created_at.year}-{self.pk:06d}"
 
     @property
+    def risk_score(self):
+        return (
+            self.likelihood * self.consequence
+            if self.likelihood and self.consequence
+            else None
+        )
+
+    @property
+    def risk_level(self):
+        from .form_schema import risk_band
+
+        return risk_band(self.risk_score)
+
+    @property
     def is_terminal(self):
         return self.status in TERMINAL
 
@@ -140,6 +291,31 @@ class Case(models.Model):
 
 
 class Action(models.Model):
+    problem = models.TextField(
+        "Tồn tại / vấn đề cần giải quyết",
+        max_length=3000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    corrective_action = models.TextField(
+        "Hành động khắc phục / tức thời",
+        max_length=4000,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    preventive_action = models.TextField(
+        "Hành động ngăn ngừa", max_length=4000, blank=True, default="", db_default=""
+    )
+    responsible_department = models.CharField(
+        "Bộ phận chịu trách nhiệm",
+        max_length=120,
+        blank=True,
+        default="",
+        db_default="",
+    )
+
     case = models.ForeignKey(Case, related_name="actions", on_delete=models.PROTECT)
     round = models.PositiveIntegerField(default=1)
     kind = models.CharField("Loại hành động", choices=ActionKind.choices, max_length=12)
@@ -158,6 +334,14 @@ class Action(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     revision = models.PositiveIntegerField(default=1)
 
+    @property
+    def capa_code(self):
+        return (
+            f"CAPA-{self.case.created_at.year}-{self.case_id:06d}-{self.pk:04d}"
+            if self.pk
+            else "Cấp khi lưu"
+        )
+
     def __str__(self):
         return self.title
 
@@ -175,6 +359,12 @@ class Action(models.Model):
 
 
 class Evaluation(models.Model):
+    checked_by_name = models.CharField(
+        max_length=200, blank=True, editable=False, default="", db_default=""
+    )
+    checked_by_job_title = models.CharField(
+        max_length=120, blank=True, editable=False, default="", db_default=""
+    )
     case = models.ForeignKey(Case, related_name="evaluations", on_delete=models.PROTECT)
     round = models.PositiveIntegerField()
     criteria = models.TextField(max_length=4000)
@@ -276,3 +466,89 @@ class PolicyEvent(models.Model):
     reason = models.CharField(max_length=1000)
     before = models.JSONField(default=dict)
     after = models.JSONField(default=dict)
+
+
+class ApprovalRun(models.Model):
+    case = models.ForeignKey(
+        Case, related_name="approval_runs", on_delete=models.PROTECT
+    )
+    stage = models.CharField(
+        max_length=12,
+        choices=[
+            ("REPORT", "Báo cáo"),
+            ("ANALYSIS", "Điều tra"),
+            ("CAPA", "Kế hoạch CAPA"),
+        ],
+    )
+    round = models.PositiveIntegerField()
+    cycle = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=12,
+        default="PENDING",
+        choices=[
+            ("PENDING", "Chờ xác nhận"),
+            ("APPROVED", "Đã xác nhận"),
+            ("RETURNED", "Trả lại bổ sung"),
+            ("SUPERSEDED", "Được thay thế"),
+        ],
+    )
+    current_step = models.PositiveSmallIntegerField(default=1)
+    participants = models.JSONField(default=dict)
+    payload = models.JSONField(default=dict)
+    labels = models.JSONField(default=dict, editable=False)
+    fingerprint = models.CharField(max_length=64)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    proposer_level = models.PositiveSmallIntegerField()
+    proposer_name = models.CharField(max_length=200)
+    proposer_job_title = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True)
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case", "stage", "round", "cycle"],
+                name="unique_deviation_approval_cycle",
+            ),
+            models.UniqueConstraint(
+                fields=["case"],
+                condition=Q(status="PENDING"),
+                name="one_pending_deviation_approval",
+            ),
+        ]
+
+
+class ApprovalDecision(models.Model):
+    classification = models.CharField(
+        "Phân loại do cấp duyệt chọn",
+        max_length=12,
+        choices=SEVERITIES,
+        default="",
+        blank=True,
+        db_default="",
+    )
+    run = models.ForeignKey(
+        ApprovalRun, related_name="decisions", on_delete=models.PROTECT
+    )
+    step = models.PositiveSmallIntegerField()
+    role = models.CharField(max_length=20)
+    decision = models.CharField(
+        max_length=10,
+        choices=[("APPROVE", "Đồng ý"), ("RETURN", "Không duyệt / trả lại")],
+    )
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    actor_name = models.CharField(max_length=200)
+    actor_job_title = models.CharField(max_length=120, blank=True)
+    reason = models.CharField(max_length=1000, blank=True)
+    admin_override = models.BooleanField(default=False)
+    self_confirmed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["step"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "step"], name="one_decision_per_deviation_step"
+            )
+        ]

@@ -4,10 +4,18 @@ from django.utils import timezone
 
 from deviations import access
 from deviations.constants import CaseStatus
+from deviations.form_schema import (
+    ANALYSIS_EXTRA,
+    FORM_VERSION,
+    PARTICIPANTS,
+    REPORT_EXTRA,
+    ROLES,
+)
 from deviations.models import Case, Event
 from inventory.access import has_function, is_admin
 from inventory.hierarchy import approval_level
 
+from . import form_data
 from .common import active_actors, locked_case, record, snapshot
 
 REPORT_FIELDS = (
@@ -74,6 +82,8 @@ def validate_report(case, user):
             "Thời điểm phát hiện không ở tương lai; xảy ra không sau phát hiện. Để trống thời điểm xảy ra nếu chưa rõ."
         )
     validate_sources(case, user)
+    if case.form_version >= 2:
+        form_data.report(case)
 
 
 @transaction.atomic
@@ -83,8 +93,15 @@ def create_case(user, data):
     case = Case(
         created_by=user,
         creator_level=approval_level(user),
+        form_version=FORM_VERSION,
+        reporter_name=form_data.display_name(user),
         **{key: data[key] for key in REPORT_FIELDS},
     )
+    for key in REPORT_EXTRA:
+        if key in data:
+            setattr(case, key, data[key])
+    if not case.reporter_job_title:
+        case.reporter_job_title = form_data.job_title(user)
     validate_report(case, user)
     case.save()
     Event.objects.create(
@@ -106,8 +123,9 @@ def edit_case(pk, user, revision, data):
             "Chỉ sửa báo cáo của mình khi nháp hoặc đang được yêu cầu bổ sung."
         )
     before = snapshot(case)
-    for key in REPORT_FIELDS:
-        setattr(case, key, data[key])
+    for key in REPORT_FIELDS + (REPORT_EXTRA if case.form_version >= 2 else ()):
+        if key in data:
+            setattr(case, key, data[key])
     validate_report(case, user)
     return record(
         case,
@@ -147,7 +165,53 @@ def save_analysis(pk, user, revision, data):
             "Chỉ cập nhật xác minh khi đang xác minh hoặc lập kế hoạch."
         )
     before = snapshot(case)
-    for key in ANALYSIS_FIELDS:
-        setattr(case, key, data[key])
+    if case.form_version >= 2 and case.status != CaseStatus.INVESTIGATING:
+        raise ValidationError(
+            "Điều tra đã được xác nhận; yêu cầu mở lại điều tra trước khi sửa."
+        )
+    for key in ANALYSIS_FIELDS + (ANALYSIS_EXTRA if case.form_version >= 2 else ()):
+        if key in data:
+            setattr(case, key, data[key])
+    if case.form_version >= 2:
+        form_data.investigation(case)
     case.full_clean()
     return record(case, user, "Cập nhật xác minh", before)
+
+
+@transaction.atomic
+def assign_participants(pk, user, revision, data):
+    case = locked_case(pk, revision)
+    actors = active_actors(user, *[data.get(key) for key in PARTICIPANTS])
+    user = actors[user.pk]
+    access.require(user, "deviations_manage")
+    if case.is_terminal or case.status == CaseStatus.DRAFT:
+        raise ValidationError("Chỉ phân công hồ sơ đã gửi, chưa kết thúc.")
+    pending = case.approval_runs.filter(status="PENDING").first()
+    if pending and (
+        pending.stage != "REPORT"
+        or any(
+            getattr(case, key + "_id") != (data[key].pk if data.get(key) else None)
+            for key in PARTICIPANTS
+            if key != "owner"
+        )
+    ):
+        raise ValidationError(
+            "Rút phiếu / trả lại bổ sung trước khi thay người đã chốt trong chuỗi duyệt."
+        )
+    before = snapshot(case)
+    for key in PARTICIPANTS:
+        person = data.get(key)
+        setattr(case, key, actors[person.pk] if person else None)
+    if case.owner and (
+        not case.owner.is_active or not has_function(case.owner, "deviations_manage")
+    ):
+        raise ValidationError(
+            "Người phụ trách cần quyền quản lý hồ sơ và tài khoản hoạt động."
+        )
+    for role, (_, field, _) in ROLES.items():
+        if getattr(case, field) and not form_data.role_allowed(
+            getattr(case, field), role
+        ):
+            raise ValidationError("Người được phân công chưa có quyền tương ứng.")
+    case.full_clean()
+    return record(case, user, "Phân công theo biểu mẫu", before)
