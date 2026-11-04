@@ -476,3 +476,42 @@ class ProviderTests(SimpleTestCase):
         ):
             chunks = list(open_stream([]))
         self.assertEqual(chunks, [Chunk("Hello", 45)])
+
+    def test_stalled_stream_has_absolute_deadline_and_releases_socket(self):
+        import socket
+        import time
+        from types import SimpleNamespace
+
+        reader, writer = socket.socketpair()
+        file = reader.makefile("rb")
+
+        class StalledResponse:
+            status = 200
+            headers = {"Content-Type": "text/event-stream"}
+            fp = SimpleNamespace(raw=SimpleNamespace(_sock=reader))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                file.close()
+
+            def readline(self, n):
+                return file.readline(n)
+
+        try:
+            started = time.monotonic()
+            with (
+                patch("ai_assistant.groq_provider.MAX_SECONDS", 0.05),
+                patch(
+                    "urllib.request.OpenerDirector.open", return_value=StalledResponse()
+                ),
+            ):
+                with self.assertRaises(ProviderError) as caught:
+                    list(open_stream([]))
+            self.assertEqual(caught.exception.code, "timeout")
+            self.assertLess(time.monotonic() - started, 1)
+        finally:
+            file.close()
+            reader.close()
+            writer.close()

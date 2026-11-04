@@ -2,9 +2,11 @@
 
 import json
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from .cloud_config import ENDPOINT, MAX_OUTPUT_TOKENS, MAX_SECONDS, MODEL, configuration
@@ -25,6 +27,25 @@ class Chunk:
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args):
         return None
+
+
+@contextmanager
+def deadline_guard(response, deadline):
+    # A socket read timeout alone can be prolonged by a trickling incomplete
+    # SSE line. Interrupt the underlying socket at the absolute deadline.
+    def expire():
+        try:
+            response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+        except (AttributeError, OSError):
+            pass
+
+    timer = threading.Timer(max(0, deadline - time.monotonic()), expire)
+    timer.daemon = True
+    timer.start()
+    try:
+        yield
+    finally:
+        timer.cancel()
 
 
 def open_stream(messages):
@@ -55,7 +76,10 @@ def open_stream(messages):
     deadline = time.monotonic() + MAX_SECONDS
     size = 0
     try:
-        with urllib.request.build_opener(NoRedirect).open(req, timeout=6) as response:
+        with (
+            urllib.request.build_opener(NoRedirect).open(req, timeout=6) as response,
+            deadline_guard(response, deadline),
+        ):
             if (
                 response.status != 200
                 or "text/event-stream" not in response.headers.get("Content-Type", "")
@@ -66,7 +90,9 @@ def open_stream(messages):
                     raise ProviderError("timeout")
                 raw = response.readline(65537)
                 if not raw:
-                    raise ProviderError("interrupted")
+                    raise ProviderError(
+                        "timeout" if time.monotonic() >= deadline else "interrupted"
+                    )
                 size += len(raw)
                 if len(raw) > 65536 or size > 196608:
                     raise ProviderError("provider_error")
@@ -117,4 +143,6 @@ def open_stream(messages):
         IndexError,
         TypeError,
     ):
-        raise ProviderError("provider_error") from None
+        raise ProviderError(
+            "timeout" if time.monotonic() >= deadline else "provider_error"
+        ) from None
