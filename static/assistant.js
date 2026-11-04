@@ -243,7 +243,16 @@ if (root) {
           warehouse: root.dataset.warehouse,
         }),
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw Error(
+          response.status === 403
+            ? "Quyền dùng trợ lý đã thay đổi. Nhờ admin kiểm tra lại quyền tài khoản."
+            : "Máy chủ chưa phản hồi đúng. Câu hỏi vẫn được giữ để thử lại.",
+        );
+      }
       if (!response.ok)
         throw Error(data.error || "Chưa truy vấn được thông tin.");
       clearTimeout(timer);
