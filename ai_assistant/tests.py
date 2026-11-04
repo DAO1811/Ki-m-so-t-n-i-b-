@@ -113,6 +113,12 @@ class AssistantTests(TestCase):
         data = self.post("Tồn AI001").json()
         self.assertIn("chưa có quyền xem số tồn", data["answer"])
         self.assertNotIn("tồn sở hữu", data["answer"])
+        first = self.post("Tồn AI001").json()
+        data = self.post(
+            "Vậy thông tin AI002", continuation=first["continuation"]
+        ).json()
+        self.assertEqual(data["scope"], "catalog")
+        self.assertIn("Đèn demo", data["answer"])
         self.assertNotIn(
             "999",
             json.dumps({key: data[key] for key in ("answer", "facts", "sources")}),
@@ -649,3 +655,14 @@ class AssistantKnowledgeTests(TestCase):
                     self.assertEqual(data["facts"], [])
                     self.assertEqual(data["answer_kind"], "clarification")
                     self.assertIn("chưa xác định đủ", data["answer"])
+
+    def test_sku_does_not_turn_unimplemented_warranty_question_into_stock_answer(self):
+        data = self.post("AI001 bảo hành còn bao nhiêu ngày?").json()
+        self.assertEqual(data["scope"], "help")
+        self.assertEqual(data["facts"], [])
+        self.assertIn("chưa có bộ đếm/cảnh báo", data["answer"])
+        self.assertNotIn("tồn sở hữu", data["answer"])
+        data = self.post("Thông tin AI001").json()
+        self.assertEqual(data["scope"], "catalog")
+        self.assertIn("Máy ảnh demo", data["answer"])
+        self.assertNotIn("tồn sở hữu", data["answer"])

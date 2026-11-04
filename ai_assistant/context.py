@@ -297,18 +297,31 @@ def context_for(user, question, path, warehouse="", continuation=""):
             or inherited.get("scope") == "documents"
         ):
             scope = "documents"
-        elif topic == "stock" or selector or inherited.get("scope") == "stock":
+        elif (
+            topic == "stock"
+            or any_phrase(norm, ("so luong", "gia tri ton"))
+            or inherited.get("scope") == "stock"
+        ):
             scope = "stock"
-            if topic == "products" and any_phrase(
-                norm, ("qr", "ten", "don vi", "anh", "thong tin")
-            ):
-                scope = "catalog"
+        elif selector:
+            scope = "catalog"
         elif explicit == "products":
             scope = "catalog"
         elif any_phrase(norm, ("cac kho", "kho nao", "danh sach kho")):
             scope = "warehouses"
     if inherited and scope == "help" and (data_question or followup) and not guidance:
         scope = inherited.get("scope", "help")
+    if (
+        scope == "stock"
+        and selector
+        and any_phrase(norm, ("thong tin", "qr", "don vi", "ten san pham", "anh"))
+        and not any_phrase(norm, ("ton", "so luong", "bao nhieu"))
+    ):
+        scope = "catalog"
+    if article and article.key == "custom_fields":
+        # A warranty/serial question is not a quantity lookup just because it
+        # includes an SKU. These fields are not structured per receipt yet.
+        scope = "help"
     if inherited.get("selector") and not selector:
         if not filters.get("pk"):
             selector = inherited["selector"]
