@@ -1,47 +1,55 @@
-# Trợ lý AI ngay trong màn hình làm việc
+# Trợ lý trong màn hình làm việc
 
-Yêu cầu chủ phần mềm chốt ngày 04/11/2026: người dùng đang làm ở mục nào thì mở trợ lý để hỏi ngay tại đó; hỗ trợ hướng dẫn/soạn nội dung và tra cứu theo quyền; không phát sinh phí API; phải xem bản thử trước khi cập nhật chính thức.
+## Bản sửa tốc độ và kiến thức ngày 04/11/2026 — chờ xem thử
 
-## Cách sử dụng và phạm vi
+Chủ phần mềm phản ánh mô hình xử lý chậm và câu trả lời chưa bám đủ công việc. Bản này ưu tiên **câu trả lời có căn cứ trước**, không đợi mô hình xử lý và không mở thêm quyền đọc dữ liệu.
 
-Admin có quyền dùng như các chức năng khác. Tài khoản còn lại cần admin cấp **Trợ lý AI trong phần mềm → Hỏi hướng dẫn và tra cứu theo quyền hiện có**. Quyền này không tự cấp quyền xem kho, danh mục hoặc phiếu. Không tự cập nhật quyền của tài khoản hiện có khi cài bản mới.
+### Hỏi và tra cứu
 
-Nút **Trợ lý AI** xuất hiện ở các trang dùng layout chính của phần mềm. Bấm mở một khung không modal; trang và biểu mẫu vẫn ở đó. Đóng trả con trỏ về ô đang nhập. Khung chỉ gửi tên đường dẫn đang mở và kho đang chọn, không đọc các ô biểu mẫu chưa lưu, tệp, nội dung chat nhân viên hoặc mật khẩu.
+- Khung trợ lý mở ngay tại trang làm việc, không khóa biểu mẫu hoặc đọc ô chưa lưu. Nút ở thanh công cụ, không che nút lưu phiếu.
+- `knowledge.py` giữ các hướng dẫn theo tác vụ có bằng chứng mã nguồn kèm theo: trả mượn, ba loại import Excel, QR cố định, ảnh, hóa đơn từng lần nhập, ngày nghiệp vụ, duyệt, phiếu đã ghi sổ, kiểm kê, tài khoản, sai lệch, Drive, lưu trữ và chat. `guides.py` giữ hướng dẫn trang. Không lấy quy trình chỉ mới đề xuất làm hướng dẫn chức năng đã có.
+- Câu hỏi về chức năng khác trang đang mở vẫn tìm theo tác vụ. Câu chưa đủ rõ được hỏi lại; không dùng vài dòng tồn bất kỳ để thay câu trả lời.
+- Câu hỏi số liệu dùng `data.py`: mã/tên hàng, tồn, tổng giá trị, số lượng tách theo đơn vị, mức thấp/hết tồn, phiếu theo loại/trạng thái/ngày/kho, lý do tài khoản chưa đủ điều kiện duyệt một phiếu, mã/trạng thái sai lệch, phiên kiểm kê và kho được phép xem. Kết quả tổng được tính trong SQL trên toàn bộ bộ lọc, không lấy tổng của 8 dòng hiển thị. Hàng không có dòng Balance chưa được tự tính là tồn 0; lịch sử tồn phải đối chiếu Thẻ kho.
+- Tồn sở hữu không gộp hàng mượn tạm hoặc đang chuyển. Không cộng số lượng khác đơn vị. Tra cứu lịch sử chưa hỗ trợ trong khung thì nói rõ, không thay bằng tồn hiện tại.
+- Ngày phiếu hỗ trợ hôm nay, hôm qua, tháng này, ngày `dd/mm/yyyy` hoặc khoảng tối đa 366 ngày. Ngày này là ngày nghiệp vụ, không phải ngày hóa đơn. Số phiếu chính xác ưu tiên hơn ngữ cảnh trang.
+- Hỏi tiếp về kết quả dùng token ngữ cảnh có chữ ký, hạn 15 phút, gắn với tài khoản/trang/kho; không phải quyền truy cập. Mỗi lần hỏi đọc lại quyền và dữ liệu hiện hành. Token chỉ giữ bộ lọc, không giữ câu trả lời/số liệu, không đưa toàn bộ hội thoại vào mô hình. Đổi kho/trang, hết hạn hoặc token sai thì không sử dụng tiếp ngữ cảnh cũ.
+- Mẫu nhắc bổ sung chứng từ, kiểm tra mã/số lượng/đơn giá, duyệt và kiểm kê có sẵn, ghi rõ là mẫu tham khảo chưa gửi. Không giả làm văn bản đã gửi hoặc đã được duyệt.
 
-- **Tra cứu trực tiếp** hoạt động không cần mô hình: hướng dẫn đã rà soát và dữ liệu thật từ máy chủ, có nguồn và thời điểm. Không trình bày đây là câu trả lời của mô hình AI.
-- **Bật trả lời AI → Tải và bật AI** khởi động Qwen2.5 0.5B qua Transformers.js/WebAssembly ngay trong worker trình duyệt. Câu trả lời tự nhiên/soạn nội dung được xử lý trên thiết bị. Với tra cứu số liệu, ưu tiên kết quả tính trực tiếp của phần mềm, không để mô hình viết lại số liệu. Lần đầu tải khoảng 800 MB mô hình, dùng bộ nhớ và CPU của trình duyệt; máy Windows RAM 8 GB cần kiểm chứng thực tế. Không cần GPU rời; worker dùng một luồng CPU để không thay đổi chính sách cross-origin của toàn ứng dụng. Không yêu cầu cài Ollama hoặc mở phần mềm AI riêng.
-- Trình duyệt/bộ nhớ không phù hợp hoặc lỗi tải thì báo rõ và vẫn tra cứu trực tiếp được. Không tự chuyển sang API trả phí hoặc dịch vụ suy luận bên ngoài.
-- Có nút dừng và tắt AI để giải phóng worker. Thời gian xử lý và câu trả lời được giới hạn. Lịch sử chỉ ở bộ nhớ của trang, không tự lưu hội thoại/câu trả lời vào database hoặc localStorage. Cache API chỉ cache mô hình công khai.
+Đây là tra cứu và hướng dẫn có cấu trúc, không phải một mô hình hiểu mọi câu hỏi như dịch vụ ChatGPT. Phạm vi trả lời được mở rộng theo các bộ đọc dữ liệu và hướng dẫn đã kiểm chứng; chưa có quyền đọc tùy ý database, đọc tệp, chat riêng, nhân sự hoặc toàn bộ nội dung điều tra. Không tuyên bố đã "học toàn bộ database".
 
-Đây là Trợ lý AI dùng mô hình Qwen, không phải tích hợp dịch vụ ChatGPT của OpenAI. Chất lượng mô hình nhỏ và tốc độ phụ thuộc thiết bị; không cam kết ngang ChatGPT. Người dùng cần đối chiếu dữ liệu gốc. Chưa thêm tính năng chẩn đoán hồ sơ đầy đủ, đọc tệp hoặc tự hành động.
+### Phản hồi và tốc độ
 
-## Bảo vệ dữ liệu và nghiệp vụ
+Ngay khi gửi, giao diện hiện trạng thái đang đối chiếu. Kết quả máy chủ được hiển thị trực tiếp, không chờ tải mô hình, không chờ mô hình diễn đạt lại, kể cả khi mô hình đã bật. Sau 3 giây chưa có kết quả, báo máy chủ chậm/khởi động; không dựng câu trả lời hoặc dùng số liệu cũ. Hủy/đứt mạng/403 vẫn giữ câu hỏi và cho thử lại.
 
-App riêng `ai_assistant/`, không có model/bảng hoặc migration mới. `/assistant/api/context/` chỉ POST có CSRF và phiên đăng nhập, kiểm tra quyền mỗi lần. Tồn lấy qua `warehouses_for`, phiếu qua `documents_for`; quyền xem danh mục và tồn khác nhau. Kho giả mạo hoặc ngữ cảnh phiếu ngoài quyền bị từ chối. Hồ sơ sai lệch áp dụng quyền xem toàn công ty đã có; không thay các quyền sửa/duyệt riêng.
+Không có API suy luận bên ngoài trong đường tra cứu. Kiến thức là mã nguồn nạp sẵn trong tiến trình; dữ liệu nghiệp vụ được truy vấn mới mỗi lần, không dùng cache chung giữa người dùng. Kết quả API `private, no-store`. `elapsed_ms` đo thời gian xử lý bên trong view, không gồm thời gian mạng, middleware hoặc máy chủ khởi động. Tốc độ đo ở môi trường thử không phải cam kết tốc độ production: Render miễn phí có khởi động nguội, Neon/mạng có độ trễ.
 
-Nguồn chỉ gồm các trường cần thiết. Không gửi toàn bộ database, dữ liệu chat, tệp Drive hoặc token. Phần tra cứu không truy vấn từ SQL của mô hình. Chỉ đọc số liệu, không gọi dịch vụ tạo/sửa/xóa/duyệt. Mã hàng không có kết quả phải báo không tìm thấy, không thay bằng các dòng hàng khác. Danh sách dài được giới hạn và ghi rõ chưa phải tổng toàn công ty.
+### Soạn nâng cao, tùy chọn
 
-Văn bản mô hình hiển thị bằng `textContent`. Nguồn bấm được chỉ lấy từ URL cùng ứng dụng do máy chủ tạo, không lấy URL do mô hình bịa. Thông tin tra cứu là dữ liệu tham khảo, không được dùng làm chỉ thị thay quyền. API trả `private, no-store`.
+Nút **Soạn nâng cao → Tải và bật AI** giữ lựa chọn Qwen2.5 0.5B q4 chạy một luồng CPU/WebAssembly trong worker. Lần đầu tải khoảng 800 MB; không cần GPU hoặc cài Ollama. Không có phí API và không có fallback trả phí.
 
-## Tài nguyên và bản dựng
+Sau khi bật, mô hình **không tự xử lý mọi câu hỏi**. Chỉ khi bấm **Diễn đạt thêm bằng AI (tùy chọn)** dưới một hướng dẫn/mẫu đã trả, mới sinh thêm đoạn văn tách riêng. Câu trả lời gốc không bị thay thế. Số liệu trực tiếp không có nút diễn đạt lại. Gửi câu hỏi mới vẫn được; nếu đang sinh văn bản, dừng worker trước khi tra câu mới. Nút Dừng/Tắt AI giải phóng worker. Soạn thêm quá 20 giây thì dừng và giữ câu trả lời gốc.
 
-Không có khóa OpenAI/Gemini và không có endpoint tính phí trong triển khai này. Máy chủ hiện tại không chạy mô hình ngôn ngữ; chỉ truy vấn dữ liệu có giới hạn. SDK chỉ tải khi người dùng đồng ý bật AI, không tải mô hình khi đăng nhập hoặc mở trang.
+Chất lượng mô hình nhỏ và tốc độ phụ thuộc thiết bị; chưa kiểm chứng trực tiếp trên máy Windows RAM 8 GB của chủ phần mềm. Không cam kết ngang ChatGPT. Câu hỏi gửi tới máy chủ phần mềm để tra cứu theo quyền; suy luận nâng cao ở thiết bị. Máy chủ tải mô hình công khai không nhận câu hỏi hoặc dữ liệu nghiệp vụ. Lịch sử chỉ ở bộ nhớ trang, không lưu database/localStorage. Cache API chỉ cache mô hình công khai.
 
-SDK Transformers.js 3.8.1 cùng ONNX Runtime Web được lưu tại `static/vendor/transformers-3.8.1/`, có SHA256, nguồn, phiên bản và giấy phép đi kèm. `assistant-models.json` pin revision kho mô hình và SHA256 mong đợi của trọng số. Trọng số tải từ Hugging Face qua HTTPS, thư viện WASM phục vụ cùng ứng dụng; nội dung câu hỏi không được gửi tới các máy chủ tải mô hình. Không đổi các revision này mà không kiểm tra lại tương thích/giấy phép.
+## Phân quyền và giới hạn thay đổi
 
-Để dựng lại SDK (chỉ cho môi trường phát triển):
+App riêng `ai_assistant/`, không có models/migrations/bảng mới. Quyền `assistant_use` giữ nguyên: Admin có toàn quyền chức năng, tài khoản khác phải được cấp rõ; quyền trợ lý không cấp quyền kho/danh mục/phiếu. Không đổi `inventory`, `chat`, `deviations`, dữ liệu, luồng duyệt hoặc phân quyền của chúng trong bản sửa này.
 
-```bash
-npm install --prefix /tmp/dhd-ai-vendor --ignore-scripts --no-audit --no-fund --save-exact @huggingface/transformers@3.8.1
-python scripts/build_assistant_sdk.py --node-modules /tmp/dhd-ai-vendor/node_modules
-python scripts/build_styles.py
+`/assistant/api/context/` chỉ POST có CSRF + đăng nhập hoạt động. Kho qua `warehouses_for`, phiếu qua `documents_for`, danh mục/tồn kiểm quyền riêng. Hồ sơ sai lệch giữ quy tắc nhân viên xem toàn công ty đã chốt; chỉ lấy mã/tiêu đề/trạng thái. Token cũ không làm sống lại quyền đã thu hồi. Không tự tạo/sửa/xóa/duyệt/gửi mail, không SQL từ mô hình hoặc URL bất kỳ. Nội dung dùng `textContent`; liên kết nguồn cùng origin do server tạo. Không đưa mật khẩu/khóa/tệp hoặc hội thoại nhân viên vào ngữ cảnh.
+
+## Tài nguyên mô hình
+
+Giữ nguyên SDK Transformers.js 3.8.1, ONNX Runtime Web, SHA256, revision Qwen và giấy phép tại `static/vendor/transformers-3.8.1/` và `assistant-models.json`. Không tải SDK/trọng số khi mở trợ lý hoặc hỏi tra cứu; chỉ sau lựa chọn tải nâng cao.
+
+```sh
 python scripts/build_assistant_sdk.py --check
+python scripts/build_styles.py --check
 ```
 
-Phải kiểm tra diff/hash và `collectstatic` sau khi dựng. Node không phải phụ thuộc chạy production. Không tắt xác minh TLS để thử mô hình; nếu trình duyệt môi trường thử thiếu CA của proxy, dùng bộ tải artifact xác minh TLS của môi trường thử và ghi rõ cách kiểm chứng.
+Tái tạo SDK khi thực sự cần, bằng npm package chính thức đã pin, theo `scripts/build_assistant_sdk.py`; Node không phải dependency chạy production. Không tắt TLS để thử mô hình.
 
 ## Kiểm chứng và phát hành
 
-Chạy toàn bộ test hiện có cùng các test mới: quyền trợ lý, giữ nguyên quyền dữ liệu, kho/phiếu ngoài phạm vi, phản hồi chỉ đọc, CSRF, câu hỏi không hợp lệ và widget theo trang. Kiểm tra trình duyệt với dữ liệu/tài khoản thử, biểu mẫu chưa lưu, con trỏ, mobile/sáng/tối, lỗi mạng, thiếu WebAssembly/Worker, mô hình tải theo lựa chọn và suy luận thật nếu thiết bị thử hỗ trợ.
+Chạy toàn bộ suite hiện có cùng test trợ lý mới trên PostgreSQL riêng; kiểm tra lint/JS/CSS/Django/migrations/static. Test hồi quy gồm mã sai, kho ngoài quyền, thu hồi quyền sau lượt hỏi, ngữ cảnh đổi/hết hạn, số thập phân, tổng nhiều đơn vị, ngày, cấp duyệt, CSRF/chỉ đọc, tác vụ ở trang khác và không bịa chức năng chưa có.
 
-Phân biệt kết quả tra cứu trực tiếp, kiểm thử giao thức mô phỏng và phản hồi mô hình thật. Không dùng ảnh demo hoặc mock để tuyên bố mô hình đã trả lời thật. Chưa đưa lên main hoặc dịch vụ chính khi chủ phần mềm chưa xem và duyệt đúng commit.
+Chạy giao diện thật với tài khoản/dữ liệu giả riêng, không database/Drive/mail công ty. Đo thời gian riêng cho phản hồi thật; trường hợp mạng trễ/403 giả lập phải ghi riêng, không trộn vào số đo. Kiểm tra form/con trỏ/nút lưu, mobile/sáng/tối, mô hình tùy chọn không chặn tra cứu. Ảnh kèm phải ghi bản nguồn và dữ liệu thử. Chỉ phát hành đúng commit đã cho chủ phần mềm xem và được đồng ý, theo AGENTS.md.

@@ -1,4 +1,5 @@
 import json
+from time import perf_counter
 
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
@@ -9,6 +10,7 @@ from .context import context_for
 
 @require_POST
 def answer_context(request):
+    started = perf_counter()
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Đăng nhập lại để dùng Trợ lý AI."}, status=401)
     try:
@@ -23,7 +25,9 @@ def answer_context(request):
             question.strip(),
             data.get("page", "/"),
             data.get("warehouse", ""),
+            data.get("continuation", ""),
         )
+        result["elapsed_ms"] = round((perf_counter() - started) * 1000)
         response = JsonResponse(result)
     except PermissionDenied as e:
         response = JsonResponse({"error": str(e)}, status=403)

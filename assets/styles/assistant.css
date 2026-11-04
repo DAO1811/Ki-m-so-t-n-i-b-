@@ -313,3 +313,20 @@
     padding: 14px 16px;
   }
 }
+.ai-refine-button {
+  display: block;
+  margin-top: 9px;
+}
+.ai-refinement {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  background: var(--surface-alt);
+}
+.ai-refinement > strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
