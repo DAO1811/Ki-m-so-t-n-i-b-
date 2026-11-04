@@ -11,3 +11,8 @@
 - Ảnh hoặc video gửi trong chat phải được chụp từ bản đang chạy, ghi rõ phiên bản và dữ liệu thử. Không dùng giao diện mô phỏng, ảnh thiết kế hoặc dữ liệu giả để tuyên bố đã kiểm chứng hệ thống thật.
 - Nếu không có công cụ xem tương tác ngay trong ChatGPT, phải nói rõ giới hạn đó; phân biệt ảnh/video xem trong chat với đường dẫn bản thử có thể thao tác. Không hứa đã nhúng ứng dụng hoặc đã cấp đường dẫn thử khi chưa kiểm tra người dùng truy cập được.
 - Không merge vào main, đổi nhánh triển khai hoặc gọi lệnh triển khai bản chính chỉ vì kiểm thử đã đạt. Sau khi chủ phần mềm duyệt, phát hành đúng commit đã xem; thay đổi đáng kể sau lần xem phải đưa xem lại.
+
+## Yêu cầu Trợ lý AI, xác nhận ngày 04/11/2026
+
+- Chủ phần mềm chọn cả hỗ trợ hướng dẫn/soạn nội dung và tra cứu dữ liệu kho/sai lệch theo quyền, nhưng yêu cầu không phát sinh phí API. Không tự gọi API trả phí hoặc dùng API trả phí làm fallback.
+- Máy người dùng cung cấp là Windows, RAM 8 GB. Phương án mô hình nội bộ mới đang ở bước đề xuất/kiểm chứng, chưa được kết nối. Không gọi mô hình của bên khác là ChatGPT/OpenAI, không hứa chất lượng/tốc độ khi chưa thử.
