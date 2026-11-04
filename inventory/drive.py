@@ -244,9 +244,15 @@ def upload(content, content_type, sha, context, filename):
     if context["kind"] == "product":
         parent = folder(token, connection.folder_id, "Hàng hóa", "products")
         parent = folder(token, parent, context["name"], "product-" + context["key"])
+    elif context["kind"] == "chat":
+        parent = folder(token, connection.folder_id, "NhanTinNoiBo", "chat")
+        parent = folder(token, parent, context["year"], "chat-year-" + context["year"])
+        parent = folder(token, parent, context["name"], "chat-" + context["key"])
     elif context["kind"] == "deviation":
         parent = folder(token, connection.folder_id, "XuLySaiLech", "deviations")
-        parent = folder(token, parent, context["year"], "deviation-year-" + context["year"])
+        parent = folder(
+            token, parent, context["year"], "deviation-year-" + context["year"]
+        )
         parent = folder(token, parent, context["name"], "deviation-" + context["key"])
     else:
         parent = folder(token, connection.folder_id, "Hóa đơn", "receipts")

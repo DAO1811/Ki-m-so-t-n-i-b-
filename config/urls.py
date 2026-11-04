@@ -13,6 +13,7 @@ urlpatterns = [
     path("processes/", include("workflows.urls")),
     path("human-resources/", include("people.urls")),
     path("deviations/", include("deviations.urls")),
+    path("chat/", include("chat.urls")),
     path("", include("inventory.urls")),
 ]
 admin.site.site_header = "Kho Việt · Quản trị hệ thống"
