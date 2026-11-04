@@ -14,9 +14,13 @@ Phạm vi chủ phần mềm duyệt ngày 03/11/2026: chat cá nhân và nhóm,
 
 ## Sử dụng
 
+Ba thẻ Tin nhắn / Danh bạ / Nhóm tách rõ hội thoại và tìm đồng nghiệp. Danh bạ chỉ hiển thị tài khoản đang hoạt động đã được cấp chat; không công bố email, số điện thoại hoặc hồ sơ nhân sự. Tìm tên có dấu/không dấu, tài khoản hoặc chức vụ; có bộ lọc từng trường và phân trang để không bị thiếu người khi vượt 100 tài khoản. Chức vụ đọc từ thông tin admin đã khai báo, không tự tạo bộ phận/chức danh mới. Nhóm của tôi chỉ liệt kê nhóm tài khoản đang tham gia, kể cả khi tài khoản là admin. Chuyển thẻ giữ nội dung đang soạn và không đánh dấu đã đọc hội thoại đang bị che bởi danh bạ.
+
+Nút Tạo nhóm mở thẳng bước đặt tên và chọn thành viên. Các lựa chọn được giữ khi tìm tiếp; chip tên cho phép bỏ chọn từng người, có số lượng và chặn vượt giới hạn 30 người (tính cả người tạo). Khi thêm vào nhóm, người đã tham gia bị khóa chọn. Không thay đổi quyền quản lý nhóm hoặc mở lịch sử cũ cho người mới.
+
 Vào Nhắn tin → biểu tượng tạo mới → chọn đồng nghiệp. Bật Tạo nhóm để chọn nhiều người và đặt tên. Thêm ảnh/PDF bằng dấu cộng; mỗi tin tối đa 3 tệp, tổng 8 MB. Ảnh được xác minh, bỏ metadata và chuẩn hóa JPEG; PDF phải hợp lệ, không khóa mật khẩu, tối đa 200 trang. Tệp online lưu trong `NhanTinNoiBo/năm/HoiThoai-UUID` dưới thư mục Drive đã kết nối; không tạo chia sẻ công khai và không lưu binary vào database production.
 
-Tin chữ tối đa 4.000 ký tự. Enter gửi, Shift+Enter xuống dòng; nút Gửi vẫn dùng được trên điện thoại. Có trả lời, biểu cảm, tìm trong hội thoại, ảnh/PDF riêng, trạng thái đã xem theo mốc đã tải và công bố đang soạn. Bộ chọn có 3.781 emoji Unicode, 36 sticker hình gốc và 72 biến thể lời nhắn tiếng Việt. Tìm kiếm/chủ đề/gần đây được tải khi mở, không gọi website bên ngoài để hiển thị.
+Tin chữ tối đa 4.000 ký tự. Enter gửi, Shift+Enter xuống dòng; nút Gửi vẫn dùng được trên điện thoại. Có trả lời, biểu cảm, tìm trong hội thoại, ảnh/PDF riêng, trạng thái đã xem theo mốc đã tải và công bố đang soạn. Bộ chọn có 3.781 emoji Unicode và 132 sticker: 36 hình gốc, 72 biến thể lời nhắn tiếng Việt, 24 biểu cảm vui nhộn dùng emoji từ font thiết bị kèm lời nhắn cố định. Tìm kiếm/chủ đề/gần đây được tải khi mở, không gọi website bên ngoài để hiển thị.
 
 Bản nháp không được tự lưu lâu dài lên thiết bị. Khi gửi lỗi, giữ nguyên nội dung/tệp đang soạn và dùng mã gửi để chống nhân đôi khi bấm lại; thay nội dung sẽ tạo lần gửi khác. Trang hỏi trước khi rời nếu đang có nội dung chưa gửi. Bộ chọn gần đây chỉ lưu mã biểu cảm theo từng tài khoản, không lưu nội dung hội thoại vào localStorage.
 

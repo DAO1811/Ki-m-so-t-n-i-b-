@@ -120,3 +120,43 @@ for prefix, title, captions in (
             "caption": captions[index],
             "pack": title + " · " + original["pack"],
         }
+
+# Emoji artwork is supplied by the device's font, without remote images or tracking.
+# These IDs and captions are stable, just like the original atlas stickers.
+for number, (symbol, caption) in enumerate(
+    (
+        ("🤣", "Cười xỉu luôn!"),
+        ("🤭", "Hí hí, biết rồi nha"),
+        ("🥳", "Quẩy cùng đồng đội!"),
+        ("😎", "Chất như nước cất"),
+        ("🫠", "Tan chảy mất thôi"),
+        ("🤯", "Bất ngờ chưa!"),
+        ("😴", "Nạp pin một xíu"),
+        ("☕", "Cà phê cứu tinh"),
+        ("🐸", "Có gì hot không?"),
+        ("🦆", "Đồng đội vịt vàng"),
+        ("🐼", "Gấu trúc chăm chỉ"),
+        ("🦦", "Chill chút nha"),
+        ("🐧", "Có mặt liền đây"),
+        ("🦥", "Chậm mà chắc nhé"),
+        ("🍋", "Lemon lên mood!"),
+        ("🤖", "Đang chạy hết công suất"),
+        ("💃", "Vui là phải nhảy"),
+        ("🕺", "Cuối tuần tới rồi!"),
+        ("🚀", "Tăng tốc thôi nào!"),
+        ("🔥", "Đội mình quá cháy!"),
+        ("💪", "Việc khó có mình"),
+        ("🫡", "Rõ, nhận nhiệm vụ!"),
+        ("👏", "Vỗ tay thật lớn"),
+        ("🫶", "Gửi tim cả nhà"),
+    ),
+    start=1,
+):
+    key = f"fun-{number:02}"
+    STICKERS[key] = {
+        "id": key,
+        "label": caption,
+        "caption": caption,
+        "symbol": symbol,
+        "pack": "Vui nhộn · Đồng đội",
+    }

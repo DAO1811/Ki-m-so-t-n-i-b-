@@ -15,7 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 from inventory.access import has_function
 from inventory.models import StoredFile
 
-from . import access, calls, selectors, services
+from . import access, calls, directory, selectors, services
 from .models import Attachment, Call, Member
 from .stickers import STICKERS
 
@@ -129,24 +129,13 @@ def summary(request):
 @api
 @require_GET
 def people(request):
-    from django.db.models import Q
+    return JsonResponse(directory.directory(request.user, request.GET))
 
-    users = access.eligible_users().exclude(pk=request.user.pk)
-    q = request.GET.get("q", "")[:100].strip()
-    if q:
-        users = users.filter(
-            Q(username__icontains=q)
-            | Q(first_name__icontains=q)
-            | Q(last_name__icontains=q)
-        )
-    return JsonResponse(
-        {
-            "people": [
-                {"id": u.pk, "name": access.name(u), "username": u.username}
-                for u in users[:100]
-            ]
-        }
-    )
+
+@api
+@require_GET
+def groups(request):
+    return JsonResponse(directory.groups(request.user, request.GET))
 
 
 @api
