@@ -46,10 +46,52 @@ GUIDES = {
         "Nêu rõ thao tác, mã hàng hoặc số phiếu bạn cần hỏi. Trợ lý chỉ đọc dữ liệu được cấp quyền; không tạo, sửa, xóa hoặc duyệt phiếu thay bạn. Có thể hỗ trợ soạn nội dung khi bật AI trên thiết bị. Phân hệ Quy trình và Nhân sự mới là phần chuẩn bị; không khẳng định đã có nghiệp vụ chưa triển khai.",
         "dashboard",
     ),
+    "documents": (
+        "Quản lý phiếu",
+        "Tra cứu theo loại phiếu, trạng thái, ngày và kho được cấp. Mở phiếu để kiểm tra thông tin, lịch sử và điều kiện duyệt; phiếu nháp chưa thay đổi tồn, phiếu đã ghi sổ không sửa trực tiếp.",
+        "documents",
+    ),
+    "approvals": (
+        "Duyệt phiếu",
+        "Người duyệt phải đủ quyền, cao hơn người lập và được phân công tại kho tương ứng. Admin tổng có ngoại lệ tự duyệt với xác nhận cảnh báo. Gửi số phiếu để kiểm tra trạng thái và lý do chặn của tài khoản hiện tại.",
+        "approvals",
+    ),
+    "team": (
+        "Tài khoản & phân quyền",
+        "Admin tạo tài khoản, chọn chức danh, cấp duyệt, quyền theo từng chức năng và phân công kho. Cấp duyệt không thay thế quyền chức năng hoặc phân công kho. Người dùng đổi mật khẩu tại tài khoản của mình.",
+        "team",
+    ),
+    "drive": (
+        "Google Drive",
+        "Admin kết nối tài khoản Google, chọn đúng thư mục qua bộ chọn và kiểm tra quyền đọc/ghi. Đăng nhập Google thành công chưa có nghĩa là đã chọn thư mục. Không nhập khóa bí mật vào khung trợ lý.",
+        "drive_settings",
+    ),
+    "storage": (
+        "Lưu trữ",
+        "Admin kiểm tra dung lượng database và tệp tại Lưu trữ; đối chiếu hạn mức gói trong Neon Console. Drive lưu ảnh/PDF, database giữ dữ liệu nghiệp vụ và metadata theo cấu hình hiện có.",
+        "storage_settings",
+    ),
+    "chat": (
+        "Nhắn tin nội bộ",
+        "Dùng Danh bạ tìm người, tạo hội thoại hoặc nhóm theo quyền. Gửi chữ, ảnh/PDF và sticker; gọi thoại/video cần quyền gọi và quyền micro/camera. Chỉ xem hội thoại mình tham gia; trợ lý không đọc nội dung chat của nhân viên.",
+        "chat_home",
+    ),
 }
 
 
 def topic_for(route, kind=""):
+    if route.startswith("chat_"):
+        return "chat"
+    if route in {"team", "employee_new", "employee_edit", "password_change"}:
+        return "team"
+    if route.startswith("drive_"):
+        return "drive"
+    if route.startswith("storage_"):
+        return "storage"
+    if route == "approvals":
+        return "approvals"
+    if route == "documents":
+        return "documents"
     if route.startswith("deviation"):
         return "deviations"
     if route.startswith(("product", "qr_")):
