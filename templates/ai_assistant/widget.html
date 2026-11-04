@@ -1,6 +1,5 @@
 {% load static ui %}
 <div id="dhd-assistant" data-page="{{ request.path }}" data-warehouse="{{ active_warehouse.pk|default:'' }}" data-page-name="{{ page_name }}">
-  <button type="button" id="ai-launch" class="ai-launch" aria-controls="ai-panel" aria-expanded="false" aria-label="Mở Trợ lý AI tại mục đang sử dụng"><span>✦</span> Trợ lý AI</button>
   <section id="ai-panel" class="ai-panel" role="region" aria-label="Trợ lý AI" hidden>
     <header class="ai-head"><span class="ai-symbol">✦</span><div><h2>Trợ lý công việc</h2><p>Hỏi ngay tại nơi bạn đang làm</p></div><button type="button" id="ai-close" class="ai-icon" aria-label="Thu gọn trợ lý">×</button></header>
     <div class="ai-current">{% icon 'home' %}<span>Đang hỗ trợ: <strong>{{ page_name }}</strong></span></div>

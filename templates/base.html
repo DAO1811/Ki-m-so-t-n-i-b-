@@ -79,6 +79,7 @@
           <button class="icon-button"
                   id="theme-toggle"
                   aria-label="Đổi giao diện sáng tối">{% icon 'moon' %}</button>
+          {% if access.assistant_use %}<button type="button" id="ai-launch" class="icon-button ai-launch" aria-controls="ai-panel" aria-expanded="false" aria-label="Mở Trợ lý AI tại mục đang sử dụng"><span class="ai-launch-label">Trợ lý </span><b>AI</b></button>{% endif %}
         </div>
       </header>
       <div class="content">
