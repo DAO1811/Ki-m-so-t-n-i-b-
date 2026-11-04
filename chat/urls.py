@@ -7,6 +7,7 @@ urlpatterns = [
     path("rooms/<uuid:room_id>/", views.home, name="chat_room"),
     path("api/summary/", views.summary, name="chat_summary"),
     path("api/people/", views.people, name="chat_people"),
+    path("api/groups/", views.groups, name="chat_groups"),
     path("api/rooms/", views.create, name="chat_create"),
     path("api/rooms/<uuid:room_id>/manage/", views.manage, name="chat_manage"),
     path("api/rooms/<uuid:room_id>/messages/", views.timeline, name="chat_messages"),

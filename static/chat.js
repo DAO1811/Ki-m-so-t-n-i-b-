@@ -119,7 +119,13 @@
   function sticker(el, item) {
     el.replaceChildren();
     el.className = "chat-sticker";
-    el.style.backgroundPosition = `${(item.index % 6) * 20}% ${Math.floor(item.index / 6) * 20}%`;
+    el.style.backgroundPosition = "";
+    if (item.symbol) {
+      el.classList.add("chat-sticker-fun");
+      el.append(node("span", "chat-sticker-symbol", item.symbol));
+    } else {
+      el.style.backgroundPosition = `${(item.index % 6) * 20}% ${Math.floor(item.index / 6) * 20}%`;
+    }
     el.setAttribute("role", "img");
     el.setAttribute("aria-label", item.label);
     if (item.caption) {
@@ -234,7 +240,8 @@
         : "Trò chuyện cá nhân · Thông tin";
     $("chat-welcome").hidden = true;
     $("chat-active-thread").hidden = false;
-    app.classList.add("is-room-open");
+    if (!app.classList.contains("is-directory"))
+      app.classList.add("is-room-open");
   }
   function messageElement(message) {
     const wrap = node(
@@ -485,6 +492,7 @@
       else if (result.messages.length) $("chat-new-messages").hidden = false;
       if (
         !state.query &&
+        !app.classList.contains("is-directory") &&
         document.visibilityState === "visible" &&
         (initial || nearBottom) &&
         state.last
@@ -539,7 +547,12 @@
       const el = $("chat-timeline");
       if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) {
         $("chat-new-messages").hidden = true;
-        if (state.last && !state.query && !document.hidden)
+        if (
+          state.last &&
+          !state.query &&
+          !document.hidden &&
+          !app.classList.contains("is-directory")
+        )
           api(roomAPI("read/"), { seq: state.last }, "POST").catch(() => {});
       }
     }, 400),
@@ -547,6 +560,30 @@
   $("chat-back").onclick = () => {
     app.classList.remove("is-room-open");
   };
+  let directoryScroll = null;
+  window.addEventListener("chat-view-directory", () => {
+    const el = $("chat-timeline");
+    directoryScroll = {
+      top: el.scrollTop,
+      bottom: el.scrollHeight - el.scrollTop - el.clientHeight < 110,
+    };
+  });
+  window.addEventListener("chat-view-messages", () => {
+    const el = $("chat-timeline");
+    if (directoryScroll) {
+      el.scrollTop = directoryScroll.bottom
+        ? el.scrollHeight
+        : directoryScroll.top;
+      directoryScroll = null;
+    }
+    if (
+      state.last &&
+      !state.query &&
+      !document.hidden &&
+      el.scrollHeight - el.scrollTop - el.clientHeight < 110
+    )
+      api(roomAPI("read/"), { seq: state.last }, "POST").catch(() => {});
+  });
   function resetKey() {
     state.pendingKey = null;
   }
@@ -847,82 +884,203 @@
     )
       $("chat-picker").hidden = true;
   });
-  let peopleGeneration = 0;
-  async function loadPeople() {
-    const generation = ++peopleGeneration;
-    try {
-      const data = await api(
-        "/chat/api/people/?q=" +
-          encodeURIComponent($("chat-people-search").value),
+  let peopleGeneration = 0,
+    peopleNext = null,
+    peopleRows = new Map(),
+    creating = false;
+  function canAddPerson(person) {
+    return !(
+      state.addMode && state.room.members.some((m) => m.id === person.id)
+    );
+  }
+  function selectionLimit() {
+    return state.addMode
+      ? 30 - state.room.members.length
+      : $("chat-create-group").checked
+        ? 29
+        : 1;
+  }
+  function renderPeople() {
+    const list = $("chat-people-list");
+    list.replaceChildren();
+    for (const person of peopleRows.values()) {
+      const label = node("label", "chat-people-option"),
+        check = node("input");
+      check.type = "checkbox";
+      check.value = person.id;
+      check.checked = state.people.has(person.id);
+      check.disabled =
+        !canAddPerson(person) ||
+        (!check.checked &&
+          state.people.size >= selectionLimit() &&
+          (state.addMode || $("chat-create-group").checked));
+      const text = node("span", "chat-person-text", person.name);
+      text.append(
+        node(
+          "small",
+          "",
+          "@" +
+            person.username +
+            (person.job_title ? " · " + person.job_title : ""),
+        ),
       );
-      if (generation !== peopleGeneration) return;
-      $("chat-people-list").replaceChildren();
-      for (const person of data.people) {
-        const label = node("label", "chat-people-option"),
-          check = node("input");
-        check.type = "checkbox";
-        check.value = person.id;
-        check.checked = state.people.has(person.id);
-        check.disabled =
-          state.addMode && state.room.members.some((m) => m.id === person.id);
-        const text = node("span", "", person.name);
-        text.append(node("small", "", person.username));
-        label.append(check, text);
-        check.onchange = () => {
+      label.append(
+        check,
+        node("span", "chat-avatar", initials(person.name)),
+        text,
+      );
+      if (!canAddPerson(person))
+        label.append(node("small", "", "Đã trong nhóm"));
+      check.onchange = () => {
+        if (check.checked) {
           if (!$("chat-create-group").checked && !state.addMode)
             state.people.clear();
-          if (check.checked) state.people.set(person.id, person);
-          else state.people.delete(person.id);
-          renderSelected();
-          loadPeople();
-        };
-        $("chat-people-list").append(label);
-      }
+          if (state.people.size >= selectionLimit()) {
+            check.checked = false;
+            return;
+          }
+          state.people.set(person.id, person);
+        } else state.people.delete(person.id);
+        error("", "chat-create-error");
+        renderSelected();
+        renderPeople();
+      };
+      list.append(label);
+    }
+    if (!peopleRows.size)
+      list.append(
+        node(
+          "p",
+          "chat-muted",
+          "Không tìm thấy đồng nghiệp phù hợp. Thử tên không dấu hoặc tên tài khoản.",
+        ),
+      );
+  }
+  async function loadPeople(reset = true) {
+    const generation = ++peopleGeneration;
+    const params = new URLSearchParams({ q: $("chat-people-search").value });
+    if (!reset && peopleNext !== null) params.set("offset", peopleNext);
+    $("chat-people-more").disabled = true;
+    if (reset) {
+      peopleNext = null;
+      $("chat-people-more").hidden = true;
+      $("chat-people-list").replaceChildren(
+        node("p", "chat-muted", "Đang tìm đồng nghiệp…"),
+      );
+    }
+    try {
+      const data = await api("/chat/api/people/?" + params);
+      if (generation !== peopleGeneration || !$("chat-new-dialog").open) return;
+      if (reset) peopleRows.clear();
+      for (const person of data.people) peopleRows.set(person.id, person);
+      peopleNext = data.next_offset;
+      $("chat-people-more").hidden = peopleNext === null;
+      renderPeople();
     } catch (e) {
-      error(e.message, "chat-create-error");
+      if (generation === peopleGeneration)
+        error(e.message, "chat-create-error");
+    } finally {
+      if (generation === peopleGeneration)
+        $("chat-people-more").disabled = false;
     }
   }
   function renderSelected() {
-    $("chat-selected-people").replaceChildren();
-    for (const person of state.people.values())
-      $("chat-selected-people").append(node("span", "", person.name));
+    const container = $("chat-selected-people"),
+      count = state.people.size,
+      max = selectionLimit();
+    container.replaceChildren();
+    for (const person of state.people.values()) {
+      const chip = node("button", "chat-selected-chip", person.name + " ×");
+      chip.type = "button";
+      chip.setAttribute("aria-label", "Bỏ chọn " + person.name);
+      chip.onclick = () => {
+        state.people.delete(person.id);
+        renderSelected();
+        renderPeople();
+      };
+      container.append(chip);
+    }
+    $("chat-create-count").textContent = `Đã chọn ${count}/${max}`;
+    $("chat-create-footer-hint").textContent = state.addMode
+      ? `${count} thành viên mới`
+      : $("chat-create-group").checked
+        ? `Nhóm có ${count + 1} người, bao gồm bạn`
+        : "Chọn một đồng nghiệp để nhắn tin.";
+    $("chat-create-submit").disabled = creating || count === 0 || count > max;
   }
-  function newChat(add = false) {
+  function newChat(add = false, group = false) {
+    if (group && !boot.can_groups) return;
     state.addMode = add;
     state.people.clear();
+    peopleRows.clear();
+    peopleNext = null;
+    peopleGeneration++;
     $("chat-people-search").value = "";
-    $("chat-create-group").checked = add;
+    $("chat-create-group").checked = add || group;
     $("chat-create-group").disabled = add || !boot.can_groups;
-    $("chat-group-title-label").hidden = true;
-    $("chat-group-title").required = false;
+    $("chat-group-title-label").hidden = add || !group;
+    $("chat-group-title").required = group && !add;
     $("chat-group-title").value = "";
+    $("chat-create-title").textContent = add
+      ? "Thêm thành viên"
+      : group
+        ? "Tạo nhóm làm việc"
+        : "Trò chuyện mới";
     $("chat-create-submit").textContent = add
       ? "Thêm vào nhóm"
-      : "Bắt đầu trò chuyện";
+      : group
+        ? "Tạo nhóm"
+        : "Bắt đầu trò chuyện";
+    $("chat-create-help").textContent = add
+      ? "Thành viên mới chỉ xem tin nhắn từ lúc tham gia. Nhóm tối đa 30 người."
+      : "Chỉ hiển thị tài khoản đang hoạt động, đã được cấp quyền chat. Nhóm tối đa 30 người.";
     error("", "chat-create-error");
     renderSelected();
     $("chat-new-dialog").showModal();
+    if (group) $("chat-group-title").focus();
+    else $("chat-people-search").focus();
     loadPeople();
   }
+  window.DHDChat.openCreator = () => newChat(false, true);
   $("chat-new").onclick = () => newChat();
   $("chat-welcome-new").onclick = () => newChat();
-  const delayedPeople = debounce(loadPeople, 250);
+  const delayedPeople = debounce(() => loadPeople(true), 250);
   $("chat-people-search").addEventListener("input", () => {
+    peopleGeneration++;
     $("chat-people-list").replaceChildren(
       node("p", "chat-muted", "Đang tìm đồng nghiệp…"),
     );
+    $("chat-people-more").hidden = true;
     delayedPeople();
   });
+  $("chat-people-more").onclick = () => loadPeople(false);
+  $("chat-new-dialog").addEventListener("close", () => {
+    peopleGeneration++;
+  });
   $("chat-create-group").onchange = () => {
-    $("chat-group-title-label").hidden = !$("chat-create-group").checked;
-    $("chat-group-title").required = $("chat-create-group").checked;
-    state.people.clear();
+    const group = $("chat-create-group").checked;
+    $("chat-group-title-label").hidden = !group;
+    $("chat-group-title").required = group;
+    $("chat-create-title").textContent = group
+      ? "Tạo nhóm làm việc"
+      : "Trò chuyện mới";
+    $("chat-create-submit").textContent = group
+      ? "Tạo nhóm"
+      : "Bắt đầu trò chuyện";
+    if (!group && state.people.size > 1)
+      state.people = new Map([...state.people.entries()].slice(0, 1));
     renderSelected();
-    loadPeople();
+    renderPeople();
   };
   $("chat-create-form").onsubmit = async (event) => {
     event.preventDefault();
+    if (creating || !state.people.size || state.people.size > selectionLimit())
+      return;
+    creating = true;
     $("chat-create-submit").disabled = true;
+    const submit = $("chat-create-submit");
+    const label = submit.textContent;
+    submit.textContent = state.addMode ? "Đang thêm…" : "Đang kết nối…";
     try {
       if (state.addMode) {
         await api(
@@ -948,7 +1106,9 @@
     } catch (e) {
       error(e.message, "chat-create-error");
     } finally {
-      $("chat-create-submit").disabled = false;
+      creating = false;
+      renderSelected();
+      submit.textContent = label;
     }
   };
   for (const button of document.querySelectorAll("[data-close-dialog]"))
