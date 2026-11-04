@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "people.apps.PeopleConfig",
     "deviations.apps.DeviationsConfig",
     "chat.apps.ChatConfig",
+    "ai_assistant.apps.AIAssistantConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

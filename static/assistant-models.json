@@ -1,0 +1,12 @@
+{
+  "runtime": "transformers-wasm",
+  "sdk_version": "3.8.1",
+  "model_list": [{
+    "model_id": "Qwen2.5-0.5B-Instruct-q4-CPU",
+    "model_repo": "onnx-community/Qwen2.5-0.5B-Instruct",
+    "revision": "22942cb7d7ba4cc81bb4673549ca4d4614469b5e",
+    "dtype": "q4",
+    "weight_bytes": 786156820,
+    "weight_sha256": "09235a3b1c135cd04ef570e5053b5c079e028078a2cc5f76ba6a251e91bf3296"
+  }]
+}

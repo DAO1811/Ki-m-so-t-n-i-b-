@@ -79,6 +79,7 @@
           <button class="icon-button"
                   id="theme-toggle"
                   aria-label="Đổi giao diện sáng tối">{% icon 'moon' %}</button>
+          {% if access.assistant_use %}<button type="button" id="ai-launch" class="icon-button ai-launch" aria-controls="ai-panel" aria-expanded="false" aria-label="Mở Trợ lý AI tại mục đang sử dụng"><span class="ai-launch-label">Trợ lý </span><b>AI</b></button>{% endif %}
         </div>
       </header>
       <div class="content">
@@ -98,6 +99,7 @@
       <dialog id="chat-incoming" class="chat-dialog"><h2>Có cuộc gọi nội bộ</h2><p id="chat-incoming-label"></p><div class="chat-incoming-actions"><a class="button" id="chat-incoming-open">Mở cuộc gọi</a><button type="button" class="button secondary" id="chat-incoming-dismiss">Để sau</button></div></dialog>
       <script src="{% static 'chat-notifications.js' %}" defer></script>
     {% endif %}
+    {% if access.assistant_use %}{% include 'ai_assistant/widget.html' %}{% endif %}
     {% block scripts %}{% endblock %}
   </body>
 </html>

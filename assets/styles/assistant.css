@@ -1,0 +1,315 @@
+/* Every selector is confined to the on-demand assistant; warehouse forms are untouched. */
+#dhd-assistant [hidden] {
+  display: none !important;
+}
+.ai-launch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+  border: 1px solid var(--accent);
+  border-radius: 11px;
+  padding: 0 12px;
+  width: auto;
+  height: 36px;
+  white-space: nowrap;
+  background: var(--ink);
+  color: var(--surface);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-panel {
+  position: fixed;
+  right: 22px;
+  top: 76px;
+  width: min(460px, calc(100vw - 28px));
+  height: min(740px, calc(100dvh - 110px));
+  z-index: 136;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 20px 70px #10162035;
+  overflow: hidden;
+  font-size: 12px;
+}
+.ai-panel * {
+  box-sizing: border-box;
+}
+.ai-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  background: linear-gradient(125deg, var(--accent-soft), var(--surface));
+  border-bottom: 1px solid var(--line);
+}
+.ai-symbol {
+  display: grid;
+  place-items: center;
+  background: var(--accent-ink);
+  color: var(--surface);
+  border-radius: 13px;
+  width: 42px;
+  height: 42px;
+  font-size: 28px;
+}
+.ai-head > div {
+  flex: 1;
+}
+.ai-head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.ai-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.ai-icon {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+.ai-current {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.ai-current .icon {
+  width: 13px;
+  height: 13px;
+}
+.ai-current strong {
+  color: var(--ink);
+}
+.ai-engine-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.ai-link {
+  border: 0;
+  padding: 3px 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.ai-primary {
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ai-primary:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.ai-prepare {
+  margin: 0 16px 10px;
+  padding: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.ai-prepare p {
+  margin: 6px 0 10px;
+}
+.ai-prepare > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ai-thread {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 14px 18px;
+  background: var(--surface-alt);
+  overscroll-behavior: contain;
+}
+.ai-welcome {
+  padding: 14px 9px 25px;
+}
+.ai-welcome > span {
+  font-size: 37px;
+  color: var(--accent-ink);
+}
+.ai-welcome h3 {
+  font-size: 21px;
+  margin: 13px 0 8px;
+}
+.ai-welcome p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.ai-prompts {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+.ai-prompts > button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 11px;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ai-msg {
+  padding: 12px 14px;
+  margin: 0 0 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 14px;
+  overflow-wrap: anywhere;
+}
+.ai-msg.ai-user {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  margin-left: 38px;
+}
+.ai-msg-label {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 8px;
+}
+.ai-msg-body {
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.ai-sources {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.ai-sources > strong {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.ai-sources > a {
+  display: inline-block;
+  margin: 3px 5px 3px 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--accent-ink);
+  padding: 4px 7px;
+  font-size: 10px;
+  text-decoration: none;
+}
+.ai-facts {
+  margin-top: 10px;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.ai-facts summary {
+  cursor: pointer;
+  color: var(--accent-ink);
+}
+.ai-msg-note {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.ai-compose {
+  padding: 11px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.ai-compose textarea {
+  display: block;
+  width: 100%;
+  min-height: 55px;
+  max-height: 110px;
+  resize: vertical;
+  padding: 9px 11px;
+  margin: 0;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.ai-compose > div {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.ai-compose #ai-busy {
+  color: var(--muted);
+  font-size: 10px;
+}
+.ai-foot {
+  padding: 0 16px 12px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+.ai-error {
+  margin: 0 16px 9px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .ai-launch {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .ai-launch-label {
+    display: none;
+  }
+  .ai-panel {
+    right: 10px;
+    top: 88px;
+    width: calc(100vw - 20px);
+    height: min(700px, calc(100dvh - 104px));
+    border-radius: 17px;
+  }
+  .ai-head {
+    padding: 14px 16px;
+  }
+}

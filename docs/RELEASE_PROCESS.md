@@ -1,6 +1,14 @@
 # Phát triển, kiểm tra và phát hành
 
-Cập nhật ngày 21/10/2026. Mã được quản lý trên GitHub; bản thật chạy tại https://kiemsoatnoibolemon.onrender.com. `/healthz/` là nguồn xác định commit đang chạy; tên nhánh, thông báo commit hoặc màu giao diện không thay thế kiểm tra release.
+Cập nhật ngày 04/11/2026. Mã được quản lý trên GitHub; bản thật chạy tại https://kiemsoatnoibolemon.onrender.com. `/healthz/` là nguồn xác định commit đang chạy; tên nhánh, thông báo commit hoặc màu giao diện không thay thế kiểm tra release.
+
+## Chủ phần mềm xem và duyệt trước khi phát hành
+
+Quy tắc mới ngày 04/11/2026 thay thế yêu cầu tự động cập nhật trước đây: hoàn tất kiểm thử chưa phải là chấp thuận phát hành. Chủ phần mềm cần xem bản chạy thật của đúng thay đổi và đồng ý phiên bản đó trước khi merge main hoặc cập nhật dịch vụ chính.
+
+Trong chat, cung cấp ảnh/video chụp trực tiếp từ mã nguồn đang chạy, kèm commit và mô tả dữ liệu thử. Ảnh/video chỉ là bằng chứng xem trước; không gọi đó là ứng dụng tương tác nhúng trong ChatGPT. Nếu công cụ của phiên không hỗ trợ nhúng, nói rõ và cung cấp đường dẫn thử riêng khi đã thiết lập, kiểm tra truy cập. Không đưa link localhost hoặc đường dẫn file nội bộ rồi coi như người dùng đã được xem.
+
+Đường dẫn thử cần có đăng nhập, database và nơi lưu tệp riêng. Không dùng database production, Drive hoặc email công ty để thử tạo/xóa/gửi. Chỉ đưa dữ liệu công ty vào môi trường thử khi có yêu cầu riêng và kiểm soát truy cập thích hợp. Không tự bật dịch vụ tính phí. Ghi nhận phiên bản chủ phần mềm đã xem; sửa đổi đáng kể sau khi duyệt phải đưa xem lại.
 
 ## Trong lúc phát triển
 

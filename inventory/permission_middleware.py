@@ -69,7 +69,15 @@ class FunctionAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view, args, kwargs):
         if (
             not view.__module__.startswith(
-                ("inventory.", "core.", "workflows.", "people.", "deviations.", "chat.")
+                (
+                    "inventory.",
+                    "core.",
+                    "workflows.",
+                    "people.",
+                    "deviations.",
+                    "chat.",
+                    "ai_assistant.",
+                )
             )
             or not request.user.is_authenticated
         ):
@@ -79,7 +87,9 @@ class FunctionAccessMiddleware(MiddlewareMixin):
         name = request.resolver_match.url_name
         codes = function_codes(request.user)
         allowed = False
-        if view.__module__.startswith("chat."):
+        if view.__module__.startswith("ai_assistant."):
+            allowed = "assistant_use" in codes
+        elif view.__module__.startswith("chat."):
             allowed = "chat_use" in codes
         elif view.__module__.startswith("deviations."):
             from deviations.access import route_allowed
