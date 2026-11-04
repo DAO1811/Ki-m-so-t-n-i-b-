@@ -6517,3 +6517,14 @@ pre.deviation-audit {
   font-size: 10px;
   color: var(--muted);
 }
+.ai-modes { display: flex; gap: 6px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+.ai-modes button { flex: 1; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font: inherit; font-size: 11px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.ai-modes button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.ai-modes small { font-size: 9px; }
+.ai-cloud-info { margin: 8px 16px; max-height: 190px; overflow: auto; padding: 9px 11px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: 10px; font-size: 10px; line-height: 1.7; flex-shrink: 0; }
+.ai-cloud-info p { margin: 0 0 7px; }
+.ai-cloud-info label { display: flex; gap: 7px; align-items: flex-start; font-weight: 600; }
+.ai-cloud-info input { width: auto; margin: 4px 0 0; }
+.ai-cloud-info summary { cursor: pointer; color: var(--accent-ink); }
+.ai-cloud-info ol { margin: 8px 0; padding-left: 17px; }
+.ai-cloud-info code { overflow-wrap: anywhere; }

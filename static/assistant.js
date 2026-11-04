@@ -1,3 +1,4 @@
+import { CloudConversation } from "./assistant-cloud.js";
 /* Grounded answers are always first. Optional on-device prose never blocks lookup. */
 const root = document.getElementById("dhd-assistant");
 if (root) {
@@ -17,6 +18,7 @@ if (root) {
     pendingCard = null;
   let cancelRefinement = null;
   const refineButtons = new Set();
+  let cloud = null;
   const el = (tag, cls, text) => {
     const node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -28,11 +30,15 @@ if (root) {
     $("ai-error").hidden = !text;
   }
   function controls() {
-    $("ai-send").disabled = sending;
-    $("ai-clear").disabled = sending;
-    $("ai-enable").disabled = loading;
-    $("ai-busy").hidden = !sending;
-    $("ai-stop").hidden = !loading && !sending && !cancelRefinement;
+    $("ai-send").disabled = sending || !!cloud?.busy;
+    $("ai-clear").disabled = sending || !!cloud?.busy;
+    $("ai-enable").disabled = loading || !!cloud?.active;
+    $("ai-enable").hidden = !!cloud?.active;
+    $("ai-busy").hidden = !sending && !cloud?.busy;
+    $("ai-stop").hidden =
+      !loading && !sending && !cancelRefinement && !cloud?.busy;
+    $("ai-mode-internal").disabled = sending || !!cloud?.busy;
+    $("ai-mode-cloud").disabled = sending || !!cloud?.busy;
     for (const button of refineButtons) {
       button.hidden = !engine;
       button.disabled = !!cancelRefinement;
@@ -257,6 +263,10 @@ if (root) {
   };
   $("ai-load").onclick = enableModel;
   $("ai-stop").onclick = () => {
+    if (cloud?.busy) {
+      cloud.stop();
+      return;
+    }
     if (loading) cancelLoad?.();
     stopRefinement();
     if (sending) {
@@ -277,6 +287,7 @@ if (root) {
   $("ai-clear").onclick = () => {
     if (!sending) {
       stopRefinement();
+      cloud?.clear();
       thread.replaceChildren();
       refineButtons.clear();
       continuation = "";
@@ -304,7 +315,11 @@ if (root) {
   $("ai-form").onsubmit = async (event) => {
     event.preventDefault();
     const question = $("ai-question").value.trim();
-    if (!question || sending) return;
+    if (!question || sending || cloud?.busy) return;
+    if (cloud?.active) {
+      await cloud.ask(question);
+      return;
+    }
     stopRefinement();
     const current = ++generation;
     sending = true;
@@ -391,7 +406,22 @@ if (root) {
       }
     }
   };
+  cloud = new CloudConversation({
+    root,
+    $,
+    controls,
+    error,
+    message,
+    sources,
+    thread,
+    cancelLocal: () => {
+      cancelLoad?.();
+      stopRefinement();
+      resetEngine();
+    },
+  });
   window.addEventListener("pagehide", () => {
+    cloud.clear();
     generation++;
     requestController?.abort();
     cancelLoad?.();
