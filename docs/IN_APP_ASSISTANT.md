@@ -1,3 +1,5 @@
+**Bổ sung ngày 04/11/2026:** chủ phần mềm đã đồng ý Groq Free cho trò chuyện nhiều lượt và yêu cầu cập nhật bản chính. Xem [cấu hình, quota và dữ liệu](GROQ_FREE_CHAT.md). Phần tra cứu trực tiếp bên dưới giữ nguyên; mô hình Qwen trên thiết bị vẫn là lựa chọn riêng.
+
 # Trợ lý trong màn hình làm việc
 
 ## Bản sửa tốc độ và kiến thức ngày 04/11/2026 — chờ xem thử

@@ -15,7 +15,13 @@ FUNCTION_ROWS = [
     (
         "assistant",
         "Trợ lý AI trong phần mềm",
-        [("use", "Hỏi hướng dẫn và tra cứu theo quyền hiện có (không tạo/sửa/duyệt)")],
+        [
+            (
+                "use",
+                "Hỏi hướng dẫn và tra cứu theo quyền hiện có (không tạo/sửa/duyệt)",
+            ),
+            ("chat", "Trò chuyện nhiều lượt qua Groq Free (gửi nội dung hỏi tới Groq)"),
+        ],
     ),
     (
         "chat",
@@ -209,6 +215,8 @@ def normalize_permissions(codes):
             module, action = code.rsplit("_", 1)
             if action != "view" and f"{module}_view" in FUNCTION_KEYS:
                 result.add(f"{module}_view")
+        if "assistant_chat" in result:
+            result.add("assistant_use")
         if result & {"chat_groups", "chat_call"}:
             result.add("chat_use")
         if result & CREATE_KEYS:
