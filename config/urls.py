@@ -14,6 +14,7 @@ urlpatterns = [
     path("human-resources/", include("people.urls")),
     path("deviations/", include("deviations.urls")),
     path("chat/", include("chat.urls")),
+    path("assistant/", include("ai_assistant.urls")),
     path("", include("inventory.urls")),
 ]
 admin.site.site_header = "Kho Việt · Quản trị hệ thống"

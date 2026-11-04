@@ -13,6 +13,11 @@ KIND_MODULES = {
 }
 FUNCTION_ROWS = [
     (
+        "assistant",
+        "Trợ lý AI trong phần mềm",
+        [("use", "Hỏi hướng dẫn và tra cứu theo quyền hiện có (không tạo/sửa/duyệt)")],
+    ),
+    (
         "chat",
         "Nhắn tin nội bộ",
         [

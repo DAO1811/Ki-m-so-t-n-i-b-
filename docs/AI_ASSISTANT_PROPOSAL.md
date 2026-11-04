@@ -1,5 +1,7 @@
 # Đề xuất tích hợp Trợ lý AI — 04/11/2026
 
+**Cập nhật sau khi chủ phần mềm làm rõ:** cần cửa sổ trợ lý mở ngay tại mục đang sử dụng, không yêu cầu mở/cài Ollama riêng. Bản triển khai thử chọn mô hình chạy trong trình duyệt bằng CPU/WebAssembly; xem [thiết kế hiện hành](IN_APP_ASSISTANT.md). Các phương án Ollama/OpenAI bên dưới là lịch sử nghiên cứu, chưa được cài hoặc kích hoạt.
+
 ## Phạm vi chủ phần mềm đã chọn
 
 Hỗ trợ cả hướng dẫn sử dụng/soạn nội dung và tra cứu, tổng hợp dữ liệu kho, hồ sơ sai lệch theo quyền của tài khoản. Chủ phần mềm đã chọn **không phát sinh phí API**. Vì vậy, phương án OpenAI API trả phí bên dưới chỉ là tham khảo ban đầu, không được kích hoạt hoặc dùng làm fallback. Đây là đề xuất triển khai, chưa phải chức năng đã kết nối AI.

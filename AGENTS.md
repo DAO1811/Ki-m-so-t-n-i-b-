@@ -16,3 +16,5 @@
 
 - Chủ phần mềm chọn cả hỗ trợ hướng dẫn/soạn nội dung và tra cứu dữ liệu kho/sai lệch theo quyền, nhưng yêu cầu không phát sinh phí API. Không tự gọi API trả phí hoặc dùng API trả phí làm fallback.
 - Máy người dùng cung cấp là Windows, RAM 8 GB. Phương án mô hình nội bộ mới đang ở bước đề xuất/kiểm chứng, chưa được kết nối. Không gọi mô hình của bên khác là ChatGPT/OpenAI, không hứa chất lượng/tốc độ khi chưa thử.
+
+- Làm rõ cùng ngày: Trợ lý phải mở ngay trong phần mềm tại mục người dùng đang sử dụng. Không yêu cầu người dùng mở/cài ứng dụng AI riêng; bản thử hiện chọn CPU/WebAssembly trong trình duyệt. Chưa phát hành khi chủ phần mềm chưa xem và duyệt.

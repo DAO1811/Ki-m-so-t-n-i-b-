@@ -1,0 +1,15 @@
+{% load static ui %}
+<div id="dhd-assistant" data-page="{{ request.path }}" data-warehouse="{{ active_warehouse.pk|default:'' }}" data-page-name="{{ page_name }}">
+  <button type="button" id="ai-launch" class="ai-launch" aria-controls="ai-panel" aria-expanded="false" aria-label="Mở Trợ lý AI tại mục đang sử dụng"><span>✦</span> Trợ lý AI</button>
+  <section id="ai-panel" class="ai-panel" role="region" aria-label="Trợ lý AI" hidden>
+    <header class="ai-head"><span class="ai-symbol">✦</span><div><h2>Trợ lý công việc</h2><p>Hỏi ngay tại nơi bạn đang làm</p></div><button type="button" id="ai-close" class="ai-icon" aria-label="Thu gọn trợ lý">×</button></header>
+    <div class="ai-current">{% icon 'home' %}<span>Đang hỗ trợ: <strong>{{ page_name }}</strong></span></div>
+    <div class="ai-engine-bar"><span id="ai-engine-state" role="status">Tra cứu trực tiếp · Không phí API</span><button type="button" id="ai-enable" class="ai-link">Bật trả lời AI</button><button type="button" id="ai-stop" class="ai-link" hidden>Dừng</button></div>
+    <div id="ai-prepare" class="ai-prepare" hidden><strong>AI xử lý trên thiết bị này</strong><p>Lần đầu tải khoảng 800 MB mô hình và cần bộ nhớ trống. AI chạy trong trình duyệt, không cần cài ứng dụng hay GPU rời. Nội dung hỏi không gửi đến dịch vụ AI bên ngoài. Bạn vẫn tra cứu trực tiếp khi chưa bật AI.</p><div><button type="button" id="ai-load" class="ai-primary">Tải và bật AI</button><button type="button" id="ai-prepare-close" class="ai-link">Để sau</button></div></div>
+    <div id="ai-thread" class="ai-thread" role="log" aria-label="Trao đổi với trợ lý"><div class="ai-welcome"><span>✦</span><h3>Bạn cần hỗ trợ gì?</h3><p>Tôi có thể hướng dẫn thao tác ở mục này, tra cứu số liệu được cấp quyền và giúp soạn nội dung khi bật AI.</p><div class="ai-prompts"><button type="button" data-ai-prompt="Hướng dẫn thao tác tại mục này">Hướng dẫn mục này ↗</button><button type="button" data-ai-prompt="Tồn kho hiện tại trong phạm vi tôi được xem">Tra cứu tồn kho ↗</button><button type="button" data-ai-prompt="Các phiếu nhập đang chờ duyệt tôi được xem">Phiếu đang chờ duyệt ↗</button></div></div></div>
+    <p id="ai-error" class="ai-error" role="alert" hidden></p>
+    <form id="ai-form" class="ai-compose">{% csrf_token %}<label class="sr-only" for="ai-question">Câu hỏi của bạn</label><textarea id="ai-question" maxlength="1000" rows="2" placeholder="Hỏi về thao tác, mã hàng, số phiếu…"></textarea><div><button type="button" class="ai-link" id="ai-clear">Cuộc trao đổi mới</button><span id="ai-busy" role="status" hidden>Đang trả lời…</span><button type="submit" class="ai-primary" id="ai-send" aria-label="Gửi câu hỏi">Gửi ↑</button></div></form>
+    <footer class="ai-foot">Chỉ đọc theo quyền · Đối chiếu nguồn trước khi dùng nội dung AI · Lịch sử chỉ giữ tại trang này</footer>
+  </section>
+</div>
+<script src="{% static 'assistant.js' %}" type="module"></script>

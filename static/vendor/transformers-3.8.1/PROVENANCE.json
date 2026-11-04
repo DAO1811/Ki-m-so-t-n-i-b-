@@ -1,0 +1,20 @@
+{
+  "package": "@huggingface/transformers",
+  "version": "3.8.1",
+  "license": "Apache-2.0",
+  "source": "https://www.npmjs.com/package/@huggingface/transformers/v/3.8.1",
+  "npm_integrity": "sha512-tsTk4zVjImqdqjS8/AOZg2yNLd1z9S5v+7oUPpXaasDRwEDhB+xnglK1k5cad26lL5/ZIaeREgWWy0bs9y9pPA==",
+  "onnxruntime_web_version": "1.22.0-dev.20250409-89f8206ba4",
+  "onnxruntime_source_revision": "89f8206ba4f1c22c39e0297fb55272e8ce8cd7d0",
+  "model_original": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/tree/7ae557604adf67be50417f59c2c2f167def9a775",
+  "model_original_license": "Apache-2.0",
+  "files": {
+    "JINJA-LICENSE.txt": "d6e7b19451c1b3d1d66353bb4b1274138953b3bfd9ae60c56e77b1f548796982",
+    "ONNX-LICENSE.txt": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+    "ONNX-THIRD-PARTY-NOTICES.txt": "e9e90971a8e75a9a8ac0c6412e29c1202d079998389915aa485f46c816c3b4cc",
+    "TRANSFORMERS-LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "ort-wasm-simd-threaded.jsep.mjs": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9",
+    "ort-wasm-simd-threaded.jsep.wasm": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39",
+    "transformers-3.8.1.mjs": "aa5002b70e789798da263f5f99c62bd3e8fcd0c119258a493c40c180648365fa"
+  }
+}
