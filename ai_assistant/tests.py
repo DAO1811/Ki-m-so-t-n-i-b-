@@ -62,11 +62,17 @@ class AssistantTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data["facts"]), 1)
-        self.assertIn("7.000", data["facts"][0])
+        self.assertIn("tồn sở hữu 7 Cái", data["facts"][0])
         self.assertIn("OWN", data["facts"][0])
         self.assertNotIn("SECRET", response.content.decode())
         self.assertNotIn("999", response.content.decode())
         self.assertTrue(data["sources"][0]["url"].startswith("/stock/"))
+        for quantity, expected in [("7.5", "7,5"), ("1000", "1000")]:
+            Balance.objects.filter(warehouse=self.own, product=self.a).update(
+                quantity=Decimal(quantity)
+            )
+            fact = self.post("Tồn kho AI001").json()["facts"][0]
+            self.assertIn(f"tồn sở hữu {expected} Cái", fact)
 
     def test_spoofed_warehouse_or_private_document_context_is_denied(self):
         self.assertEqual(
@@ -100,7 +106,7 @@ class AssistantTests(TestCase):
         grant_functions(self.staff, ["assistant_use", "products_view"])
         data = self.post("Tồn AI001").json()
         self.assertIn("chưa có quyền xem số tồn", data["answer"])
-        self.assertNotIn("7.000", data["answer"])
+        self.assertNotIn("tồn sở hữu", data["answer"])
         self.assertNotIn("999", json.dumps(data))
 
     def test_requests_are_read_only_even_if_question_asks_to_delete_or_approve(self):

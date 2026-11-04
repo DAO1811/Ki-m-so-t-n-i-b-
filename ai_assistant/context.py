@@ -32,6 +32,13 @@ def require_use(user):
         raise PermissionDenied("Bạn chưa được cấp quyền dùng Trợ lý AI.")
 
 
+def quantity_label(quantity):
+    text = format(quantity, "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text.replace(".", ",")
+
+
 def page_info(path):
     if (
         not isinstance(path, str)
@@ -152,7 +159,7 @@ def context_for(user, question, path, warehouse=""):
             rows = list(qs[:9])
             for row in rows[:8]:
                 response["facts"].append(
-                    f"{row.product.sku} · {row.product.name}: kho {row.warehouse.code}, tồn sở hữu {row.quantity} {row.product.unit}."
+                    f"{row.product.sku} · {row.product.name}: kho {row.warehouse.code}, tồn sở hữu {quantity_label(row.quantity)} {row.product.unit}."
                 )
                 response["sources"].append(
                     {
