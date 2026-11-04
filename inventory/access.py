@@ -12,6 +12,15 @@ KIND_MODULES = {
     "ADJUST": "adjustments",
 }
 FUNCTION_ROWS = [
+    (
+        "chat",
+        "Nhắn tin nội bộ",
+        [
+            ("use", "Nhắn tin, ảnh/PDF và sticker trong hội thoại tham gia"),
+            ("groups", "Tạo và quản lý nhóm của mình"),
+            ("call", "Gọi thoại / video trong hội thoại tham gia"),
+        ],
+    ),
     ("dashboard", "Tổng quan", [("view", "Xem tổng quan và số liệu tổng hợp")]),
     (
         "products",
@@ -195,6 +204,8 @@ def normalize_permissions(codes):
             module, action = code.rsplit("_", 1)
             if action != "view" and f"{module}_view" in FUNCTION_KEYS:
                 result.add(f"{module}_view")
+        if result & {"chat_groups", "chat_call"}:
+            result.add("chat_use")
         if result & CREATE_KEYS:
             result.add("products_view")
         if "tools_import" in result:

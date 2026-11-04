@@ -165,11 +165,31 @@ def module_navigation(sections, route, access=None):
     for key, label, icon, groups in [
         ("warehouse", "Quản lý kho", "warehouse", warehouse),
         ("deviations", "Xử lý sai lệch", "alert", deviations),
+        (
+            "chat",
+            "Nhắn tin",
+            "message",
+            [
+                {
+                    "label": "",
+                    "items": [
+                        {
+                            "label": "Hội thoại của tôi",
+                            "icon": "message",
+                            "url": reverse("chat_home"),
+                            "active": route.startswith("chat_"),
+                        }
+                    ],
+                }
+            ]
+            if (access or {}).get("chat_use")
+            else [],
+        ),
         ("processes", "Quy trình", "file", []),
         ("human_resources", "Quản lý nhân sự", "users", []),
         ("administration", "Quản trị hệ thống", "settings", administration),
     ]:
-        if key in ("warehouse", "administration") and not groups:
+        if key in ("warehouse", "administration", "chat") and not groups:
             continue
         active = any(i["active"] for g in groups for i in g["items"])
         modules.append(

@@ -67,3 +67,7 @@ Kiểm thử PostgreSQL bao gồm tồn/giá vốn, cạnh tranh cập nhật, q
 `safe_migrate` có khóa triển khai và snapshot nhất quán trước thay đổi schema. Snapshot cùng Neon phục vụ khôi phục migration; cần backup độc lập cho sự cố toàn database. Refactor cấu trúc này không có migration dữ liệu mới.
 
 Xem `RELEASE_PROCESS.md` để phát hành. Quy trình CI chạy tự động theo file workflow; bảo vệ nhánh và chế độ tự triển khai Render phải được quản lý trong cấu hình GitHub/Render, không tự suy ra đã bật từ việc có workflow.
+
+## Tích hợp Nhắn tin nội bộ — 03/11/2026
+
+App `chat` và bảng `chat_*` tách khỏi nghiệp vụ kho/sai lệch. Namespace middleware cũng bao gồm `chat`; riêng quyền đọc hội thoại luôn kiểm tra membership ở service, không có ngoại lệ Admin. Tài liệu chi tiết và giới hạn gọi WebRTC/TURN ở `INTERNAL_CHAT.md`. Không thay đổi route hay luồng nghiệp vụ các app cũ.

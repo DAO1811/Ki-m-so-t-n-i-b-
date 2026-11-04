@@ -47,6 +47,8 @@ def workspace_context(request):
 
     labels = {
         **LABELS,
+        "chat_home": "Nhắn tin",
+        "chat_room": "Cuộc trò chuyện",
         "processes": "Quy trình",
         "human_resources": "Quản lý nhân sự",
         "deviations": "Xử lý sai lệch",

@@ -25,6 +25,9 @@ def health(request):
             and MigrationRecorder.Migration.objects.filter(
                 app="deviations", name="0005_reviewer_classification"
             ).exists()
+            and MigrationRecorder.Migration.objects.filter(
+                app="chat", name="0002_callmember_session_key"
+            ).exists()
         )
         snapshot = snapshot_status()
         if not settings.DEBUG and connection.vendor == "postgresql":

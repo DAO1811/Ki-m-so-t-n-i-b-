@@ -24,6 +24,7 @@ class ModuleNavigationTests(TestCase):
             [
                 "warehouse",
                 "deviations",
+                "chat",
                 "processes",
                 "human_resources",
                 "administration",

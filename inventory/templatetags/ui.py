@@ -5,6 +5,9 @@ from django.utils.safestring import mark_safe
 
 register = template.Library()
 ICONS = {
+    "message": '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5A8.5 8.5 0 0 1 9.5 3H13a8 8 0 0 1 8 8.5ZM6 10h10M6 14h6"/>',
+    "phone": '<path d="m7 3 3 5-3 3a14 14 0 0 0 6 6l3-3 5 3c0 3-2 5-5 4C9 19 5 15 3 8 2 5 4 3 7 3Z"/>',
+    "video": '<rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 6-4v12l-6-4Z"/>',
     "grid": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     "box": '<path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M12 11v10M7 5l10 4"/>',
     "warehouse": '<path d="M3 21V8l9-5 9 5v13M3 21h18M7 21V11h10v10M7 15h10M7 18h10"/>',

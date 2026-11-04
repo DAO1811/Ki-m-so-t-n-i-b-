@@ -57,6 +57,7 @@
           <a href="/" aria-label="Trang chủ">{% icon 'home' %}</a><span>{{ current_module.label|default:"DHD KSNB" }}</span>{% icon 'chevron' %}<strong>{{ page_name|default:'Tổng quan' }}</strong>
         </div>
         <div class="topbar-actions">
+          {% if access.chat_use %}<a class="icon-button chat-notify-link" href="{% url 'chat_home' %}" aria-label="Tin nhắn nội bộ">{% icon 'message' %}<span class="chat-badge" id="chat-global-unread" hidden></span></a>{% endif %}
           {% if access.any_approve %}<a class="icon-button" href="{% url 'approvals' %}" aria-label="Phiếu chờ duyệt">{% icon 'bell' %}</a>{% endif %}
           <button class="icon-button" id="refresh-page" aria-label="Làm mới dữ liệu">{% icon 'refresh' %}</button>
           {% if access.warehouse_scope and current_module.key == "warehouse" %}<form method="post"
@@ -93,6 +94,10 @@
         </footer>
       </div>
     </main>
+    {% if access.chat_use %}
+      <dialog id="chat-incoming" class="chat-dialog"><h2>Có cuộc gọi nội bộ</h2><p id="chat-incoming-label"></p><div class="chat-incoming-actions"><a class="button" id="chat-incoming-open">Mở cuộc gọi</a><button type="button" class="button secondary" id="chat-incoming-dismiss">Để sau</button></div></dialog>
+      <script src="{% static 'chat-notifications.js' %}" defer></script>
+    {% endif %}
     {% block scripts %}{% endblock %}
   </body>
 </html>

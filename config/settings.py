@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "workflows.apps.WorkflowsConfig",
     "people.apps.PeopleConfig",
     "deviations.apps.DeviationsConfig",
+    "chat.apps.ChatConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -147,3 +148,13 @@ CACHES = {
 CONFIRMED_DATABASE_STORAGE_PROFILE = storage_profile(
     render_hostname, DATABASES["default"].get("HOST", "")
 )
+
+# Optional coturn REST credentials. No third-party paid service is created automatically.
+CHAT_TURN_URLS = os.environ.get("CHAT_TURN_URLS", "")
+CHAT_TURN_SECRET = os.environ.get("CHAT_TURN_SECRET", "")
+if any(
+    not x.strip().startswith(("turn:", "turns:"))
+    for x in CHAT_TURN_URLS.split(",")
+    if x.strip()
+):
+    raise RuntimeError("CHAT_TURN_URLS must contain turn: or turns: URLs")
