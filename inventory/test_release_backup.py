@@ -1,16 +1,122 @@
+from contextlib import contextmanager
 from io import StringIO
 from unittest import skipUnless
 from unittest.mock import patch
 
+import psycopg
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
-from django.test import TransactionTestCase, override_settings
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 from psycopg import sql
 
 from . import release_backup as backup
 from .models import Balance, Product, Warehouse
+
+
+class SnapshotPipelineVerificationTests(SimpleTestCase):
+    def test_pipeline_cleanup_error_remains_fail_closed_without_active_exception(self):
+        owner = self
+        error = psycopg.errors.PipelineAborted("private cleanup marker")
+
+        class Database:
+            @contextmanager
+            def pipeline(self):
+                try:
+                    yield
+                except Exception:
+                    owner.fail("An active exception would bypass sanitized logging")
+                raise error
+
+            def execute(self, query):
+                raise psycopg.OperationalError("private connection marker")
+
+        with self.assertRaises(psycopg.errors.PipelineAborted) as caught:
+            backup._verify(
+                Database(), {"format": 1, "tables": [{"name": "table", "rows": 0}]}
+            )
+        self.assertIs(caught.exception, error)
+
+    def test_early_database_error_is_raised_after_pipeline_cleanup(self):
+        owner = self
+        cleaned = False
+        error = psycopg.OperationalError("private connection marker")
+
+        class Database:
+            @contextmanager
+            def pipeline(self):
+                nonlocal cleaned
+                try:
+                    yield
+                except Exception:
+                    owner.fail("Database error escaped before pipeline cleanup")
+                cleaned = True
+
+            def execute(self, query):
+                raise error
+
+        with self.assertRaises(psycopg.OperationalError) as caught:
+            backup._verify(
+                Database(), {"format": 1, "tables": [{"name": "table", "rows": 0}]}
+            )
+        self.assertIs(caught.exception, error)
+        self.assertTrue(cleaned)
+
+    def test_counts_are_synced_in_bounded_batches_before_fetching(self):
+        tables = [
+            {"name": f"table_{i}", "rows": i}
+            for i in range(backup.VERIFY_PIPELINE_BATCH_SIZE * 2 + 1)
+        ]
+        active = False
+        sizes = []
+        queries = []
+        fetched = []
+        owner = self
+
+        class Cursor:
+            def __init__(self, index):
+                self.index = index
+
+            def fetchone(self):
+                owner.assertFalse(
+                    active, "Fetching inside a pipeline forces a round trip"
+                )
+                fetched.append(self.index)
+                return (self.index,)
+
+        class Database:
+            @contextmanager
+            def pipeline(self):
+                nonlocal active
+                owner.assertFalse(active)
+                active = True
+                start = len(queries)
+                try:
+                    yield
+                finally:
+                    active = False
+                    sizes.append(len(queries) - start)
+
+            def execute(self, query):
+                owner.assertTrue(active)
+                index = len(queries)
+                queries.append(query.as_string())
+                return Cursor(index)
+
+        backup._verify(Database(), {"format": 1, "tables": tables})
+        self.assertEqual(
+            sizes,
+            [backup.VERIFY_PIPELINE_BATCH_SIZE, backup.VERIFY_PIPELINE_BATCH_SIZE, 1],
+        )
+        self.assertEqual(fetched, list(range(len(tables))))
+        self.assertEqual(
+            queries,
+            [
+                f'SELECT count(*) FROM "{backup.SNAPSHOT_SCHEMA}"."{table["name"]}"'
+                for table in tables
+            ],
+        )
 
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL release snapshots")
@@ -179,8 +285,9 @@ class ReleaseBackupTests(TransactionTestCase):
         with patch(
             "inventory.management.commands.safe_migrate.call_command"
         ) as migrate:
-            with self.assertRaises(CommandError):
-                call_command("safe_migrate", stdout=StringIO())
+            with self.assertNoLogs("psycopg", level="WARNING"):
+                with self.assertRaises(CommandError):
+                    call_command("safe_migrate", stdout=StringIO())
             migrate.assert_not_called()
 
     def test_overlapping_deployment_is_rejected_before_migration(self):
@@ -203,3 +310,47 @@ class ReleaseBackupTests(TransactionTestCase):
         self.assertEqual(
             connect.call_args.kwargs["host"], "ep-example.ap-southeast-1.aws.neon.tech"
         )
+
+    def test_pipeline_checks_corruption_across_chunk_boundaries(self):
+        with backup.deploy_connection() as db:
+            backup.ensure_snapshot(db)
+            # Repeating the same real snapshot table makes chunk boundaries
+            # deterministic without creating dozens of unrelated tables.
+            size = backup.VERIFY_PIPELINE_BATCH_SIZE * 2 + 1
+            tables = [{"name": "inventory_product", "rows": 1} for _ in range(size)]
+            backup._verify(db, {"format": 1, "tables": tables})
+            for index in (
+                0,
+                backup.VERIFY_PIPELINE_BATCH_SIZE - 1,
+                backup.VERIFY_PIPELINE_BATCH_SIZE,
+                size - 1,
+            ):
+                with self.subTest(index=index):
+                    changed = [dict(table) for table in tables]
+                    changed[index]["rows"] = 2
+                    with self.assertRaisesRegex(RuntimeError, "row count mismatch"):
+                        backup._verify(db, {"format": 1, "tables": changed})
+
+    def test_pipeline_quotes_names_and_database_errors_prevent_migration(self):
+        name = 'quoted "; DROP TABLE inventory_product; --'
+        with backup.deploy_connection() as db:
+            backup.ensure_snapshot(db)
+            db.execute(
+                sql.SQL("CREATE TABLE {} (value integer)").format(
+                    sql.Identifier(backup.SNAPSHOT_SCHEMA, name)
+                )
+            )
+            backup._verify(db, {"format": 1, "tables": [{"name": name, "rows": 0}]})
+            self.assertTrue(Product.objects.filter(pk=self.product.pk).exists())
+            db.execute(
+                sql.SQL("DROP TABLE {}").format(
+                    sql.Identifier(backup.SNAPSHOT_SCHEMA, "inventory_balance")
+                )
+            )
+        with patch(
+            "inventory.management.commands.safe_migrate.call_command"
+        ) as migrate:
+            with self.assertNoLogs("psycopg", level="WARNING"):
+                with self.assertRaises(CommandError):
+                    call_command("safe_migrate", stdout=StringIO())
+            migrate.assert_not_called()

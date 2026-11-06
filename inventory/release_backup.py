@@ -16,6 +16,7 @@ SNAPSHOT_SCHEMA = "dhd_backup_chat_0002"
 MANIFEST_TABLE = "_dhd_snapshot_manifest"
 # Stable across versions so old/new deployments cannot migrate concurrently.
 DEPLOY_LOCK = 1811000016
+VERIFY_PIPELINE_BATCH_SIZE = 32
 
 
 def direct_connection():
@@ -85,12 +86,32 @@ def _verify(db, manifest):
         or not isinstance(manifest.get("tables"), list)
     ):
         raise RuntimeError("Invalid release snapshot")
-    for table in manifest["tables"]:
-        count = db.execute(
+    tables = manifest["tables"]
+    for start in range(0, len(tables), VERIFY_PIPELINE_BATCH_SIZE):
+        batch = tables[start : start + VERIFY_PIPELINE_BATCH_SIZE]
+        # Send the same exact counts together instead of waiting for a separate
+        # network round trip per table. Fetch only after the pipeline syncs.
+        # Each statement retains its own timeout; identifiers remain quoted and
+        # every manifest entry is checked within the caller's snapshot transaction.
+        queries = [
             sql.SQL("SELECT count(*) FROM {}").format(_qualified(table["name"]))
-        ).fetchone()[0]
-        if count != table["rows"]:
-            raise RuntimeError("Release snapshot row count mismatch")
+            for table in batch
+        ]
+        pending_error = None
+        cursors = []
+        with db.pipeline():
+            try:
+                cursors = [db.execute(query) for query in queries]
+            except psycopg.Error as exc:
+                # Let pipeline cleanup run without an active exception. Psycopg
+                # otherwise logs its connection repr while draining an aborted
+                # batch, bypassing safe_migrate's sanitized failure message.
+                pending_error = exc
+        if pending_error is not None:
+            raise pending_error
+        for table, cursor in zip(batch, cursors, strict=True):
+            if cursor.fetchone()[0] != table["rows"]:
+                raise RuntimeError("Release snapshot row count mismatch")
 
 
 def _copy_table(db, table):
