@@ -131,6 +131,8 @@ def navigation(request, access):
             )
         ],
     )
+    from passkeys.services import available as passkeys_available
+
     group(
         "QUẢN TRỊ HỆ THỐNG",
         [
@@ -140,6 +142,14 @@ def navigation(request, access):
                 "url": reverse("password_change"),
                 "active": route == "password_change",
             },
+            {
+                "label": "Face ID / Windows Hello",
+                "icon": "shield",
+                "url": reverse("passkeys_manage"),
+                "active": route == "passkeys_manage",
+            }
+            if passkeys_available()
+            else None,
             item(
                 "team_view",
                 "Tài khoản & phân quyền" if access["admin"] else "Nhân viên",

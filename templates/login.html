@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="{% static 'app.css' %}">
     <link rel="stylesheet" href="{% static 'login.css' %}">
     <script src="{% static 'login.js' %}" defer></script>
+    {% if passkeys_available %}<link rel="stylesheet" href="{% static 'passkeys.css' %}">
+    <script src="{% static 'passkeys.js' %}" defer></script>{% endif %}
   </head>
   <body class="auth-page">
     <div class="auth-atmosphere" aria-hidden="true"></div>
@@ -79,6 +81,18 @@
           <input type="hidden" name="next" value="{{ next }}">
           <button class="button auth-submit" type="submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
         </form>
+          {% if passkeys_available %}
+          <section class="pk-login" aria-label="Đăng nhập bằng passkey">
+            <div class="pk-divider"><span>hoặc</span></div>
+            <button type="button" id="passkey-login" class="pk-button pk-login-button" hidden>
+              {% icon 'shield' %}<span><strong data-pk-label>Đăng nhập bằng passkey</strong><small>Face ID · Windows Hello · vân tay / PIN</small></span>
+            </button>
+            <p class="pk-note">Dùng passkey đã liên kết với tài khoản trên thiết bị của bạn. Cách xác minh do thiết bị quyết định.</p>
+            <p id="passkey-support" class="pk-note" hidden></p>
+            <p id="passkey-status" class="pk-status" role="alert" hidden></p>
+            <noscript><p class="pk-note">Bật JavaScript để dùng passkey. Bạn vẫn có thể đăng nhập bằng mật khẩu ở trên.</p></noscript>
+          </section>
+          {% endif %}
           <p class="auth-help">Cần hỗ trợ? <span>Liên hệ quản trị viên.</span></p>
         </div>
       </main>

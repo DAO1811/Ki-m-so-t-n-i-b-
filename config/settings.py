@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "deviations.apps.DeviationsConfig",
     "chat.apps.ChatConfig",
     "ai_assistant.apps.AIAssistantConfig",
+    "passkeys.apps.PasskeysConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -55,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "passkeys.middleware.PasskeySessionMiddleware",
     "inventory.permission_middleware.FunctionAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -71,6 +73,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "inventory.workspace.workspace_context",
+                "passkeys.context.passkey_context",
             ]
         },
     }
@@ -159,3 +162,15 @@ if any(
     if x.strip()
 ):
     raise RuntimeError("CHAT_TURN_URLS must contain turn: or turns: URLs")
+
+# Passkeys are bound to a deployment-controlled hostname, never an HTTP Host header.
+PASSKEY_ENABLED = os.environ.get("PASSKEY_ENABLED", "1") == "1"
+PASSKEY_RP_ID = os.environ.get(
+    "PASSKEY_RP_ID", render_hostname or ("localhost" if DEBUG else "")
+)
+PASSKEY_ORIGIN = os.environ.get(
+    "PASSKEY_ORIGIN",
+    ("https://" + PASSKEY_RP_ID)
+    if PASSKEY_RP_ID and not DEBUG
+    else ("http://localhost" if DEBUG else ""),
+)

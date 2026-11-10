@@ -5,6 +5,7 @@ from django.urls import include, path
 from .health import health
 
 urlpatterns = [
+    path("", include("passkeys.urls")),
     path("healthz/", health, name="health"),
     path("admin/", admin.site.urls),
     path("login/", auth.LoginView.as_view(template_name="login.html"), name="login"),

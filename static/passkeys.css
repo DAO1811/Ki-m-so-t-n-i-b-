@@ -1,0 +1,70 @@
+/* Only passkey components use these styles. Shared password forms stay intact. */
+.pk-page { max-width: 1120px; margin: 0 auto; }
+.pk-page .page-heading { margin-bottom: 24px; }
+.pk-intro { display: flex; align-items: flex-start; gap: 16px; padding: 22px; margin-bottom: 24px; border: 1px solid var(--accent-line); border-radius: 14px; background: var(--accent-soft); }
+.pk-intro-icon { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--accent-ink); border: 1px solid var(--accent-line); background: var(--surface); }
+.pk-intro h2, .pk-panel h2 { margin: 0; font-size: 16px; font-weight: 650; }
+.pk-intro p { margin: 7px 0 0; max-width: 790px; line-height: 1.75; }
+.pk-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 24px; align-items: start; }
+.pk-panel { min-width: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.pk-panel-heading { padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
+.pk-panel-heading p { color: var(--muted); margin: 6px 0 0; }
+.pk-form { padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+.pk-form label { font-size: 12px; font-weight: 600; }
+.pk-form label:not(:first-of-type) { margin-top: 8px; }
+.pk-form input { width: 100%; min-width: 0; min-height: 44px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-alt); color: var(--ink); font: inherit; }
+.pk-form input:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+.pk-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.pk-note strong { color: var(--ink); }
+.pk-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 11px 16px; border: 1px solid var(--accent-line); border-radius: 9px; background: var(--accent-fill); color: var(--accent-contrast); font: inherit; font-weight: 650; cursor: pointer; text-align: center; }
+.pk-button .icon { width: 19px; height: 19px; flex: 0 0 auto; }
+.pk-button:hover { filter: brightness(1.04); }
+.pk-button:disabled { opacity: .65; cursor: wait; }
+.pk-button:focus-visible, .pk-remove summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.pk-button[hidden], .pk-status[hidden], .pk-note[hidden] { display: none; }
+.pk-status { margin: 2px 0 0; padding: 11px 12px; border: 1px solid var(--accent-line); border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.pk-status-error { color: var(--red); background: var(--red-soft); border-color: var(--red); }
+.pk-notice { margin: 24px; padding: 14px; border-radius: 8px; color: var(--accent-ink); background: var(--accent-soft); line-height: 1.7; }
+.pk-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pk-count { flex: 0 0 auto; padding: 3px 9px; border: 1px solid var(--line); border-radius: 20px; color: var(--muted); font-size: 12px; }
+.pk-credential { padding: 21px 24px; }
+.pk-credential + .pk-credential { border-top: 1px solid var(--line); }
+.pk-credential-title { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.pk-credential-title > .icon { width: 17px; height: 17px; color: var(--accent-ink); }
+.pk-credential-title h3 { margin: 0; min-width: 0; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.pk-badge { padding: 2px 7px; border-radius: 20px; background: var(--success-soft); color: var(--success); font-size: 10px; }
+.pk-meta { margin: 14px 0 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
+.pk-meta dt { color: var(--muted); margin-bottom: 3px; }
+.pk-meta dd { margin: 0; color: var(--ink); }
+.pk-remove summary { width: fit-content; color: var(--red); font-size: 12px; cursor: pointer; }
+.pk-remove-form { margin-top: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-alt); }
+.pk-danger { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+.pk-empty { padding: 36px 24px; text-align: center; color: var(--muted); }
+.pk-empty > .icon { width: 28px; height: 28px; margin-bottom: 10px; color: var(--accent-ink); }
+.pk-empty h3 { margin: 0 0 7px; color: var(--ink); font-size: 14px; font-weight: 600; }
+.pk-empty p { margin: 0 auto; max-width: 310px; font-size: 12px; line-height: 1.75; }
+.pk-login { --accent: #e9cc8c; --accent-ink: #f0dba8; --accent-line: #6a5937; --accent-soft: #342d20; --red: #ffb0bc; --red-soft: #3b222b; margin-top: 24px; }
+.pk-divider { display: flex; align-items: center; gap: 13px; margin-bottom: 19px; color: #949ba8; font-size: 11px; }
+.pk-divider::before, .pk-divider::after { content: ""; flex: 1; height: 1px; background: #ffffff16; }
+.pk-login-button { justify-content: flex-start; width: 100%; padding: 12px 15px; background: #e9cc8c09; color: #e9cc8c; border-color: #e9cc8c55; text-align: left; }
+.pk-login-button > .icon { width: 22px; height: 22px; }
+.pk-login-button strong { display: block; font-size: 13px; font-weight: 600; }
+.pk-login-button small { display: block; margin-top: 3px; color: #a7adb9; font-size: 10px; font-weight: 400; }
+.pk-login .pk-note { margin-top: 10px; font-size: 11px; color: #a7adb9; }
+.pk-login .pk-status { margin-top: 12px; }
+@media (max-width: 760px) {
+  .pk-grid { grid-template-columns: 1fr; gap: 18px; }
+  .pk-intro { gap: 12px; padding: 17px; margin-bottom: 18px; }
+  .pk-intro-icon { width: 35px; height: 35px; }
+  .pk-intro h2 { font-size: 14px; }
+  .pk-panel-heading, .pk-credential { padding: 18px; }
+  .pk-form { padding: 18px; }
+  .pk-remove-form { padding: 14px; }
+}
+@media (max-width: 380px) {
+  .pk-intro { display: block; }
+  .pk-intro-icon { margin-bottom: 12px; }
+  .pk-meta { grid-template-columns: 1fr; gap: 9px; }
+  .pk-login-button { padding: 11px 10px; gap: 8px; }
+  .pk-login-button small { font-size: 9px; }
+}

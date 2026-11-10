@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static ui %}
+{% block title %}Passkey · DHD KSNB{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'passkeys.css' %}">
+<div class="pk-page">
+  <div class="page-heading">
+    <div><h1>{% icon 'shield' %}Passkey của bạn</h1><p>Đăng nhập bằng Face ID, Windows Hello hoặc cách xác minh được thiết bị hỗ trợ.</p></div>
+  </div>
+  <section class="pk-intro" aria-label="Cách passkey bảo vệ tài khoản">
+    <div class="pk-intro-icon">{% icon 'shield' %}</div>
+    <div><h2>Xác minh trên thiết bị của bạn</h2><p>Thiết bị có thể dùng khuôn mặt, vân tay hoặc PIN để mở khóa passkey. Website không mở camera và không lưu ảnh khuôn mặt. Passkey cần HTTPS cùng trình duyệt, thiết bị có hỗ trợ.</p><p class="pk-note">Tài khoản: <strong>{{ user.username }}</strong>. Bạn vẫn có thể đăng nhập bằng mật khẩu.</p></div>
+  </section>
+  <div class="pk-grid">
+    <section class="pk-panel" aria-labelledby="passkey-register-title">
+      <div class="pk-panel-heading"><h2 id="passkey-register-title">Thêm passkey</h2><p>Liên kết thiết bị hoặc trình quản lý passkey với tài khoản hiện tại.</p></div>
+      {% if credentials|length >= max_credentials|default:10 %}
+        <p class="pk-notice">Bạn đã có tối đa {{ max_credentials|default:10 }} passkey. Gỡ một passkey cũ để thêm passkey mới.</p>
+      {% else %}
+        <form id="passkey-register-form" method="post" action="/account/passkeys/register/options/" class="pk-form">
+          {% csrf_token %}
+          <label for="passkey-label">Tên để dễ nhận biết</label>
+          <input id="passkey-label" name="label" type="text" maxlength="80" autocomplete="off" placeholder="Ví dụ: Laptop cá nhân" required>
+          <label for="passkey-password">Mật khẩu hiện tại</label>
+          <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
+          <p class="pk-note">Nhập mật khẩu để xác nhận thêm passkey. Sau đó làm theo hướng dẫn trên thiết bị.</p>
+          <button id="passkey-register" type="button" class="pk-button" hidden>{% icon 'shield' %}<span data-pk-label>Thêm passkey</span></button>
+          <p id="passkey-support" class="pk-note" hidden></p>
+          <p id="passkey-status" class="pk-status" role="alert" hidden></p>
+          <noscript><p class="pk-note">Bật JavaScript để thêm passkey. Bạn vẫn có thể quản lý passkey đã đăng ký và đăng nhập bằng mật khẩu.</p></noscript>
+        </form>
+      {% endif %}
+    </section>
+    <section class="pk-panel" aria-labelledby="passkey-list-title">
+      <div class="pk-panel-heading pk-list-heading"><div><h2 id="passkey-list-title">Passkey đã đăng ký</h2><p>Chỉ quản lý passkey của tài khoản của bạn.</p></div><span class="pk-count">{{ credentials|length }}/{{ max_credentials|default:10 }}</span></div>
+      <div class="pk-list">
+        {% for credential in credentials %}
+          <article class="pk-credential">
+            <div class="pk-credential-title">{% icon 'lock' %}<h3>{{ credential.label }}</h3>{% if credential.backed_up %}<span class="pk-badge">Đã sao lưu</span>{% endif %}</div>
+            <dl class="pk-meta"><div><dt>Đã thêm</dt><dd>{{ credential.created_at|date:'d/m/Y H:i' }}</dd></div><div><dt>Dùng gần nhất</dt><dd>{% if credential.last_used_at %}{{ credential.last_used_at|date:'d/m/Y H:i' }}{% else %}Chưa sử dụng{% endif %}</dd></div></dl>
+            <details class="pk-remove">
+              <summary>Gỡ passkey</summary>
+              <form method="post" action="/account/passkeys/{{ credential.id }}/remove/" class="pk-form pk-remove-form">
+                {% csrf_token %}
+                <p class="pk-note">Passkey này sẽ không còn đăng nhập được vào tài khoản. Nhập mật khẩu hiện tại để xác nhận.</p>
+                <label for="passkey-remove-{{ credential.id }}">Mật khẩu hiện tại</label>
+                <input id="passkey-remove-{{ credential.id }}" name="password" type="password" autocomplete="current-password" required>
+                <button type="submit" class="pk-button pk-danger">Gỡ passkey này</button>
+              </form>
+            </details>
+          </article>
+        {% empty %}
+          <div class="pk-empty">{% icon 'lock' %}<h3>Chưa có passkey</h3><p>Thêm passkey để đăng nhập bằng cách xác minh trên thiết bị của bạn.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'passkeys.js' %}" defer></script>{% endblock %}
