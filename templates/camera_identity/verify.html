@@ -1,0 +1,10 @@
+{% load static %}
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kiểm tra khuôn mặt · DHD KSNB</title><link rel="stylesheet" href="{% static 'app.css' %}"><link rel="stylesheet" href="{% static 'camera-identity.css' %}"><script src="{% static 'camera-identity.js' %}" defer></script></head>
+<body class="ci-public"><main class="ci-shell" data-camera-mode="verify"><a class="ci-brand" href="/login/">DHD · KSNB</a><h1>Kiểm tra khuôn mặt bằng camera</h1>
+  <div class="ci-warning" role="note"><strong>Bản đánh giá</strong><p>Kết quả so khớp chưa cho phép đăng nhập; chưa kiểm chứng chống ảnh/video giả. Đây là camera của website, không phải Apple Face ID.</p></div>
+  <section class="ci-panel"><h2>So khớp với mẫu đã đăng ký</h2><p>Nhập tên tài khoản có mẫu đánh giá, rồi chụp 3 ảnh theo hướng dẫn. Máy chủ quyết định kết quả.</p>
+    <form id="ci-form" class="ci-form" method="post" action="/camera/verify/options/">{% csrf_token %}<label for="ci-username">Tên đăng nhập</label><input id="ci-username" name="username" autocomplete="username" required maxlength="150"><button id="ci-start" class="ci-button" type="button">Mở camera và kiểm tra</button></form>
+    <div id="ci-capture-area" class="ci-capture" hidden><div class="ci-video"><video id="ci-video" autoplay playsinline muted aria-label="Hình ảnh camera trực tiếp"></video><span class="ci-frame" aria-hidden="true"></span></div><p id="ci-step" class="ci-step" role="status"></p><p id="ci-counter" class="ci-muted"></p><div class="ci-actions"><button id="ci-capture" class="ci-button" type="button">Chụp bước này</button><button id="ci-cancel" class="ci-button ci-secondary" type="button">Hủy và tắt camera</button></div></div>
+    <canvas id="ci-canvas" width="640" height="480" hidden></canvas><p id="ci-status" class="ci-status" role="alert" hidden></p><noscript><p class="ci-warning">Cần bật JavaScript để dùng camera.</p></noscript>
+  </section><p class="ci-footer"><a class="ci-link" href="/login/">Đăng nhập bằng mật khẩu</a><span>Không phát sinh phí API xác thực.</span></p>
+</main></body></html>
