@@ -59,3 +59,23 @@ jobs:
         run: python manage.py test --noinput
       - name: Validate production static assets
         run: python manage.py collectstatic --noinput
+
+  camera-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-camera-evaluation.txt
+      - name: Install isolated camera engine dependencies
+        run: python -m pip install -r requirements-camera-evaluation.txt
+      - name: Fetch pinned models, licenses and licensed synthetic test fixture
+        run: python scripts/fetch_camera_models.py --destination /tmp/camera-models --include-test-fixture
+      - name: Check actual models and bounded subprocess without company data
+        run: >-
+          python scripts/camera_engine_selfcheck.py
+          --models /tmp/camera-models
+          --fixture /tmp/camera-models/demo.jpg

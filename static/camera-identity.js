@@ -15,7 +15,7 @@
   const step = document.getElementById("ci-step");
   const counter = document.getElementById("ci-counter");
   const password = document.getElementById("ci-password");
-  const directions = { CENTER: "Nhìn thẳng vào camera", LEFT: "Quay đầu nhẹ sang trái", RIGHT: "Quay đầu nhẹ sang phải" };
+  const directions = { CENTER: "Nhìn thẳng vào camera", LEFT: "Quay mặt nhẹ về bên trái khung hình", RIGHT: "Quay mặt nhẹ về bên phải khung hình" };
   let stream = null;
   let challenge = null;
   let frames = [];
@@ -51,7 +51,7 @@
     const body = JSON.stringify(payload);
     if (new TextEncoder().encode(body).byteLength > 2 * 1024 * 1024) throw new Error("Ảnh vượt giới hạn. Hãy thử lại trong điều kiện đủ sáng.");
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 20000);
+    const timer = window.setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": form.querySelector('[name="csrfmiddlewaretoken"]').value }, body, signal: controller.signal });
       let result;
@@ -135,7 +135,8 @@
       if (enrolling) {
         if (result.ok !== true) throw new Error("Chưa xác nhận được đăng ký mẫu. Hãy tải lại trang để kiểm tra.");
         reset();
-        message("Đã đăng ký mẫu đánh giá. Kết quả so khớp chưa cho phép đăng nhập. Tải lại trang để xem trạng thái mẫu.");
+        message("Đã lưu mẫu khuôn mặt theo tài khoản. Bạn có thể xem mẫu vừa đăng ký hoặc mở trang kiểm tra so khớp. Bản đánh giá chưa cho phép đăng nhập bằng khuôn mặt.");
+        document.getElementById("ci-saved").hidden = false;
       } else {
         if (typeof result.matched !== "boolean") throw new Error("Chưa nhận được kết quả so khớp hợp lệ.");
         reset();

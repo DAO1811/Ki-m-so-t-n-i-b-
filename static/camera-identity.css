@@ -17,10 +17,9 @@
 .ci-button:disabled { opacity: .6; cursor: wait; }
 .ci-button:focus-visible, .ci-form input:focus-visible, .ci-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .ci-secondary { background: var(--surface-alt); color: var(--ink); border-color: var(--line); }
-.ci-danger { background: var(--red-soft); color: var(--red); border-color: var(--red); }
 .ci-capture { margin-top: 18px; }
 .ci-video { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 12px; background: #10141a; }
-.ci-video video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.ci-video video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .ci-frame { position: absolute; width: 48%; height: 76%; left: 26%; top: 12%; border: 2px dashed #e9cc8c99; border-radius: 48%; pointer-events: none; }
 .ci-step { margin: 14px 0 4px; font-size: 15px; font-weight: 650; color: var(--ink); }
 .ci-muted { color: var(--muted); font-size: 12px; }

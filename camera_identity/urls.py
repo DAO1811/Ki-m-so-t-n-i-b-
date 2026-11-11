@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("camera/health/", views.readiness, name="camera_identity_readiness"),
     path("camera/verify/", views.verify_page, name="camera_identity_verify_page"),
     path("account/camera/", views.manage, name="camera_identity_manage"),
     path(
@@ -15,7 +16,6 @@ urlpatterns = [
         views.enroll_verify,
         name="camera_identity_enroll_verify",
     ),
-    path("account/camera/remove/", views.remove, name="camera_identity_remove"),
     path(
         "camera/verify/options/",
         views.verify_options,

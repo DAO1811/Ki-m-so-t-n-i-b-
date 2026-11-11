@@ -1,17 +1,40 @@
 import json
 from functools import wraps
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
 
 from . import services
 from .models import FaceProfile
+
+
+@require_GET
+@never_cache
+def readiness(request):
+    from django.conf import settings
+
+    from .engine import configuration_ready
+
+    ready = False
+    if settings.CAMERA_IDENTITY_ENABLED:
+        try:
+            services.cipher()
+            ready = configuration_ready()
+        except services.CameraError:
+            pass
+    return JsonResponse(
+        {
+            "enabled": settings.CAMERA_IDENTITY_ENABLED,
+            "configured": ready,
+            **services.evaluation(),
+        },
+        status=200 if ready else 503,
+    )
 
 
 def api(authenticated=False):
@@ -111,17 +134,3 @@ def verify_finish(request, data):
     return services.finish(
         request, data.get("challenge_id"), data.get("frames"), "VERIFY"
     )
-
-
-@login_required
-@require_POST
-@never_cache
-@sensitive_post_parameters("password")
-def remove(request):
-    try:
-        services.remove(request, request.POST.get("password"))
-    except services.CameraError as error:
-        messages.error(request, str(error))
-    else:
-        messages.success(request, "Đã xóa hồ sơ camera đánh giá của bạn.")
-    return redirect("camera_identity_manage")

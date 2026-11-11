@@ -137,6 +137,28 @@ class CameraSecurityTests(TestCase):
         self.assertNotIn(decoded, response.content)
         self.assertTrue(profile.consent_version)
 
+    def test_enrollment_is_accessible_from_login_and_existing_account_navigation(self):
+        login = Client().get("/login/", HTTP_HOST="localhost")
+        self.assertContains(login, 'id="camera-enroll-link"')
+        page = self.client.get(MANAGE, HTTP_HOST="localhost")
+        self.assertContains(page, 'id="camera-account-link"')
+
+    def test_non_match_keeps_profile_and_does_not_select_other_account(self):
+        profile = self.enroll()
+        ciphertext = bytes(profile.encrypted_template)
+        anonymous = Client()
+        options = self.options(START, anonymous)
+        with patch("camera_identity.engine.analyse") as mocked:
+            result = self.analyse([self.frame] * 3)
+            result["descriptors"] = [[0.0, 1.0] + [0.0] * 126 for _ in range(3)]
+            mocked.return_value = result
+            response = self.finish(options, COMPARE, anonymous, user_id=self.other.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["matched"])
+        self.assertNotIn("_auth_user_id", anonymous.session)
+        profile.refresh_from_db()
+        self.assertEqual(bytes(profile.encrypted_template), ciphertext)
+
     def test_enrollment_challenge_is_bound_to_browser_and_single_use(self):
         options = self.options()
         foreign = Client()
@@ -241,7 +263,7 @@ class CameraSecurityTests(TestCase):
             {"password": PASSWORD, "user_id": self.owner.pk},
             HTTP_HOST="localhost",
         )
-        self.assertIn(response.status_code, (200, 302))
+        self.assertEqual(response.status_code, 404)
         self.assertTrue(FaceProfile.objects.filter(pk=profile.pk).exists())
 
     def test_engine_failure_does_not_store_template_or_create_session(self):
@@ -315,19 +337,51 @@ class CameraSecurityTests(TestCase):
             403,
         )
 
-    def test_deletion_requires_own_password_and_retains_password_session(self):
+    def test_profile_has_no_delete_control_or_delete_endpoint(self):
         profile = self.enroll()
-        wrong = self.client.post(
-            MANAGE + "remove/", {"password": "wrong"}, HTTP_HOST="localhost"
-        )
-        self.assertIn(wrong.status_code, (302, 400, 403))
-        self.assertTrue(FaceProfile.objects.filter(pk=profile.pk).exists())
+        page = self.client.get(MANAGE, HTTP_HOST="localhost")
+        self.assertNotContains(page, "Xóa mẫu khuôn mặt")
         response = self.client.post(
             MANAGE + "remove/", {"password": PASSWORD}, HTTP_HOST="localhost"
         )
-        self.assertIn(response.status_code, (200, 302))
-        self.assertFalse(FaceProfile.objects.filter(user=self.owner).exists())
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(FaceProfile.objects.filter(pk=profile.pk).exists())
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.owner.pk)
+
+    def test_engine_capacity_failure_retains_existing_template_and_password_access(
+        self,
+    ):
+        from camera_identity.engine import CameraEngineError
+
+        profile = self.enroll()
+        ciphertext = bytes(profile.encrypted_template)
+        options = self.options()
+        with patch(
+            "camera_identity.engine.analyse",
+            side_effect=CameraEngineError("engine_capacity"),
+        ):
+            response = self.finish(options)
+        self.assertEqual(response.status_code, 503)
+        profile.refresh_from_db()
+        self.assertEqual(bytes(profile.encrypted_template), ciphertext)
+        client = Client()
+        response = client.post(
+            "/login/",
+            {"username": self.owner.username, "password": PASSWORD},
+            HTTP_HOST="localhost",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(int(client.session["_auth_user_id"]), self.owner.pk)
+
+    def test_verification_never_uses_another_accounts_profile(self):
+        self.enroll()
+        anonymous = Client()
+        options = self.options(START, anonymous, username=self.other.username)
+        response = self.finish(options, COMPARE, anonymous, user_id=self.owner.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["matched"], False)
+        self.assertNotIn("_auth_user_id", anonymous.session)
+        self.assertEqual(FaceProfile.objects.count(), 1)
 
     @override_settings(CAMERA_IDENTITY_ENABLED=False)
     def test_disabled_feature_does_not_change_existing_password_login(self):

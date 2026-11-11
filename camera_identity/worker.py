@@ -16,6 +16,7 @@ MODELS = {
     "face_recognition_sface_2021dec.onnx": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
 }
 MAX_INPUT = 2_100_000
+MAX_DETECTION_EDGE = 480
 
 
 class CaptureError(Exception):
@@ -64,6 +65,16 @@ def _image(value):
                     raise ValueError()
                 image.load()
                 rgb = np.array(ImageOps.exif_transpose(image).convert("RGB"))
+        # Bound detector buffers independently of an uploaded JPEG's dimensions.
+        # This also avoids running the DNN at unnecessary phone-camera resolution.
+        edge = max(rgb.shape[:2])
+        if edge > MAX_DETECTION_EDGE:
+            scale = MAX_DETECTION_EDGE / edge
+            rgb = cv2.resize(
+                rgb,
+                (round(rgb.shape[1] * scale), round(rgb.shape[0] * scale)),
+                interpolation=cv2.INTER_AREA,
+            )
         return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     except Exception:
         raise CaptureError("invalid_image") from None
@@ -136,6 +147,11 @@ def analyse_frames(frames):
 
 
 def main():
+    if hasattr(os, "nice"):
+        try:
+            os.nice(10)  # Keep normal company web requests ahead of optional inference.
+        except OSError:
+            pass
     try:
         raw = sys.stdin.buffer.read(MAX_INPUT + 1)
         if len(raw) > MAX_INPUT:

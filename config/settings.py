@@ -180,5 +180,8 @@ PASSKEY_ORIGIN = os.environ.get(
 # Separate optional camera evaluation. It never creates authentication sessions.
 CAMERA_IDENTITY_ENABLED = os.environ.get("CAMERA_IDENTITY_ENABLED", "0") == "1"
 CAMERA_IDENTITY_TEMPLATE_KEY = os.environ.get("CAMERA_IDENTITY_TEMPLATE_KEY", "")
+CAMERA_IDENTITY_DERIVE_TEMPLATE_KEY = (
+    os.environ.get("CAMERA_IDENTITY_DERIVE_TEMPLATE_KEY", "0") == "1"
+)
 CAMERA_IDENTITY_ENGINE_PYTHON = os.environ.get("CAMERA_IDENTITY_ENGINE_PYTHON", "")
 CAMERA_IDENTITY_MODEL_DIR = os.environ.get("CAMERA_IDENTITY_MODEL_DIR", "")

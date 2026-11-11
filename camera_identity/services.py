@@ -9,9 +9,12 @@ import uuid
 from datetime import timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
@@ -32,11 +35,32 @@ class CameraError(Exception):
         self.status = status
 
 
+@sensitive_variables()
 def cipher():
     if not getattr(settings, "CAMERA_IDENTITY_ENABLED", False):
         raise CameraError("Bản đánh giá camera chưa được bật.", 503)
+    key = getattr(settings, "CAMERA_IDENTITY_TEMPLATE_KEY", "")
+    if not key and getattr(settings, "CAMERA_IDENTITY_DERIVE_TEMPLATE_KEY", False):
+        try:
+            secret = settings.SECRET_KEY
+        except ImproperlyConfigured:
+            raise CameraError("Bản đánh giá camera chưa sẵn sàng.", 503) from None
+        if (
+            not isinstance(secret, str)
+            or len(secret) < 32
+            or secret.startswith(("django-insecure-", "local-development-"))
+        ):
+            raise CameraError("Bản đánh giá camera chưa sẵn sàng.", 503)
+        key = base64.urlsafe_b64encode(
+            HKDF(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=None,
+                info=b"ksnb.camera.identity.template.v1",
+            ).derive(secret.encode())
+        ).decode("ascii")
     try:
-        return Fernet(getattr(settings, "CAMERA_IDENTITY_TEMPLATE_KEY", "").encode())
+        return Fernet(key.encode())
     except (ValueError, TypeError, AttributeError):
         raise CameraError("Bản đánh giá camera chưa sẵn sàng.", 503) from None
 
@@ -334,23 +358,3 @@ def finish(request, raw_id, frames, kind):
             action="matched_evaluation" if matched else "not_matched_evaluation",
         )
     return {"matched": matched, **evaluation()}
-
-
-def remove(request, password):
-    guard(request, "remove")
-    if not isinstance(password, str) or len(password) > 1024:
-        raise CameraError()
-    with transaction.atomic():
-        user = (
-            get_user_model()
-            .objects.select_for_update()
-            .filter(pk=request.user.pk, is_active=True)
-            .first()
-        )
-        if user is None or not check_password(password, user.password):
-            raise CameraError("Mật khẩu xác nhận chưa đúng.")
-        FaceProfile.objects.filter(user=user).delete()
-        FaceChallenge.objects.filter(
-            user=user, kind="ENROLL", used_at__isnull=True
-        ).update(used_at=timezone.now())
-        AuditEvent.objects.create(user=user, action="removed_evaluation")

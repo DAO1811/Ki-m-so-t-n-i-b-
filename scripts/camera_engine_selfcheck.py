@@ -18,11 +18,20 @@ def main():
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     os.environ["CAMERA_IDENTITY_MODEL_DIR"] = str(args.models.resolve())
+    os.environ["CAMERA_IDENTITY_ENGINE_PYTHON"] = sys.executable
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     import cv2
     import numpy as np
 
-    from camera_identity.worker import CaptureError, _model_files, analyse_frames
+    from camera_identity.engine import CameraEngineError
+    from camera_identity.engine import analyse as isolated_analyse
+    from camera_identity.worker import (
+        MAX_DETECTION_EDGE,
+        CaptureError,
+        _image,
+        _model_files,
+        analyse_frames,
+    )
 
     digest = hashlib.sha256(args.fixture.read_bytes()).hexdigest()
     if digest != "0f879881a598fea6fec74e047e6a1d00e36d81de63bf0ed392b628e6ab6c2fc4":
@@ -58,6 +67,12 @@ def main():
         descriptor = result["descriptors"][0]
         assert len(descriptor) == 128 and abs(np.linalg.norm(descriptor) - 1) < 1e-6
         descriptors.append(descriptor)
+        enlarged = cv2.resize(crop, (1200, 1280))
+        ok, large_jpeg = cv2.imencode(".jpg", enlarged)
+        assert ok
+        large_encoded = base64.b64encode(large_jpeg).decode()
+        decoded = _image(large_encoded)
+        assert max(decoded.shape[:2]) == MAX_DETECTION_EDGE
     ok, montage = cv2.imencode(".jpg", image)
     assert ok
     try:
@@ -74,6 +89,14 @@ def main():
         assert str(error) == "no_face"
     else:
         raise AssertionError("No-face image must be refused")
+    try:
+        isolated_analyse([base64.b64encode(blank).decode()])
+    except CameraEngineError as error:
+        assert error.code == "no_face"
+    else:
+        raise AssertionError("Subprocess must also refuse no-face input")
+    subprocess_result = isolated_analyse([encoded])
+    assert len(subprocess_result["descriptors"][0]) == 128
     report = {
         "fixture": "Official OpenCV Zoo SFace demo, Apache-2.0",
         "fixture_sha256": digest,
@@ -82,6 +105,8 @@ def main():
         "same_input_deterministic": True,
         "no_face_refused": True,
         "multiple_faces_refused": True,
+        "oversized_detector_input_bounded": True,
+        "isolated_subprocess_checked": True,
         "pair_cosines": [
             [round(float(np.dot(a, b)), 6) for b in descriptors] for a in descriptors
         ],

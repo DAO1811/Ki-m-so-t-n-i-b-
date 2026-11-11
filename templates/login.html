@@ -93,7 +93,10 @@
             <noscript><p class="pk-note">Bật JavaScript để dùng passkey. Bạn vẫn có thể đăng nhập bằng mật khẩu ở trên.</p></noscript>
           </section>
           {% endif %}
-          {% if camera_identity_enabled %}<p class="auth-help"><a href="{% url 'camera_identity_verify_page' %}">Thử nhận diện khuôn mặt bằng camera</a></p>{% endif %}
+          {% if camera_identity_enabled %}
+          <p class="auth-help"><a id="camera-enroll-link" href="{% url 'camera_identity_manage' %}">Đăng ký khuôn mặt bằng camera</a></p>
+          <p class="auth-help"><a href="{% url 'camera_identity_verify_page' %}">Kiểm tra so khớp · chưa mở đăng nhập bằng mặt</a></p>
+          {% endif %}
           <p class="auth-help">Cần hỗ trợ? <span>Liên hệ quản trị viên.</span></p>
         </div>
       </main>

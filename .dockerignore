@@ -1,5 +1,7 @@
 .git
 .venv
+.camera-venv
+.camera-models
 __pycache__
 *.sqlite3
 .env

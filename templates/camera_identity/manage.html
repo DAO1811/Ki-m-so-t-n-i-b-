@@ -12,7 +12,7 @@
       <form id="ci-form" class="ci-form" method="post" action="/account/camera/enroll/options/">
         {% csrf_token %}
         <label for="ci-password">Mật khẩu hiện tại</label><input id="ci-password" name="password" type="password" autocomplete="current-password" required>
-        <label class="ci-consent"><input id="ci-consent" type="checkbox" name="consent" required><span>Tôi đồng ý chụp và xử lý mẫu khuôn mặt cho bản đánh giá này. Tôi có thể xóa mẫu đã đăng ký.</span></label>
+        <label class="ci-consent"><input id="ci-consent" type="checkbox" name="consent" required><span>Tôi đồng ý chụp và xử lý mẫu khuôn mặt, lưu mẫu mã hóa gắn với tài khoản của tôi. Đăng ký lại thành công sẽ cập nhật mẫu hiện có.</span></label>
         <button id="ci-start" class="ci-button" type="button">Mở camera và bắt đầu</button>
       </form>
       <div id="ci-capture-area" class="ci-capture" hidden>
@@ -22,12 +22,12 @@
       </div>
       <canvas id="ci-canvas" width="640" height="480" hidden></canvas>
       <p id="ci-status" class="ci-status" role="alert" hidden></p>
+      <a id="ci-saved" class="ci-link" href="{% url 'camera_identity_manage' %}" hidden>Xem mẫu vừa đăng ký</a>
       <noscript><p class="ci-warning">Cần bật JavaScript để dùng camera. Đăng nhập bằng mật khẩu vẫn hoạt động.</p></noscript>
     </section>
     <section class="ci-panel"><h2>Mẫu đã đăng ký</h2>
       {% if profile %}<p class="ci-profile">Đã có mẫu đánh giá cho tài khoản này.</p><dl class="ci-meta"><dt>Mô hình</dt><dd>{{ profile.model_id }}</dd><dt>Cập nhật</dt><dd>{{ profile.updated_at|date:'d/m/Y H:i' }}</dd><dt>Đồng ý sử dụng</dt><dd>{{ profile.consented_at|date:'d/m/Y H:i' }}</dd></dl>
-      <p>Ảnh khuôn mặt không được hiển thị trên trang quản lý.</p>
-      <form class="ci-form" method="post" action="/account/camera/remove/">{% csrf_token %}<label for="ci-remove-password">Mật khẩu để xóa mẫu</label><input id="ci-remove-password" type="password" name="password" autocomplete="current-password" required><button class="ci-button ci-danger" type="submit">Xóa mẫu khuôn mặt</button></form>
+      <p>Mẫu mã hóa được lưu theo tài khoản. Lỗi camera, thiếu RAM hoặc so khớp thất bại không xóa mẫu. Nếu cần, bạn có thể đăng ký lại ở bên cạnh.</p>
       {% else %}<p class="ci-muted">Chưa đăng ký mẫu khuôn mặt.</p>{% endif %}
       <a class="ci-link" href="/camera/verify/">Mở trang kiểm tra so khớp</a><p class="ci-muted">Trang kiểm tra chỉ báo kết quả đánh giá, không tạo phiên đăng nhập.</p>
     </section>
