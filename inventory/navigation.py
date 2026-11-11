@@ -131,6 +131,8 @@ def navigation(request, access):
             )
         ],
     )
+    from django.conf import settings
+
     from passkeys.services import available as passkeys_available
 
     group(
@@ -149,6 +151,16 @@ def navigation(request, access):
                 "active": route == "passkeys_manage",
             }
             if passkeys_available()
+            else None,
+            {
+                "label": "Camera khuôn mặt · đánh giá",
+                "icon": "users",
+                "url": reverse("camera_identity_manage"),
+                "active": route in {
+                    "camera_identity_manage", "camera_identity_verify_page"
+                },
+            }
+            if settings.CAMERA_IDENTITY_ENABLED
             else None,
             item(
                 "team_view",

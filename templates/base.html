@@ -32,6 +32,7 @@
           {% endif %}
         {% endfor %}
       </nav>
+      {% if camera_identity_enabled %}<a id="camera-account-link" class="nav-link" href="{% url 'camera_identity_manage' %}">{% icon 'users' %}<span>Đăng ký khuôn mặt</span></a>{% endif %}
       <div class="sidebar-user">
         <span class="avatar">{{ user.username|first|upper }}</span><span>{{ user.get_full_name|default:user.username }}<small>
           {% if user.is_superuser %}

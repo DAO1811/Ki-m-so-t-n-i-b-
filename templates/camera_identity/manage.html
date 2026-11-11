@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static ui %}
+{% block title %}Đánh giá nhận diện khuôn mặt · DHD KSNB{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'camera-identity.css' %}">
+<div class="ci-page" data-camera-mode="enroll">
+  <div class="page-heading"><div><h1>{% icon 'shield' %}Đăng ký khuôn mặt bằng camera</h1><p>Tài khoản: <strong>{{ user.username }}</strong> · Phân hệ đánh giá riêng.</p></div></div>
+  <div class="ci-warning" role="note"><strong>Bản đánh giá</strong><p>Kết quả so khớp chưa cho phép đăng nhập; chưa kiểm chứng chống ảnh/video giả. Đây là camera của website, không phải Apple Face ID.</p></div>
+  <div class="ci-grid">
+    <section class="ci-panel">
+      <h2>Đăng ký mẫu khuôn mặt</h2><p>Nhập mật khẩu và đồng ý sử dụng dữ liệu khuôn mặt cho bản đánh giá. Chụp 3 ảnh theo hướng dẫn; máy chủ quyết định kết quả.</p>
+      <form id="ci-form" class="ci-form" method="post" action="/account/camera/enroll/options/">
+        {% csrf_token %}
+        <label for="ci-password">Mật khẩu hiện tại</label><input id="ci-password" name="password" type="password" autocomplete="current-password" required>
+        <label class="ci-consent"><input id="ci-consent" type="checkbox" name="consent" required><span>Tôi đồng ý chụp và xử lý mẫu khuôn mặt, lưu mẫu mã hóa gắn với tài khoản của tôi. Đăng ký lại thành công sẽ cập nhật mẫu hiện có.</span></label>
+        <button id="ci-start" class="ci-button" type="button">Mở camera và bắt đầu</button>
+      </form>
+      <div id="ci-capture-area" class="ci-capture" hidden>
+        <div class="ci-video"><video id="ci-video" autoplay playsinline muted aria-label="Hình ảnh camera trực tiếp"></video><span class="ci-frame" aria-hidden="true"></span></div>
+        <p id="ci-step" class="ci-step" role="status"></p><p id="ci-counter" class="ci-muted"></p>
+        <div class="ci-actions"><button id="ci-capture" class="ci-button" type="button">Chụp bước này</button><button id="ci-cancel" class="ci-button ci-secondary" type="button">Hủy và tắt camera</button></div>
+      </div>
+      <canvas id="ci-canvas" width="640" height="480" hidden></canvas>
+      <p id="ci-status" class="ci-status" role="alert" hidden></p>
+      <a id="ci-saved" class="ci-link" href="{% url 'camera_identity_manage' %}" hidden>Xem mẫu vừa đăng ký</a>
+      <noscript><p class="ci-warning">Cần bật JavaScript để dùng camera. Đăng nhập bằng mật khẩu vẫn hoạt động.</p></noscript>
+    </section>
+    <section class="ci-panel"><h2>Mẫu đã đăng ký</h2>
+      {% if profile %}<p class="ci-profile">Đã có mẫu đánh giá cho tài khoản này.</p><dl class="ci-meta"><dt>Mô hình</dt><dd>{{ profile.model_id }}</dd><dt>Cập nhật</dt><dd>{{ profile.updated_at|date:'d/m/Y H:i' }}</dd><dt>Đồng ý sử dụng</dt><dd>{{ profile.consented_at|date:'d/m/Y H:i' }}</dd></dl>
+      <p>Mẫu mã hóa được lưu theo tài khoản. Lỗi camera, thiếu RAM hoặc so khớp thất bại không xóa mẫu. Nếu cần, bạn có thể đăng ký lại ở bên cạnh.</p>
+      {% else %}<p class="ci-muted">Chưa đăng ký mẫu khuôn mặt.</p>{% endif %}
+      <a class="ci-link" href="/camera/verify/">Mở trang kiểm tra so khớp</a><p class="ci-muted">Trang kiểm tra chỉ báo kết quả đánh giá, không tạo phiên đăng nhập.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'camera-identity.js' %}" defer></script>{% endblock %}

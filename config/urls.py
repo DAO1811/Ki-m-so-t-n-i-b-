@@ -5,6 +5,7 @@ from django.urls import include, path
 from .health import health
 
 urlpatterns = [
+    path("", include("camera_identity.urls")),
     path("", include("passkeys.urls")),
     path("healthz/", health, name="health"),
     path("admin/", admin.site.urls),

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "chat.apps.ChatConfig",
     "ai_assistant.apps.AIAssistantConfig",
     "passkeys.apps.PasskeysConfig",
+    "camera_identity.apps.CameraIdentityConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -74,6 +75,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "inventory.workspace.workspace_context",
                 "passkeys.context.passkey_context",
+                "camera_identity.context.camera_context",
             ]
         },
     }
@@ -174,3 +176,12 @@ PASSKEY_ORIGIN = os.environ.get(
     if PASSKEY_RP_ID and not DEBUG
     else ("http://localhost" if DEBUG else ""),
 )
+
+# Separate optional camera evaluation. It never creates authentication sessions.
+CAMERA_IDENTITY_ENABLED = os.environ.get("CAMERA_IDENTITY_ENABLED", "0") == "1"
+CAMERA_IDENTITY_TEMPLATE_KEY = os.environ.get("CAMERA_IDENTITY_TEMPLATE_KEY", "")
+CAMERA_IDENTITY_DERIVE_TEMPLATE_KEY = (
+    os.environ.get("CAMERA_IDENTITY_DERIVE_TEMPLATE_KEY", "0") == "1"
+)
+CAMERA_IDENTITY_ENGINE_PYTHON = os.environ.get("CAMERA_IDENTITY_ENGINE_PYTHON", "")
+CAMERA_IDENTITY_MODEL_DIR = os.environ.get("CAMERA_IDENTITY_MODEL_DIR", "")
