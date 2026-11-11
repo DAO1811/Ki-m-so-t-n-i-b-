@@ -99,6 +99,7 @@ def guard(request, action):
     return binding
 
 
+@sensitive_variables()
 def options(request, kind, *, password=None, consent=None, username=None):
     binding = guard(request, "options-" + kind)
     now = timezone.now()

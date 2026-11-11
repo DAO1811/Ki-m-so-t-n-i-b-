@@ -16,6 +16,8 @@ Phân hệ `camera_identity` thực hiện ghi nhận mẫu và so khớp 1:1 �
 
 Toàn bộ 552 kiểm thử ứng dụng đạt trên PostgreSQL thử riêng (208,7 giây), gồm kiểm tra bảo vệ API, ràng buộc tài khoản, không xóa mẫu khi lỗi, khóa mã hóa và giới hạn tài nguyên. Các kiểm thử bảo vệ API giả lập đầu ra mô hình; phép thử engine thật được chạy riêng với ảnh ví dụ được cấp phép Apache-2.0. Bảy kiểm tra trình duyệt Chromium đạt, dùng camera ảo từ ảnh được cấp phép; không phải kiểm tra iPhone thật.
 
+Sau đợt đầy đủ này đã bổ sung kiểm tra che mật khẩu/ảnh trong biến cục bộ của traceback JSON API khi lỗi bất ngờ; toàn bộ 39 kiểm tra camera riêng đã đạt. CI chạy lại cả bộ trên đúng commit cuối, kèm job engine thật độc lập. Không dùng số kiểm thử chức năng để khẳng định độ chính xác sinh trắc học hoặc chống giả mạo.
+
 Engine thật đã tạo descriptor, từ chối ảnh trống và nhiều khuôn mặt. API thật đã mã hóa mẫu và trả kết quả khớp. Đồng thời, ảnh được biến dạng/mirror cũng vượt qua được kiểm tra chuyển động: đây là **bằng chứng chưa chống giả mạo**, không phải bằng chứng người thật. Kết quả khớp vẫn trả `login_permitted=false` và không đăng nhập.
 
 Đã thử riêng Intel Open Model Zoo `anti-spoof-mn3` ONNX chính thức, kiểm tra SHA-384 và MIT license. Ba khung ảnh biến dạng nêu trên vẫn được mô hình chấm xác suất người thật khoảng 96–98%. Đây là phép chèn ảnh số tổng hợp, không phải phép thử in ảnh/camera/người thật được kiểm định; không đủ căn cứ để mở đăng nhập. Mô hình PAD này không được tích hợp vào đường xác thực.

@@ -6,7 +6,7 @@ from django.db import DatabaseError
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
-from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET, require_POST
 
 from . import services
@@ -39,10 +39,13 @@ def readiness(request):
 
 def api(authenticated=False):
     def decorate(function):
+        protected = sensitive_variables()(function)
+
         @wraps(function)
         @require_POST
         @never_cache
         @sensitive_post_parameters("password", "frames")
+        @sensitive_variables()
         def view(request):
             if authenticated and not request.user.is_authenticated:
                 return JsonResponse(
@@ -57,7 +60,7 @@ def api(authenticated=False):
                 data = json.loads(request.body)
                 if not isinstance(data, dict):
                     raise services.CameraError()
-                return JsonResponse(function(request, data))
+                return JsonResponse(protected(request, data))
             except services.CameraError as error:
                 return JsonResponse(
                     {"error": str(error), **services.evaluation()}, status=error.status

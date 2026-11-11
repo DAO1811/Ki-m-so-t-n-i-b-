@@ -1,15 +1,18 @@
 """Deployment safeguards, without loading a recognition model or real faces."""
 
 import base64
+import json
 import os
 import subprocess
 import sys
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
-from django.test import Client, SimpleTestCase, override_settings
+from django.test import Client, RequestFactory, SimpleTestCase, override_settings
+from django.views.debug import SafeExceptionReporterFilter
 
 from camera_identity import services
+from camera_identity.views import api
 
 STRONG_SECRET = "camera-deployment-test-key-8d7f3c42a91e6b05"
 SECOND_SECRET = "camera-deployment-test-key-41c6e93b70a5d82f"
@@ -135,6 +138,39 @@ class CameraTemplateDeploymentTests(SimpleTestCase):
     ALLOWED_HOSTS=["localhost"],
 )
 class CameraReadinessTests(SimpleTestCase):
+    @override_settings(DEBUG=False)
+    def test_unexpected_json_api_error_redacts_password_and_frames_in_tracebacks(self):
+        marker = "synthetic-camera-privacy-marker"
+
+        @api()
+        def synthetic_failure(request, data):
+            raise RuntimeError("synthetic internal failure")
+
+        request = RequestFactory().post(
+            "/camera/verify/finish/",
+            json.dumps({"password": marker, "frames": [marker]}),
+            content_type="application/json",
+        )
+        try:
+            synthetic_failure(request)
+        except RuntimeError:
+            trace = sys.exc_info()[2]
+            filtered_frames = 0
+            while trace:
+                frame = trace.tb_frame
+                if frame.f_code.co_name in {"view", "synthetic_failure"}:
+                    filtered = (
+                        SafeExceptionReporterFilter().get_traceback_frame_variables(
+                            request, frame
+                        )
+                    )
+                    self.assertNotIn(marker, repr(filtered))
+                    filtered_frames += 1
+                trace = trace.tb_next
+            self.assertEqual(filtered_frames, 2)
+        else:
+            self.fail("The test must exercise an unexpected API exception")
+
     def test_readiness_does_not_query_database_or_expose_paths_and_secrets(self):
         from unittest.mock import patch
 
