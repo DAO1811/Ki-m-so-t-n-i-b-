@@ -14,7 +14,49 @@ Rà soát trên commit `7eb1e8d` (đang là `main`). Kiểm thử trên PostgreS
 
 ---
 
-## ĐỢT 1 – Sửa lỗi và rủi ro an toàn (làm trước)
+## ĐỢT 0 – Dựng bản thử (staging) và đánh số phiên bản (làm đầu tiên)
+
+Mục tiêu: mọi thay đổi từ Đợt 1 trở đi đều lên **bản thử** cho chủ phần mềm dùng thử trước. Chỉ khi chủ phần mềm đồng ý đúng phiên bản đã thử thì mới đưa lên bản chính.
+
+### Quy trình phát hành áp dụng từ đợt này
+1. Bản chính đang chạy phiên bản `vN`, ví dụ `v120`.
+2. Mỗi yêu cầu nâng cấp làm trên nhánh riêng. Bản dựng để thử gắn nhãn `vN+1-thu`, sửa tiếp thì thành `-thu2`, `-thu3`…
+3. Đưa nhánh lên bản thử (nhánh `staging`). Chủ phần mềm dùng thử như thật.
+4. Chủ phần mềm đồng ý **đúng nhãn đã thử**, ví dụ "đồng ý v121-thu2". Sau đó merge đúng commit đó vào `main` và gắn tag `v121` trên đúng commit đó.
+5. Gặp sự cố trên bản chính thì quay về tag trước đó (`v120`). Ghi hướng dẫn quay lại vào `docs/dev/RELEASE_PROCESS.md`.
+
+### 0.1 Nhận diện bản thử trong phần mềm (sửa mã nhỏ)
+- Thêm biến môi trường `APP_ENVIRONMENT` (`production` hoặc `staging`, mặc định `production`) và `APP_VERSION`, ví dụ `v121-thu2`.
+- Khi là `staging`: hiện dải chữ cố định **"BẢN THỬ – <phiên bản> – không nhập dữ liệu thật"** ở mọi trang, kể cả trang đăng nhập. Thêm "[THỬ]" vào tiêu đề tab trình duyệt.
+- Khi là `staging`, chặn cứng kết nối Drive, gửi email và Groq. Chặn ngay cả khi lỡ khai báo khóa, và hiện thông báo "Bản thử không kết nối dịch vụ thật".
+- `/healthz/` trả thêm `environment` và `version`. Chân trang Admin hiện số phiên bản.
+- Kiểm thử: bản chính không hiện dải BẢN THỬ, giao diện và hành vi giữ nguyên. Bản thử hiện dải chữ và chặn đủ các kết nối ngoài.
+
+### 0.2 Dữ liệu thử
+- Lệnh mới, ví dụ `seed_staging`, nạp dữ liệu mẫu: vài kho, hàng hóa, phiếu ở các trạng thái, tài khoản thử theo từng cấp quyền (Admin, người lập, người duyệt, nhân viên chỉ xem).
+- Lệnh này chỉ chạy được khi `APP_ENVIRONMENT=staging`. Đang ở `production` thì lệnh báo lỗi và dừng. Có kiểm thử cho việc chặn này.
+- Không sao chép database công ty, kể cả bản ẩn danh.
+
+### 0.3 Hạ tầng bản thử (cần chủ phần mềm đồng ý và tự xác nhận trên tài khoản của mình)
+- Tạo **database Neon thử riêng**: project hoặc database mới, trống, không phải branch tách từ database công ty.
+- Tạo **dịch vụ Render Free thứ hai**, ví dụ tên `kiemsoatnoibo-thu`, build từ nhánh `staging`, với các biến:
+  `APP_ENVIRONMENT=staging`, `APP_VERSION=…`, `DEBUG=0`, `SECRET_KEY` mới, `DATABASE_URL` của database thử, `PRIVATE_MEDIA_PROVIDER=database`, **không** đặt khóa Google, Groq hay TURN, `PASSKEY_RP_ID` là tên miền của bản thử.
+- Có thể thêm `staging` vào `render.yaml` hoặc tạo tay trên Render. Phải chắc chắn không đổi cấu hình dịch vụ chính `kho-viet`.
+- Ghi rõ: Render Free sẽ ngủ khi không dùng, lần mở đầu chậm. Kiểm tra lại điều kiện gói Free hiện hành của Render và Neon trước khi tạo, không hứa hạn mức.
+
+### 0.4 Đánh số phiên bản
+- Chốt với chủ phần mềm số phiên bản hiện tại của bản chính (ví dụ `v1.0.0` hoặc theo cách đếm của chủ phần mềm), rồi gắn tag cho commit đang chạy production.
+- Ghi mỗi lần phát hành vào `CHANGELOG.md`: phiên bản, ngày, nội dung thay đổi bằng tiếng Việt dễ hiểu, nhãn bản thử đã được duyệt.
+- Thêm mục "Phiên bản đã thử và được duyệt" vào mẫu pull request.
+
+### Nghiệm thu Đợt 0
+- Chủ phần mềm mở được địa chỉ bản thử trên máy tính và điện thoại, đăng nhập bằng tài khoản thử, thấy dải BẢN THỬ và đúng số phiên bản.
+- `/healthz/` của bản chính và bản thử trả đúng `environment` và `version`.
+- Bản chính không thay đổi gì ngoài thông tin phiên bản (kiểm bằng toàn bộ kiểm thử và ảnh chụp trước/sau).
+
+---
+
+## ĐỢT 1 – Sửa lỗi và rủi ro an toàn
 
 ### 1.1 Bài kiểm thử lỗi chập chờn
 - Tệp: `ai_assistant/tests.py`, bài `test_catalog_permission_never_reveals_quantity` (dòng ~122).
@@ -145,7 +187,10 @@ Không tự triển khai theo giả định. Với mỗi mục: viết đặc t�
 
 ## Thứ tự đề xuất
 
+0. Đợt 0: dựng bản thử và đánh số phiên bản. Từ đây mọi đợt sau đều lên bản thử cho chủ phần mềm dùng thử trước.
 1. Đợt 1, mục 1.1 → 1.9 (có thể gom 1.1, 1.4, 1.5, 1.6, 1.8 vào một PR nhỏ; 1.2 và 1.3 mỗi mục một PR).
 2. Đợt 2, mục 2.1 → 2.6, sau đó 2.8; mục 2.7 sau khi chốt 4.6.
 3. Đợt 3 (chờ duyệt bố cục).
 4. Đợt 4, từng chức năng theo đặc tả được duyệt.
+
+Mỗi đợt kết thúc theo đúng quy trình Đợt 0: bản thử có nhãn → chủ phần mềm dùng thử → đồng ý đúng nhãn → phát hành và gắn tag.
