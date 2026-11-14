@@ -5,12 +5,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>
-      {% block title %}{{ page_name|default:'Quản lý kho' }} · DHD KSNB{% endblock %}
+      {% if is_staging %}[THỬ] {% endif %}{% block title %}{{ page_name|default:'Quản lý kho' }} · DHD KSNB{% endblock %}
     </title>
-    <link rel="stylesheet" href="{% static 'app.css' %}">
+    <link rel="stylesheet" href="{% static 'app.css' %}">{% include 'includes/staging_head.html' %}
     <script src="{% static 'workspace.js' %}" defer></script>
   </head>
-  <body>
+  <body{% if is_staging %} class="is-staging"{% endif %}>{% include 'includes/staging_banner.html' %}
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="{% url 'dashboard' %}"><span class="brand-symbol">{% icon 'warehouse' %}</span><span>DHD KSNB<small>DHD · KIỂM SOÁT NỘI BỘ</small></span></a>
       <nav aria-label="Điều hướng chính">

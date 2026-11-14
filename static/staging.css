@@ -1,0 +1,30 @@
+/* Loaded only when APP_ENVIRONMENT=staging; production never requests this file. */
+:root { --staging-banner-height: 30px; }
+.staging-banner {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10000;
+  height: var(--staging-banner-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  background: repeating-linear-gradient(135deg, #b42318 0 18px, #9a1c13 18px 36px);
+  color: #fff;
+  font: 700 12px/1.2 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+}
+body.is-staging { padding-top: var(--staging-banner-height); }
+body.is-staging .sidebar { top: var(--staging-banner-height); }
+body.is-staging .topbar { top: var(--staging-banner-height); }
+@media print {
+  .staging-banner { position: static; }
+  body.is-staging { padding-top: 0; }
+}
+/* Django admin pages: the banner is rendered inside the footer block. */
+body:has(#footer .staging-banner) { padding-top: var(--staging-banner-height); }

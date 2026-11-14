@@ -79,8 +79,10 @@ export class CloudConversation {
       const data = await this.fetch("/assistant/api/cloud/status/");
       this.available = data.permitted && data.configured;
       this.$("ai-cloud-consent").hidden = !this.available;
-      this.$("ai-cloud-setup").hidden = !data.admin;
-      this.$("ai-cloud-status").textContent = !data.permitted
+      this.$("ai-cloud-setup").hidden = !data.admin || data.staging_blocked;
+      this.$("ai-cloud-status").textContent = data.staging_blocked
+        ? "Bản thử không kết nối dịch vụ thật. Tra cứu nội bộ vẫn dùng được."
+        : !data.permitted
         ? "Admin cần cấp quyền Trò chuyện qua Groq Free cho tài khoản này."
         : !data.configured
           ? "Groq Free chưa kết nối. Tra cứu nội bộ vẫn dùng được."

@@ -7,6 +7,7 @@
       <p>Chỉ quản trị viên cấu hình. Không cần chia sẻ thư mục công khai.</p>
     </div>
   </div>
+  {% if is_staging %}<div class="notice warning" role="alert">Bản thử không kết nối dịch vụ thật. Kết nối Google Drive bị chặn; tệp thử lưu trong database thử.</div>{% endif %}
   <p><a class="button secondary" href="{% url 'storage_settings' %}">Dung lượng &amp; báo cáo lưu trữ</a></p>
   <section class="panel form-panel record-panel drive-setup">
     <h2>1. Chuẩn bị kết nối Google một lần</h2>

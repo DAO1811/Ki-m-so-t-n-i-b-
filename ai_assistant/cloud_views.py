@@ -14,6 +14,7 @@ from .cloud_config import (
     USER_REQUESTS_DAY,
     configuration,
     is_enabled,
+    staging_blocked,
 )
 from .cloud_jobs import ChatError, require_chat, result_for, start
 from .cloud_private import session_scope
@@ -45,6 +46,7 @@ def cloud_status(request):
         {
             "permitted": permitted,
             "configured": is_enabled() if permitted else False,
+            "staging_blocked": staging_blocked(),
             "admin": is_admin(request.user),
             "model": MODEL,
             "provider": "Groq Free",

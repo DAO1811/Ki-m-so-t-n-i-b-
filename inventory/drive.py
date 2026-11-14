@@ -14,6 +14,8 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from config.environment import STAGING, STAGING_BLOCKED_MESSAGE
+
 from .models import DriveConnection
 
 SCOPE = "https://www.googleapis.com/auth/drive.file"
@@ -34,6 +36,9 @@ def google_request(
     content_type="application/json",
     binary=False,
 ):
+    if settings.APP_ENVIRONMENT == STAGING:
+        # Hard stop before any network call, even if credentials leak into staging.
+        raise ValidationError(STAGING_BLOCKED_MESSAGE)
     headers = {"Content-Type": content_type}
     if token:
         headers["Authorization"] = "Bearer " + token

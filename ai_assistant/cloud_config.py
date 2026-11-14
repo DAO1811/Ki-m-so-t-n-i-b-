@@ -29,7 +29,14 @@ class Configuration:
         return bool(self.key and self.confirmed)
 
 
+def staging_blocked():
+    return getattr(settings, "APP_ENVIRONMENT", "production") == "staging"
+
+
 def configuration():
+    if staging_blocked():
+        # Staging never sends text to Groq, even if a key was set by mistake.
+        return Configuration("", False)
     # Reading environment does not copy secrets into Django settings/debug output.
     key = os.environ.get("GROQ_API_KEY", "").strip()
     if not re.fullmatch(r"gsk_[A-Za-z0-9_-]{20,180}", key):

@@ -10,6 +10,28 @@ Trong chat, cung cấp ảnh/video chụp trực tiếp từ mã nguồn đang c
 
 Đường dẫn thử cần có đăng nhập, database và nơi lưu tệp riêng. Không dùng database production, Drive hoặc email công ty để thử tạo/xóa/gửi. Chỉ đưa dữ liệu công ty vào môi trường thử khi có yêu cầu riêng và kiểm soát truy cập thích hợp. Không tự bật dịch vụ tính phí. Ghi nhận phiên bản chủ phần mềm đã xem; sửa đổi đáng kể sau khi duyệt phải đưa xem lại.
 
+## Bản thử, đánh số phiên bản và Bảng nghiệm thu
+
+Áp dụng từ ngày 14/11/2026. Chi tiết dựng bản thử ở [STAGING.md](STAGING.md).
+
+1. Bản chính chạy phiên bản `vN` (tag Git trên đúng commit đang chạy).
+2. Mỗi yêu cầu làm trên nhánh riêng. Bản đưa lên bản thử có nhãn `vN+1-thu`; sửa tiếp thì `-thu2`, `-thu3`…
+3. Đưa đúng commit lên nhánh `staging`, đặt `APP_VERSION` của dịch vụ thử bằng nhãn đó.
+4. Gửi chủ phần mềm đường dẫn bản thử, tài khoản thử và **Bảng nghiệm thu** (Phần A: chức năng mới/sửa, gồm cả trường hợp bị chặn; Phần B: hồi quy chức năng cũ). Chủ phần mềm tự bấm thử và điền Đạt / Không đạt.
+5. Có dòng Không đạt: sửa, đưa nhãn mới, gửi lại toàn bộ bảng.
+6. Chỉ khi mọi dòng Đạt và chủ phần mềm báo **"Đạt <nhãn>"** mới merge đúng commit đó vào `main`, đặt `APP_VERSION=vN+1` trên dịch vụ chính và gắn tag `vN+1` trên commit đó.
+7. Lưu bảng đã điền vào `docs/nghiem-thu/<phiên bản>.md`, ghi tóm tắt vào `CHANGELOG.md`.
+
+Trong suốt thời gian sửa và thử, nhân viên vẫn dùng bản chính như thường: không deploy, migrate hay đổi biến môi trường của dịch vụ chính `kho-viet` khi chưa có "Đạt <nhãn>". Thay đổi database phải tương thích ngược (chỉ thêm bảng/cột, không xóa hay đổi tên dữ liệu đang dùng trong cùng một lần phát hành).
+
+## Quay lại phiên bản trước khi bản chính gặp sự cố
+
+1. Xác định tag đang ổn định trước đó (ví dụ `v120`) và commit của nó: `git rev-list -n 1 v120`.
+2. Không viết lại lịch sử `main`. Tạo commit hoàn tác trên nhánh riêng: `git revert --no-edit <commit-phát-hành>..HEAD` (hoặc revert commit merge bằng `git revert -m 1 <merge>`), mở PR và merge vào `main`.
+3. Nếu thay đổi chỉ thêm bảng/cột (tương thích ngược), bản cũ chạy được trên database hiện tại; dữ liệu nhân viên đã nhập vẫn giữ nguyên.
+4. Nếu bắt buộc phải khôi phục dữ liệu, dùng snapshot trước nâng cấp của `safe_migrate` theo [AUTOMATED_RELEASE_SNAPSHOT.md](AUTOMATED_RELEASE_SNAPSHOT.md). Diễn tập trên database thử trước.
+5. Đặt lại `APP_VERSION=v120` trên dịch vụ chính, chờ `/healthz/` báo `status=ok`, đúng `version` và `release`, rồi kiểm nhanh đăng nhập, lập phiếu, tồn kho.
+
 ## Trong lúc phát triển
 
 1. Tạo nhánh riêng từ main, thực hiện thay đổi theo phạm vi đã được chốt.

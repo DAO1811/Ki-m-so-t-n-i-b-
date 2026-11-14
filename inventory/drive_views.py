@@ -12,6 +12,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from config.environment import STAGING, STAGING_BLOCKED_MESSAGE
+
 from . import drive
 from .models import DriveConnection, StoredFile
 
@@ -66,6 +68,9 @@ def drive_settings(request):
 @require_POST
 def drive_connect(request):
     require_owner(request.user)
+    if settings.APP_ENVIRONMENT == STAGING:
+        messages.error(request, STAGING_BLOCKED_MESSAGE)
+        return redirect("drive_settings")
     if not settings.GOOGLE_DRIVE_CLIENT_ID or not settings.GOOGLE_DRIVE_CLIENT_SECRET:
         messages.error(
             request,

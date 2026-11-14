@@ -4,9 +4,12 @@ from pathlib import Path
 
 import dj_database_url
 
+from .environment import STAGING, app_environment, app_version
 from .storage_profiles import storage_profile
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+APP_ENVIRONMENT = app_environment()
+APP_VERSION = app_version()
 DEBUG = (
     os.environ.get("DEBUG", "0" if os.environ.get("RENDER_EXTERNAL_HOSTNAME") else "1")
     == "1"
@@ -74,6 +77,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "inventory.workspace.workspace_context",
                 "passkeys.context.passkey_context",
+                "config.context.environment_context",
             ]
         },
     }
@@ -109,6 +113,13 @@ GOOGLE_CLOUD_PROJECT_NUMBER = os.environ.get("GOOGLE_CLOUD_PROJECT_NUMBER", "")
 GOOGLE_DRIVE_EXPECTED_FOLDER_ID = os.environ.get(
     "GOOGLE_DRIVE_EXPECTED_FOLDER_ID", "1ZR6b7rB5KJOh9LjSkoVIcFqEKHp5o0Mp"
 )
+if APP_ENVIRONMENT == STAGING:
+    # Staging is isolated by construction: files stay in its own test database
+    # and Google credentials are discarded even if they were set by mistake.
+    PRIVATE_MEDIA_PROVIDER = "database"
+    GOOGLE_DRIVE_CLIENT_ID = GOOGLE_DRIVE_CLIENT_SECRET = ""
+    GOOGLE_PICKER_API_KEY = GOOGLE_CLOUD_PROJECT_NUMBER = ""
+    EMAIL_BACKEND = "config.mail.StagingBlockedEmailBackend"
 INVENTORY_COMPANY_NAME = os.environ.get("INVENTORY_COMPANY_NAME", "DHD")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 LOGIN_URL = "/login/"

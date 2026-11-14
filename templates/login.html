@@ -5,14 +5,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#0d1015">
-    <title>Đăng nhập · DHD KSNB</title>
+    <title>{% if is_staging %}[THỬ] {% endif %}Đăng nhập · DHD KSNB</title>
     <link rel="stylesheet" href="{% static 'app.css' %}">
-    <link rel="stylesheet" href="{% static 'login.css' %}">
+    <link rel="stylesheet" href="{% static 'login.css' %}">{% include 'includes/staging_head.html' %}
     <script src="{% static 'login.js' %}" defer></script>
     {% if passkeys_available %}<link rel="stylesheet" href="{% static 'passkeys.css' %}">
     <script src="{% static 'passkeys.js' %}" defer></script>{% endif %}
   </head>
-  <body class="auth-page">
+  <body class="auth-page{% if is_staging %} is-staging{% endif %}">{% include 'includes/staging_banner.html' %}
     <div class="auth-atmosphere" aria-hidden="true"></div>
     <header class="auth-header">
       <div class="auth-brand"><span class="auth-brand-symbol">{% icon 'warehouse' %}</span><span>DHD<span class="auth-brand-divider"></span>KSNB</span></div>

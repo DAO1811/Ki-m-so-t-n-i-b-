@@ -4,10 +4,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>{{ case.code }} · Bộ hồ sơ sai lệch</title>
-        <link rel="stylesheet" href="{% static 'app.css' %}">
+        <title>{% if is_staging %}[THỬ] {% endif %}{{ case.code }} · Bộ hồ sơ sai lệch</title>
+        <link rel="stylesheet" href="{% static 'app.css' %}">{% include 'includes/staging_head.html' %}
     </head>
-    <body class="deviation-print deviation-print-v2 deviation-page">
+    <body class="deviation-print deviation-print-v2 deviation-page{% if is_staging %} is-staging{% endif %}">{% include 'includes/staging_banner.html' %}
         <a class="back-link" href="{% url 'deviation_detail' case.pk %}">← Về hồ sơ</a>
         <header>
             <p>DHD · KIỂM SOÁT NỘI BỘ</p>

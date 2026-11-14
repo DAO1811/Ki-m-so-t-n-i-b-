@@ -37,9 +37,9 @@ def health(request):
     response = JsonResponse(
         {
             "status": "ok" if ready else "unavailable",
-            "release": os.environ.get(
-                "RENDER_GIT_COMMIT", "admin-function-permissions"
-            ),
+            "release": os.environ.get("RENDER_GIT_COMMIT") or "unknown",
+            "environment": settings.APP_ENVIRONMENT,
+            "version": settings.APP_VERSION,
             "pre_upgrade_snapshot": snapshot,
         },
         status=200 if ready else 503,

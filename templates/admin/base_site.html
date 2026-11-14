@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if is_staging %}[THỬ] {% endif %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block footer %}{% include 'includes/staging_head.html' %}{% include 'includes/staging_banner.html' %}<div class="app-version-footer" style="padding:12px 40px;font-size:12px;opacity:.7">Phiên bản: <span data-app-version>{{ app_version }}</span>{% if is_staging %} · Bản thử{% endif %}</div>{% endblock %}
