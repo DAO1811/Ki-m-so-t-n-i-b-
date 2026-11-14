@@ -2,31 +2,47 @@
 
 Rà soát trên commit `7eb1e8d` (đang là `main`). Kiểm thử trên PostgreSQL thử riêng: 513/514 bài đạt, 1 bài lỗi chập chờn. Lint, CSS, migration, JavaScript đều đạt.
 
-## Câu lệnh giao việc (dán nguyên văn vào đoạn chat nâng cấp)
+## Bảng nghiệm thu bắt buộc cho mỗi lần nâng cấp
 
-```text
-Thực hiện kế hoạch trong tệp docs/KE_HOACH_NANG_CAP_20261114.md (nhánh claude/magical-shannon-idbvzd) cho repository DAO1811/Ki-m-so-t-n-i-b-.
+**Mỗi lần nâng cấp hoặc chỉnh sửa đều phải có bản thử chạy thật kèm Bảng nghiệm thu.** Không có bảng thì không được đề nghị phát hành.
 
-Lần này làm: ĐỢT <số đợt>, các mục <liệt kê mục, ví dụ 0.1–0.4>.
+Quy trình:
+1. Làm xong, đưa lên bản thử với nhãn phiên bản (ví dụ `v121-thu`).
+2. Gửi chủ phần mềm: đường dẫn bản thử, tài khoản thử, và **Bảng nghiệm thu** đã điền sẵn các cột 1–4 (theo mẫu dưới).
+3. Chủ phần mềm tự bấm thử trên bản thử, điền cột "Kết quả": **Đạt** hoặc **Không đạt**, kèm ghi chú.
+4. Có dòng **Không đạt** thì sửa, đưa bản thử mới (`v121-thu2`), gửi lại **toàn bộ bảng** để thử lại từ đầu.
+5. Chỉ khi **mọi dòng đều Đạt** và chủ phần mềm báo **"Đạt v121-thu2"** thì mới merge đúng commit đó vào `main`, triển khai bản chính và gắn tag `v121`.
+6. Sau khi lên bản chính, chủ phần mềm kiểm nhanh lại 3–5 dòng quan trọng trên bản chính. Có sự cố thì quay về phiên bản trước.
+7. Lưu bảng đã điền vào `docs/nghiem-thu/<phiên bản>.md` và ghi tóm tắt vào `CHANGELOG.md`.
 
-Yêu cầu bắt buộc:
-1. Đọc AGENTS.md và toàn bộ tệp kế hoạch trước khi sửa. Tuân thủ mục "Quy tắc chung cho mọi đợt".
-2. Chỉ làm đúng các mục được giao. Không đổi dữ liệu, phân quyền, luồng nghiệp vụ hay giao diện của chức năng khác.
-3. Mỗi mục (hoặc nhóm mục kế hoạch cho phép gom) làm trên nhánh riêng, mở pull request riêng, lời commit theo Conventional Commits, commit nhỏ, mỗi commit một việc.
-4. Mỗi thay đổi có kiểm thử mới và kiểm thử hồi quy. Chạy đủ trên PostgreSQL thử riêng:
-   ruff check . ; python scripts/build_styles.py --check ; node --check static/*.js ; python manage.py check ; python manage.py makemigrations --check --dry-run ; python manage.py test --noinput ; python manage.py collectstatic --noinput
-   Báo kết quả thật (số bài đạt, lỗi, bỏ qua) kèm đầu ra. Không tuyên bố "không ảnh hưởng" khi chưa có bằng chứng.
-5. Không dùng database công ty, không nối Drive, email hay Groq thật. Chỉ dùng dữ liệu và tài khoản thử.
-6. Việc nào cần tạo tài nguyên trên tài khoản của tôi (Render, Neon, GitHub settings…) thì hỏi tôi trước. Việc nào kế hoạch ghi "cần chủ phần mềm xác nhận" thì dừng lại hỏi, không tự giả định.
-7. Làm xong đưa lên bản thử với nhãn phiên bản (ví dụ v121-thu). Gửi tôi: đường dẫn bản thử, tài khoản thử, danh sách việc cần bấm thử, ảnh chụp từ bản đang chạy (ghi rõ phiên bản và dữ liệu thử), diff tóm tắt, rủi ro còn lại.
-8. Không merge vào main, không triển khai bản chính, không gắn tag phát hành cho đến khi tôi trả lời "đồng ý <nhãn phiên bản>". Sau khi đồng ý, chỉ phát hành đúng commit đó.
-9. Không viết lại lịch sử Git, không sửa ngày giờ hay tác giả của commit cũ.
-10. Cuối cùng cập nhật tệp kế hoạch: đánh dấu mục đã xong, mục còn chờ, kèm link pull request.
+Bảng gồm hai phần:
+- **Phần A – Chức năng mới hoặc vừa sửa**: mỗi thay đổi ít nhất một dòng, gồm cả trường hợp đúng và trường hợp sai hoặc bị chặn (ví dụ nhập sai mật khẩu, tài khoản không có quyền).
+- **Phần B – Kiểm tra chức năng cũ vẫn chạy (hồi quy)**: luôn có, kể cả khi thay đổi nhỏ.
 
-Trả lời bằng tiếng Việt, ngắn gọn, rõ ràng.
-```
+### Mẫu Bảng nghiệm thu
 
-Ví dụ lần đầu: thay `<số đợt>` bằng `0` và `<liệt kê mục>` bằng `0.1, 0.2, 0.3, 0.4`. Lần sau: `ĐỢT 1, các mục 1.1, 1.4, 1.5, 1.6, 1.8`.
+**Phiên bản thử:** `v___-thu__` · **Commit:** `_______` · **Đường dẫn bản thử:** `_______` · **Tài khoản thử:** `_______` · **Ngày gửi:** `__/__/____`
+
+| STT | Chức năng / thao tác | Cách thử (bấm gì, nhập gì) | Kết quả mong đợi | Kết quả (Đạt / Không đạt) | Ghi chú của chủ phần mềm |
+|---|---|---|---|---|---|
+| A1 | | | | | |
+| A2 | | | | | |
+| B1 | Đăng nhập | Đăng nhập bằng tài khoản Admin thử, sau đó bằng nhân viên thử | Vào đúng trang, menu đúng theo quyền | | |
+| B2 | Lập và duyệt phiếu nhập | Nhân viên lập phiếu nhập 2 mặt hàng, người duyệt cấp cao hơn duyệt | Phiếu ghi sổ, tồn kho tăng đúng số | | |
+| B3 | Phiếu xuất / chuyển kho | Lập phiếu xuất 1 mặt hàng, duyệt | Tồn giảm đúng, không xuất quá tồn | | |
+| B4 | Tồn kho và sổ kho | Mở Tồn kho, Sổ kho, lọc theo kho | Số khớp với các phiếu vừa làm | | |
+| B5 | Kiểm kê | Mở phiên kiểm kê, nhập số đếm, nộp | Hiện chênh lệch, khóa giao dịch kho trong phiên | | |
+| B6 | Mượn – trả | Tạo phiếu trả hàng mượn | Tồn khả dụng đúng | | |
+| B7 | Nhập Excel | Tải mẫu, nhập file mẫu 3 dòng | Xem trước đúng, tạo phiếu nháp | | |
+| B8 | Xử lý sai lệch | Tạo hồ sơ sai lệch, chuyển duyệt | Đúng bước, đúng người duyệt | | |
+| B9 | Chat nội bộ | Gửi tin nhắn giữa 2 tài khoản thử | Nhận được, đúng người | | |
+| B10 | Trợ lý AI tra cứu | Hỏi "Tồn <mã hàng thử>" bằng tài khoản có và không có quyền | Có quyền thấy số, không quyền bị chặn | | |
+| B11 | Phân quyền | Nhân viên chỉ xem thử vào trang lập phiếu | Bị chặn | | |
+| B12 | Điện thoại | Mở bản thử trên điện thoại, lập 1 phiếu | Dùng được, không vỡ bố cục | | |
+
+**Kết luận của chủ phần mềm:** ☐ Đạt toàn bộ – cho phát hành `v___-thu__` · ☐ Không đạt – sửa các dòng: `____`
+
+Phần B được rà lại mỗi lần cho đúng màn hình đang có. Không bỏ dòng nào khi chưa có lý do ghi rõ.
 
 ## Quy tắc chung cho mọi đợt (bắt buộc)
 
@@ -35,7 +51,7 @@ Ví dụ lần đầu: thay `<số đợt>` bằng `0` và `<liệt kê mục>` 
 - Trước khi đề nghị duyệt phải chạy đủ, và báo kết quả thật:
   `ruff check .` · `python scripts/build_styles.py --check` · `node --check static/*.js` · `python manage.py check` · `python manage.py makemigrations --check --dry-run` · `python manage.py test --noinput` (PostgreSQL) · `python manage.py collectstatic --noinput`.
 - Mỗi thay đổi có kiểm thử mới và kiểm thử hồi quy bảo vệ chức năng cũ. Rà soát diff, không có thay đổi ngoài phạm vi.
-- Gửi chủ phần mềm ảnh chụp từ bản chạy thử thật, ghi rõ commit và dữ liệu thử. Chỉ phát hành đúng commit đã được duyệt.
+- Gửi chủ phần mềm đường dẫn bản thử, tài khoản thử và **Bảng nghiệm thu** (mục trên), kèm ảnh chụp từ bản chạy thật có ghi rõ commit và dữ liệu thử. Chỉ phát hành khi chủ phần mềm báo **Đạt** đúng phiên bản đã thử.
 - Không viết lại lịch sử Git, không sửa ngày giờ hay tác giả của commit cũ.
 
 ---
@@ -48,7 +64,7 @@ Mục tiêu: mọi thay đổi từ Đợt 1 trở đi đều lên **bản thử
 1. Bản chính đang chạy phiên bản `vN`, ví dụ `v120`.
 2. Mỗi yêu cầu nâng cấp làm trên nhánh riêng. Bản dựng để thử gắn nhãn `vN+1-thu`, sửa tiếp thì thành `-thu2`, `-thu3`…
 3. Đưa nhánh lên bản thử (nhánh `staging`). Chủ phần mềm dùng thử như thật.
-4. Chủ phần mềm đồng ý **đúng nhãn đã thử**, ví dụ "đồng ý v121-thu2". Sau đó merge đúng commit đó vào `main` và gắn tag `v121` trên đúng commit đó.
+4. Chủ phần mềm thử theo **Bảng nghiệm thu**. Chỉ khi mọi dòng Đạt và chủ phần mềm báo "Đạt v121-thu2" thì mới merge đúng commit đó vào `main` và gắn tag `v121` trên đúng commit đó.
 5. Gặp sự cố trên bản chính thì quay về tag trước đó (`v120`). Ghi hướng dẫn quay lại vào `docs/dev/RELEASE_PROCESS.md`.
 
 ### 0.1 Nhận diện bản thử trong phần mềm (sửa mã nhỏ)
@@ -219,4 +235,4 @@ Không tự triển khai theo giả định. Với mỗi mục: viết đặc t�
 3. Đợt 3 (chờ duyệt bố cục).
 4. Đợt 4, từng chức năng theo đặc tả được duyệt.
 
-Mỗi đợt kết thúc theo đúng quy trình Đợt 0: bản thử có nhãn → chủ phần mềm dùng thử → đồng ý đúng nhãn → phát hành và gắn tag.
+Mỗi đợt kết thúc theo đúng quy trình: bản thử có nhãn → gửi Bảng nghiệm thu → chủ phần mềm thử và điền Đạt / Không đạt → mọi dòng Đạt và chủ phần mềm báo "Đạt <nhãn>" → phát hành và gắn tag.
