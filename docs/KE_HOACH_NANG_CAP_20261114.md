@@ -2,6 +2,32 @@
 
 Rà soát trên commit `7eb1e8d` (đang là `main`). Kiểm thử trên PostgreSQL thử riêng: 513/514 bài đạt, 1 bài lỗi chập chờn. Lint, CSS, migration, JavaScript đều đạt.
 
+## Câu lệnh giao việc (dán nguyên văn vào đoạn chat nâng cấp)
+
+```text
+Thực hiện kế hoạch trong tệp docs/KE_HOACH_NANG_CAP_20261114.md (nhánh claude/magical-shannon-idbvzd) cho repository DAO1811/Ki-m-so-t-n-i-b-.
+
+Lần này làm: ĐỢT <số đợt>, các mục <liệt kê mục, ví dụ 0.1–0.4>.
+
+Yêu cầu bắt buộc:
+1. Đọc AGENTS.md và toàn bộ tệp kế hoạch trước khi sửa. Tuân thủ mục "Quy tắc chung cho mọi đợt".
+2. Chỉ làm đúng các mục được giao. Không đổi dữ liệu, phân quyền, luồng nghiệp vụ hay giao diện của chức năng khác.
+3. Mỗi mục (hoặc nhóm mục kế hoạch cho phép gom) làm trên nhánh riêng, mở pull request riêng, lời commit theo Conventional Commits, commit nhỏ, mỗi commit một việc.
+4. Mỗi thay đổi có kiểm thử mới và kiểm thử hồi quy. Chạy đủ trên PostgreSQL thử riêng:
+   ruff check . ; python scripts/build_styles.py --check ; node --check static/*.js ; python manage.py check ; python manage.py makemigrations --check --dry-run ; python manage.py test --noinput ; python manage.py collectstatic --noinput
+   Báo kết quả thật (số bài đạt, lỗi, bỏ qua) kèm đầu ra. Không tuyên bố "không ảnh hưởng" khi chưa có bằng chứng.
+5. Không dùng database công ty, không nối Drive, email hay Groq thật. Chỉ dùng dữ liệu và tài khoản thử.
+6. Việc nào cần tạo tài nguyên trên tài khoản của tôi (Render, Neon, GitHub settings…) thì hỏi tôi trước. Việc nào kế hoạch ghi "cần chủ phần mềm xác nhận" thì dừng lại hỏi, không tự giả định.
+7. Làm xong đưa lên bản thử với nhãn phiên bản (ví dụ v121-thu). Gửi tôi: đường dẫn bản thử, tài khoản thử, danh sách việc cần bấm thử, ảnh chụp từ bản đang chạy (ghi rõ phiên bản và dữ liệu thử), diff tóm tắt, rủi ro còn lại.
+8. Không merge vào main, không triển khai bản chính, không gắn tag phát hành cho đến khi tôi trả lời "đồng ý <nhãn phiên bản>". Sau khi đồng ý, chỉ phát hành đúng commit đó.
+9. Không viết lại lịch sử Git, không sửa ngày giờ hay tác giả của commit cũ.
+10. Cuối cùng cập nhật tệp kế hoạch: đánh dấu mục đã xong, mục còn chờ, kèm link pull request.
+
+Trả lời bằng tiếng Việt, ngắn gọn, rõ ràng.
+```
+
+Ví dụ lần đầu: thay `<số đợt>` bằng `0` và `<liệt kê mục>` bằng `0.1, 0.2, 0.3, 0.4`. Lần sau: `ĐỢT 1, các mục 1.1, 1.4, 1.5, 1.6, 1.8`.
+
 ## Quy tắc chung cho mọi đợt (bắt buộc)
 
 - Tuân thủ `AGENTS.md`. Mỗi đợt làm trên **nhánh riêng, một pull request riêng**, không merge vào `main`, không triển khai bản chính.
