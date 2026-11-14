@@ -1,0 +1,49 @@
+# Bảng nghiệm thu – Đợt 0 và Đợt 1
+
+**Phiên bản thử:** `v121-thu` (nhãn tạm, chờ chủ phần mềm chốt cách đánh số) · **Commit:** xem `/healthz/` của bản thử (`release`) · **Đường dẫn bản thử:** chưa có (chờ chủ phần mềm đồng ý tạo dịch vụ Render và database Neon thử) · **Tài khoản thử:** `thu_admin`, `thu_nguoilap`, `thu_nguoiduyet`, `thu_chixem` (mật khẩu gửi riêng) · **Ngày gửi:** 14/11/2026
+
+Dữ liệu thử do lệnh `seed_staging` tạo: kho `THU-HN`, `THU-HCM`; hàng `THU-001`…`THU-004` (tồn ban đầu tại THU-HN: 120, 8, 200, 60); 1 phiếu nhập và 1 phiếu xuất chờ duyệt, 1 phiếu xuất yêu cầu sửa, 1 phiếu chuyển 30 `THU-003` sang THU-HCM đang chờ nhận.
+
+## Phần A – Chức năng mới hoặc vừa sửa
+
+| STT | Chức năng / thao tác | Cách thử (bấm gì, nhập gì) | Kết quả mong đợi | Kết quả (Đạt / Không đạt) | Ghi chú của chủ phần mềm |
+|---|---|---|---|---|---|
+| A1 | Dải BẢN THỬ | Mở trang đăng nhập bản thử; đăng nhập `thu_admin`; mở Tổng quan, Tồn kho, Nhắn tin, Quản trị | Mọi trang có dải đỏ "BẢN THỬ – v121-thu – không nhập dữ liệu thật" ở trên cùng; tiêu đề tab bắt đầu bằng "[THỬ]"; dải không che nút hay menu | | |
+| A2 | Phiên bản ở `/healthz/` | Mở `<địa chỉ bản thử>/healthz/` | Có `"environment": "staging"`, `"version": "v121-thu"`, `"release"` là mã commit | | |
+| A3 | Chặn Google Drive | `thu_admin` → Quản trị hệ thống → Google Drive | Có thông báo "Bản thử không kết nối dịch vụ thật…"; không chuyển sang trang đăng nhập Google | | |
+| A4 | Chặn Groq | Mở Trợ lý AI → Trò chuyện AI | Hiện "Bản thử không kết nối dịch vụ thật. Tra cứu nội bộ vẫn dùng được."; không gửi được câu hỏi tới Groq | | |
+| A5 | Khóa tài khoản khi sai nhiều lần | Đăng xuất. Nhập `thu_chixem` với mật khẩu sai 5 lần | Lần 1–4: báo sai thông thường. Lần 5: "Đăng nhập tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 15 phút…" | | |
+| A6 | Đang khóa thì mật khẩu đúng cũng bị từ chối | Ngay sau A5, nhập `thu_chixem` với mật khẩu đúng | Vẫn báo tạm khóa, không vào được | | |
+| A7 | Không lộ tài khoản có tồn tại hay không | Nhập tên `khong_ton_tai` với mật khẩu bất kỳ 5 lần | Thông báo giống hệt A5 | | |
+| A8 | Admin xem và mở khóa | `thu_admin` → Quản trị → Bảo vệ đăng nhập → Khóa tạm đăng nhập. Chọn dòng `thu_chixem` → Xóa. Đăng nhập lại `thu_chixem` với mật khẩu đúng | Danh sách có dòng `thu_chixem` (không có mật khẩu). Sau khi xóa, đăng nhập được ngay | | |
+| A9 | Đăng nhập đúng xóa bộ đếm | Sai mật khẩu `thu_nguoilap` 3 lần, rồi đăng nhập đúng; đăng xuất; sai thêm 4 lần | Không bị khóa (bộ đếm đã về 0 sau lần đúng) | | |
+| A10 | Phiên đang mở không bị ảnh hưởng | Đăng nhập `thu_nguoiduyet` trên điện thoại. Trên máy tính, nhập sai `thu_nguoiduyet` 5 lần | Máy tính báo tạm khóa; điện thoại vẫn dùng bình thường, không bị đăng xuất | | |
+| A11 | Nhận đúng IP người dùng | Nhập sai 1 lần từ Wi-Fi và 1 lần từ 4G (tên bất kỳ). `thu_admin` mở Khóa tạm đăng nhập, lọc "Địa chỉ IP" | 2 dòng IP khác nhau, đúng IP công cộng của từng mạng (xem trên trang "what is my ip"). Nếu cùng một IP lạ: **Không đạt**, cần đổi cấu hình trước khi phát hành | | |
+| A12 | Phiên bản ở chân trang Admin | `thu_admin` → Quản trị, kéo xuống cuối trang | Có dòng "Phiên bản: v121-thu · Bản thử" | | |
+| A13 | Xử lý lâu không bị cắt | `thu_nguoilap` → Nhập Excel phiếu nhập với file mẫu khoảng 300–500 dòng | Xem trước được, không gặp lỗi 502/"Bad Gateway" | | |
+
+## Phần B – Kiểm tra chức năng cũ vẫn chạy (hồi quy)
+
+| STT | Chức năng / thao tác | Cách thử (bấm gì, nhập gì) | Kết quả mong đợi | Kết quả (Đạt / Không đạt) | Ghi chú của chủ phần mềm |
+|---|---|---|---|---|---|
+| B1 | Đăng nhập | Đăng nhập `thu_admin`, sau đó `thu_chixem` | Vào đúng trang, menu đúng theo quyền (`thu_chixem` không thấy Tồn kho, Lập phiếu) | | |
+| B2 | Lập và duyệt phiếu nhập | `thu_nguoilap` lập phiếu nhập 2 mặt hàng vào THU-HN; `thu_nguoiduyet` duyệt | Phiếu ghi sổ, tồn kho tăng đúng số | | |
+| B3 | Phiếu xuất / chuyển kho | `thu_nguoiduyet` duyệt phiếu xuất 5 `THU-001` đang chờ; nhận phiếu chuyển đang chờ ở THU-HCM | `THU-001` tại THU-HN giảm còn 115; THU-HCM có 30 `THU-003`; không xuất quá tồn | | |
+| B4 | Tồn kho và sổ kho | `thu_nguoiduyet` mở Tồn kho, Thẻ kho, lọc theo kho | Số khớp với các phiếu vừa làm | | |
+| B5 | Kiểm kê | `thu_nguoilap` mở phiên kiểm kê THU-HN, nhập số đếm, nộp | Hiện chênh lệch; trong phiên không lập được phiếu xuất ở THU-HN | | |
+| B6 | Mượn – trả | Lập lệnh cho mượn rồi phiếu trả hàng mượn | Tồn khả dụng đúng | | |
+| B7 | Nhập Excel | Tải mẫu, nhập file mẫu 3 dòng | Xem trước đúng, tạo phiếu nháp | | |
+| B8 | Xử lý sai lệch | `thu_admin` cấu hình quy tắc ở Danh mục & cấu hình; `thu_nguoilap` tạo hồ sơ, chuyển duyệt | Đúng bước, đúng người duyệt | | |
+| B9 | Chat nội bộ | `thu_nguoilap` nhắn cho `thu_nguoiduyet` | Nhận được, đúng người | | |
+| B10 | Trợ lý AI tra cứu | Hỏi "Tồn THU-001" bằng `thu_nguoiduyet` và bằng `thu_chixem` | `thu_nguoiduyet` thấy số; `thu_chixem` bị chặn số tồn | | |
+| B11 | Phân quyền | `thu_chixem` gõ địa chỉ `/documents/new/` | Bị chặn | | |
+| B12 | Điện thoại | Mở bản thử trên điện thoại, `thu_nguoilap` lập 1 phiếu | Dùng được, không vỡ bố cục, dải BẢN THỬ không che menu | | |
+
+**Kết luận của chủ phần mềm:** ☐ Đạt toàn bộ – cho phát hành `v121-thu` · ☐ Không đạt – sửa các dòng: `____`
+
+## Bằng chứng phía phát triển (không thay thế chủ phần mềm thử)
+
+- Kiểm thử tự động trên PostgreSQL 16 riêng: 553/553 đạt (514 bài cũ + 39 bài mới). Bài AI từng chập chờn chạy 200 lần liên tiếp: 200 đạt.
+- `ruff check`, `build_styles --check`, `node --check`, `manage.py check`, `makemigrations --check`, `collectstatic`: đạt.
+- Diễn tập nâng cấp: database ở trạng thái commit `7eb1e8d` (có dữ liệu minh họa) → chạy `start.sh` của bản mới với `DEBUG=0`: chỉ thêm bảng `login_guard_loginthrottle`; số phiếu, tồn, tài khoản giữ nguyên; `/healthz/` báo `ok`.
+- So sánh HTML bản chính cũ và mới trên cùng dữ liệu (đăng nhập + 12 trang): giống nhau, chỉ khác dòng nhắc bảo mật Groq (mục 1.9).
