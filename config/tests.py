@@ -109,6 +109,49 @@ class StagingSettingsTests(SimpleTestCase):
         )
 
 
+class DebugDefaultTests(SimpleTestCase):
+    """Missing DEBUG must never turn on debug mode (Docker outside Render)."""
+
+    def test_missing_debug_requires_secret_key(self):
+        result = settings_in_subprocess({}, "s.DEBUG")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Set a secure SECRET_KEY", result.stderr)
+
+    def test_missing_debug_requires_postgresql(self):
+        result = settings_in_subprocess({"SECRET_KEY": "x" * 50}, "s.DEBUG")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PostgreSQL DATABASE_URL", result.stderr)
+
+    def test_missing_debug_defaults_to_false(self):
+        result = settings_in_subprocess(
+            {
+                "SECRET_KEY": "x" * 50,
+                "DATABASE_URL": "postgresql://u:p@127.0.0.1:1/db",
+            },
+            "s.DEBUG",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "False")
+
+    def test_explicit_debug_one_still_enables_development(self):
+        result = settings_in_subprocess({"DEBUG": "1"}, "s.DEBUG")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "True")
+
+    def test_render_configuration_is_unchanged(self):
+        result = settings_in_subprocess(
+            {
+                "DEBUG": "0",
+                "RENDER_EXTERNAL_HOSTNAME": "example.onrender.com",
+                "SECRET_KEY": "x" * 50,
+                "DATABASE_URL": "postgresql://u:p@127.0.0.1:1/db",
+            },
+            "s.DEBUG, s.SECURE_SSL_REDIRECT, 'example.onrender.com' in s.ALLOWED_HOSTS",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.split(), ["False", "True", "True"])
+
+
 class ProductionPresentationTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -127,6 +170,13 @@ class ProductionPresentationTests(TestCase):
         self.assertNotContains(page, "staging.css")
         self.assertNotContains(page, "[THỬ]")
         self.assertContains(page, "  <body>\n", html=False)
+
+    def test_groq_panel_reminds_not_to_paste_sensitive_data(self):
+        self.client.force_login(self.admin)
+        self.assertContains(
+            self.client.get("/"),
+            "không dán dữ liệu khách hàng, giá vốn hay mật khẩu",
+        )
 
     @override_settings(APP_VERSION="v120")
     def test_admin_footer_shows_version(self):

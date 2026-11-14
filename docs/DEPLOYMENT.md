@@ -12,7 +12,7 @@
 6. Tại console của hosting: `python manage.py createsuperuser` để tự nhập mật khẩu quản trị. Nếu gói Free không có console, nhập `INITIAL_ADMIN_USERNAME` và `INITIAL_ADMIN_PASSWORD` vào biến bảo mật của hosting; `bootstrap_admin` tạo tài khoản đúng một lần và không đổi mật khẩu tài khoản đã có. Xóa biến mật khẩu sau khi đăng nhập. Không ghi mật khẩu trong mã nguồn, README, ảnh hoặc log.
 7. Đăng nhập, tạo các kho, tạo nhân viên, phân vai trò, gán phạm vi kho. Chỉ quản trị viên được quản lý người dùng và quyền. Không đặt `is_staff` hay `is_superuser` cho nhân viên thông thường.
 8. Nhập thử bằng hai tài khoản khác nhau (người lập / người duyệt); kiểm tra nhập, xuất, chuyển, kiểm kê và báo cáo. Không dùng dữ liệu minh họa làm tồn thực.
-9. Kiểm tra HTTPS, backup và khôi phục từ backup trước khi dùng dữ liệu thật. Mật khẩu PostgreSQL và SECRET_KEY được quản lý trong hosting; không đưa vào Git. Cần giới hạn thử đăng nhập tại proxy/WAF hoặc bổ sung rate limiting trước khi công khai cho nhiều người.
+9. Kiểm tra HTTPS, backup và khôi phục từ backup trước khi dùng dữ liệu thật. Mật khẩu PostgreSQL và SECRET_KEY được quản lý trong hosting; không đưa vào Git. Đăng nhập mật khẩu đã có giới hạn thử sai theo tài khoản và theo IP (`login_guard`, xem `docs/LOGIN_LOCKOUT.md`).
 
 ## Nâng cấp sau này
 

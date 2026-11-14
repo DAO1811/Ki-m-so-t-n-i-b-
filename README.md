@@ -56,6 +56,8 @@ export DATABASE_URL=postgresql://dhd_dev:local-development-only@127.0.0.1:55434/
 .venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 
+`DEBUG=1` phải đặt rõ khi chạy máy phát triển. Không đặt `DEBUG` thì phần mềm mặc định `DEBUG=0` (an toàn) và bắt buộc có `SECRET_KEY` cùng PostgreSQL. Dockerfile đặt sẵn `DEBUG=0` và khởi động bằng `start.sh` như Render.
+
 Compose chỉ mở cổng database ở loopback và lưu dữ liệu vào volume phát triển riêng. Không dùng URL database công ty để chạy thử, tạo mẫu hoặc kiểm thử. File `.env.example` mô tả các biến môi trường; ứng dụng đọc biến từ môi trường chạy, không tự nạp file `.env`.
 
 ## Kiểm tra trước khi gửi thay đổi

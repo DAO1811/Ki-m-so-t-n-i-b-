@@ -1,6 +1,8 @@
 import json
+import re
 import uuid
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -231,12 +233,16 @@ class CloudTests(TransactionTestCase):
         product = Product.objects.create(sku="AI001", name="Máy ảnh")
         Balance.objects.create(warehouse=own, product=product, quantity=7, value=70)
         Balance.objects.create(
-            warehouse=other, product=product, quantity=999, value=9990
+            warehouse=other,
+            product=product,
+            quantity=Decimal("987654.321"),
+            value=Decimal("987654321.00"),
         )
         result = self.post("Tồn AI001").json()
         self.assertEqual(result["kind"], "direct")
         self.assertIn("tồn sở hữu 7", result["answer"])
-        self.assertNotIn("999", result["answer"])
+        # Hex QR codes may contain digit runs; strip them before checking.
+        self.assertNotIn("987654", re.sub(r"DHD-[0-9A-Fa-f]{32}", "", result["answer"]))
         self.assertFalse(ChatJob.objects.exists())
         self.launch.assert_not_called()
         denied = Document.objects.create(

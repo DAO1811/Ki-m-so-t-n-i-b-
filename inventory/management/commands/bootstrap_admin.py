@@ -1,10 +1,10 @@
 import os
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+
+MIN_ADMIN_PASSWORD_LENGTH = 12
 
 
 class Command(BaseCommand):
@@ -32,12 +32,16 @@ class Command(BaseCommand):
                 "Tên tài khoản đã tồn tại; không tự nâng quyền người dùng có sẵn."
             )
         user = User(username=username, email=os.environ.get("INITIAL_ADMIN_EMAIL", ""))
-        try:
-            validate_password(password, user)
-        except ValidationError as exc:
+        # Employees may choose passwords freely (AUTH_PASSWORD_VALIDATORS = []);
+        # only this first, all-powerful account has a minimum of its own.
+        if len(password) < MIN_ADMIN_PASSWORD_LENGTH:
             raise CommandError(
-                "Mật khẩu quản trị chưa đủ mạnh: " + " ".join(exc.messages)
-            ) from exc
+                f"Mật khẩu Admin đầu tiên cần ít nhất {MIN_ADMIN_PASSWORD_LENGTH} ký tự."
+            )
+        if password.casefold() == username.casefold():
+            raise CommandError(
+                "Mật khẩu Admin đầu tiên không được trùng tên tài khoản."
+            )
         User.objects.create_superuser(
             username=username, email=user.email, password=password
         )

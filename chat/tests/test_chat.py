@@ -3,6 +3,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
+from unittest import skipUnless
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -521,6 +522,10 @@ class ChatTests(TestCase):
         self.assertEqual(len(parents), 3)
 
 
+@skipUnless(
+    connection.vendor == "postgresql",
+    "Parallel writers need row locks; SQLite locks the whole table. CI uses PostgreSQL.",
+)
 class ConcurrentChatTests(TransactionTestCase):
     def test_double_send_in_parallel_is_one_message(self):
         a = get_user_model().objects.create_user("parallel-a")

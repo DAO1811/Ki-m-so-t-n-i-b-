@@ -119,8 +119,9 @@ class StorageAccessTests(TestCase):
             self.assertIsNone(audit["percent"])
             self.assertIsNone(audit["configured_limit_bytes"])
             response = self.client.get(reverse("storage_settings"))
-            self.assertContains(response, "1 GB")
+            # The quota label is rendered only when PostgreSQL usage is measurable.
             if connection.vendor == "postgresql":
+                self.assertContains(response, "1 GB")
                 self.assertContains(response, "Đã dùng (database này) / Hạn mức dự án")
                 self.assertNotContains(response, "Còn trong ngân sách:")
             with override_settings(DATABASE_STORAGE_LIMIT_MB=256):

@@ -548,6 +548,37 @@ class BootstrapAdminTests(TestCase):
             user.refresh_from_db()
             self.assertTrue(user.check_password("Strong-unique-test-password-2026!"))
 
+    def test_initial_admin_password_minimum_only_for_this_command(self):
+        from io import StringIO
+        from unittest.mock import patch
+
+        from django.conf import settings
+        from django.core.management import CommandError, call_command
+
+        for password, message in [
+            ("short-11chr", "ít nhất 12 ký tự"),
+            ("FirstAdmin-2026", "trùng tên tài khoản"),
+        ]:
+            env = {"INITIAL_ADMIN_USERNAME": "firstadmin-2026"}
+            env["INITIAL_ADMIN_PASSWORD"] = password
+            with self.subTest(password=password), patch.dict("os.environ", env):
+                with self.assertRaisesMessage(CommandError, message):
+                    call_command("bootstrap_admin")
+        self.assertFalse(get_user_model().objects.filter(is_superuser=True).exists())
+        # Employee password policy is unchanged: free choice.
+        self.assertEqual(settings.AUTH_PASSWORD_VALIDATORS, [])
+        with patch.dict(
+            "os.environ",
+            {
+                "INITIAL_ADMIN_USERNAME": "firstadmin",
+                "INITIAL_ADMIN_PASSWORD": "exactly12chr",
+            },
+        ):
+            call_command("bootstrap_admin", stdout=StringIO())
+        self.assertTrue(
+            get_user_model().objects.get(username="firstadmin").is_superuser
+        )
+
     def test_existing_user_not_promoted(self):
         from unittest.mock import patch
 

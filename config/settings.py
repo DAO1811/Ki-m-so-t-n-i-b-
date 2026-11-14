@@ -10,10 +10,9 @@ from .storage_profiles import storage_profile
 BASE_DIR = Path(__file__).resolve().parent.parent
 APP_ENVIRONMENT = app_environment()
 APP_VERSION = app_version()
-DEBUG = (
-    os.environ.get("DEBUG", "0" if os.environ.get("RENDER_EXTERNAL_HOSTNAME") else "1")
-    == "1"
-)
+# Fail safe: debug mode only when explicitly requested (development and CI set
+# DEBUG=1). A missing variable never exposes debug pages or default secrets.
+DEBUG = os.environ.get("DEBUG", "0") == "1"
 SECRET_KEY = os.environ.get(
     "SECRET_KEY", "local-development-only-change-before-deployment"
 )
@@ -51,6 +50,7 @@ INSTALLED_APPS = [
     "chat.apps.ChatConfig",
     "ai_assistant.apps.AIAssistantConfig",
     "passkeys.apps.PasskeysConfig",
+    "login_guard.apps.LoginGuardConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -122,6 +122,15 @@ if APP_ENVIRONMENT == STAGING:
     EMAIL_BACKEND = "config.mail.StagingBlockedEmailBackend"
 INVENTORY_COMPANY_NAME = os.environ.get("INVENTORY_COMPANY_NAME", "DHD")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+# Password-login lockout (login_guard). Render's proxy appends the client IP to
+# X-Forwarded-For, so one trusted hop there; elsewhere REMOTE_ADDR is used.
+LOGIN_USER_MAX_FAILURES = 5
+LOGIN_IP_MAX_FAILURES = 20
+LOGIN_WINDOW_SECONDS = 15 * 60
+LOGIN_LOCK_SECONDS = 15 * 60
+LOGIN_TRUSTED_PROXY_HOPS = int(
+    os.environ.get("LOGIN_TRUSTED_PROXY_HOPS", "1" if render_hostname else "0")
+)
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"

@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -9,6 +10,16 @@ from inventory.models import Balance, Document, Product, Warehouse
 from inventory.test_support import grant_functions
 
 from .context import context_for
+
+# Out-of-scope stock must never leak. Random QR codes are hex, so a quantity
+# made only of digits could collide with them; strip QR codes before checking.
+SECRET_QUANTITY = Decimal("987654.321")
+SECRET_MARK = "987654"
+QR_PATTERN = re.compile(r"DHD-[0-9A-Fa-f]{32}")
+
+
+def leaks_secret(text):
+    return SECRET_MARK in QR_PATTERN.sub("", text)
 
 
 class AssistantTests(TestCase):
@@ -30,7 +41,10 @@ class AssistantTests(TestCase):
             warehouse=self.own, product=self.a, quantity=7, value=700
         )
         Balance.objects.create(
-            warehouse=self.secret, product=self.a, quantity=999, value=99900
+            warehouse=self.secret,
+            product=self.a,
+            quantity=SECRET_QUANTITY,
+            value=Decimal("987654321.00"),
         )
         self.doc = Document.objects.create(
             kind="IN", destination=self.own, created_by=self.staff
@@ -54,9 +68,10 @@ class AssistantTests(TestCase):
         answer = self.post("Tồn kho AI001").json()
         self.assertEqual(answer["facts"], [])
         self.assertIn("chưa được cấp quyền", answer["answer"])
-        self.assertNotIn(
-            "999",
-            json.dumps({key: answer[key] for key in ("answer", "facts", "sources")}),
+        self.assertFalse(
+            leaks_secret(
+                json.dumps({key: answer[key] for key in ("answer", "facts", "sources")})
+            )
         )
         self.assertEqual(self.client.get(reverse("products")).status_code, 403)
 
@@ -68,9 +83,10 @@ class AssistantTests(TestCase):
         self.assertIn("tồn sở hữu 7 Cái", data["facts"][0])
         self.assertIn("OWN", data["facts"][0])
         self.assertNotIn("SECRET", response.content.decode())
-        self.assertNotIn(
-            "999",
-            json.dumps({key: data[key] for key in ("answer", "facts", "sources")}),
+        self.assertFalse(
+            leaks_secret(
+                json.dumps({key: data[key] for key in ("answer", "facts", "sources")})
+            )
         )
         self.assertTrue(data["sources"][0]["url"].startswith("/stock/"))
         for quantity, expected in [("7.5", "7,5"), ("1000", "1000")]:
@@ -119,9 +135,10 @@ class AssistantTests(TestCase):
         ).json()
         self.assertEqual(data["scope"], "catalog")
         self.assertIn("Đèn demo", data["answer"])
-        self.assertNotIn(
-            "999",
-            json.dumps({key: data[key] for key in ("answer", "facts", "sources")}),
+        self.assertFalse(
+            leaks_secret(
+                json.dumps({key: data[key] for key in ("answer", "facts", "sources")})
+            )
         )
 
     def test_requests_are_read_only_even_if_question_asks_to_delete_or_approve(self):
@@ -335,7 +352,7 @@ class AssistantKnowledgeTests(TestCase):
         self.assertIn("1100 đ", data["answer"])
         self.assertIn("Cái: 7", data["answer"])
         self.assertIn("Bộ: 40", data["answer"])
-        self.assertNotIn("999", data["answer"])
+        self.assertFalse(leaks_secret(data["answer"]))
         self.assertEqual(data["answer_kind"], "live")
         self.assertFalse(data["can_refine"])
 
@@ -473,7 +490,7 @@ class AssistantKnowledgeTests(TestCase):
             ):
                 data = context_for(self.staff, question, "/products/")
                 self.assertLessEqual(len(captured), 12)
-                self.assertNotIn("999", data["answer"])
+                self.assertFalse(leaks_secret(data["answer"]))
                 self.assertTrue(
                     all(q["sql"].lstrip().startswith("SELECT") for q in captured)
                 )
