@@ -2,6 +2,21 @@
 
 Rà soát trên commit `7eb1e8d` (đang là `main`). Kiểm thử trên PostgreSQL thử riêng: 513/514 bài đạt, 1 bài lỗi chập chờn. Lint, CSS, migration, JavaScript đều đạt.
 
+## Bản chính luôn hoạt động bình thường trong khi nâng cấp và thử
+
+Trong suốt thời gian sửa mã, dựng bản thử và chủ phần mềm thử, **nhân viên vẫn dùng bản chính như thường**. Bắt buộc:
+
+- Mọi việc sửa và thử chỉ làm trên nhánh riêng, dịch vụ bản thử riêng và database thử riêng. **Không deploy, không migrate, không đổi biến môi trường của dịch vụ chính** `kho-viet` và database công ty khi chưa có "Đạt <nhãn>".
+- Bản thử không dùng chung database, Drive, email, khóa API hay tên miền với bản chính. Tạo và xóa bản thử không ảnh hưởng bản chính.
+- Không push trực tiếp vào `main`. Bản chính có thể tự deploy khi `main` thay đổi, nên chỉ merge vào `main` lúc phát hành đã được duyệt.
+- Kiểm tra lại cấu hình Render của dịch vụ chính trước khi tạo bản thử: dịch vụ chính chỉ theo dõi nhánh `main`, dịch vụ thử chỉ theo dõi nhánh `staging`.
+
+**Lúc phát hành** (chỉ sau khi chủ phần mềm báo Đạt):
+- Chọn giờ ít người dùng, báo trước cho nhân viên. Có thể có vài phút chậm hoặc gián đoạn khi Render khởi động lại.
+- Kiểm tra bản sao lưu database (snapshot trước nâng cấp của `safe_migrate`) trước khi phát hành.
+- Thay đổi database phải tương thích ngược: chỉ thêm bảng hoặc cột, không xóa hay đổi tên dữ liệu đang dùng trong cùng một lần phát hành. Nhờ vậy, nếu phải quay về phiên bản trước thì dữ liệu nhân viên đã nhập vẫn còn nguyên.
+- Sau khi phát hành, kiểm `/healthz/` đúng phiên bản và chạy nhanh vài dòng trong Bảng nghiệm thu trên bản chính.
+
 ## Bảng nghiệm thu bắt buộc cho mỗi lần nâng cấp
 
 **Mỗi lần nâng cấp hoặc chỉnh sửa đều phải có bản thử chạy thật kèm Bảng nghiệm thu.** Không có bảng thì không được đề nghị phát hành.
