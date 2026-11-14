@@ -91,13 +91,28 @@ class Command(BaseCommand):
             help="Tên biến môi trường chứa mật khẩu chung cho tài khoản thử. "
             "Không có thì tạo ngẫu nhiên và in ra một lần.",
         )
+        parser.add_argument(
+            "--auto",
+            action="store_true",
+            help="Dùng khi khởi động bản thử: chỉ nạp khi đã đặt mật khẩu trong "
+            "biến môi trường và database chưa có dữ liệu; nếu không thì bỏ qua.",
+        )
 
-    def handle(self, *args, password_env, **kwargs):
+    def handle(self, *args, password_env, auto=False, **kwargs):
         if settings.APP_ENVIRONMENT != STAGING:
             raise CommandError(
                 "Lệnh chỉ chạy trên bản thử (APP_ENVIRONMENT=staging). "
                 "Đã dừng, không ghi gì vào database."
             )
+        if auto:
+            if not os.environ.get(password_env):
+                self.stdout.write(
+                    f"Bỏ qua nạp dữ liệu thử: chưa đặt {password_env} trên hosting."
+                )
+                return
+            if self.has_data():
+                self.stdout.write("Bỏ qua nạp dữ liệu thử: database thử đã có dữ liệu.")
+                return
         password = os.environ.get(password_env, "") or secrets.token_urlsafe(12)
         with transaction.atomic():
             self.seed(password)
@@ -108,14 +123,18 @@ class Command(BaseCommand):
         if not os.environ.get(password_env):
             self.stdout.write("Mật khẩu chung (chỉ hiện lần này): " + password)
 
-    def seed(self, password):
-        User = get_user_model()
-        if (
+    @staticmethod
+    def has_data():
+        return (
             Warehouse.objects.exists()
             or Product.objects.exists()
             or Document.objects.exists()
-            or User.objects.filter(username__startswith="thu_").exists()
-        ):
+            or get_user_model().objects.filter(username__startswith="thu_").exists()
+        )
+
+    def seed(self, password):
+        User = get_user_model()
+        if self.has_data():
             raise CommandError(
                 "Database thử đã có dữ liệu. Chỉ nạp vào database trống để không trộn dữ liệu."
             )

@@ -28,22 +28,24 @@ APP_ENVIRONMENT=staging python manage.py seed_staging
 - Chỉ chạy khi `APP_ENVIRONMENT=staging` và database trống. Ở `production` lệnh báo lỗi, dừng và không ghi gì.
 - Tạo 2 kho thử, 4 mã hàng `THU-001`…`THU-004`, các phiếu ở trạng thái đã ghi sổ, chờ duyệt, yêu cầu sửa, đang chuyển kho.
 - Tài khoản thử: `thu_admin` (Admin), `thu_nguoilap` (Nhân viên, lập phiếu), `thu_nguoiduyet` (Leader, duyệt tại 2 kho), `thu_chixem` (Nhân viên, chỉ xem phiếu nhập/xuất, không xem tồn).
-- Mật khẩu chung lấy từ biến `STAGING_SEED_PASSWORD`. Không đặt biến này thì lệnh tạo mật khẩu ngẫu nhiên và in ra **một lần**.
+- Mật khẩu chung lấy từ biến `STAGING_SEED_PASSWORD`. Chạy tay mà không đặt biến này thì lệnh tạo mật khẩu ngẫu nhiên và in ra **một lần**. Khi khởi động (`--auto`), thiếu biến thì bỏ qua, không tự tạo mật khẩu.
 - Không sao chép database công ty vào bản thử, kể cả bản ẩn danh.
 
 ## Hạ tầng (chủ phần mềm đồng ý và tự xác nhận trên tài khoản của mình)
 
-1. Tạo **database Neon thử riêng**: project mới, trống. Không dùng branch tách từ database công ty.
-2. Trên Render, tạo **dịch vụ Web thứ hai** (ví dụ `kiemsoatnoibo-thu`), cùng repository, **Branch: `staging`**, Build `bash build.sh`, Start `bash start.sh`, gói Free.
+Hiện trạng đã kiểm tra ngày 14/11/2026: dịch vụ chính là `kiemsoatnoibolemon` (Render, Docker, vùng Singapore, nhánh `main`, tự triển khai khi `main` đổi), database chính là project Neon "Phần mềm KSNB".
+
+1. Tạo **database Neon thử riêng**: project mới, trống (ví dụ `ksnb-thu`, vùng Singapore). Không dùng branch tách từ database công ty.
+2. Trên Render, tạo **dịch vụ Web thứ hai** `kiemsoatnoibo-thu`: cùng repository, runtime **Docker** (giống bản chính), **Branch: `staging`**, vùng Singapore, gói Free.
 3. Biến môi trường của dịch vụ thử:
-   `APP_ENVIRONMENT=staging`, `APP_VERSION=<nhãn>`, `DEBUG=0`, `SECRET_KEY` mới (để Render tạo), `DATABASE_URL` của database thử, `PRIVATE_MEDIA_PROVIDER=database`, `PYTHON_VERSION=3.12.12`, `PASSKEY_RP_ID=<tên miền bản thử>.onrender.com`.
+   `APP_ENVIRONMENT=staging`, `APP_VERSION=<nhãn>`, `DEBUG=0`, `SECRET_KEY` mới, `DATABASE_URL` của database thử, `PRIVATE_MEDIA_PROVIDER=database`, `PASSKEY_RP_ID=kiemsoatnoibo-thu.onrender.com`.
    **Không** đặt khóa Google, Groq, TURN hay `GOOGLE_DRIVE_*`.
-4. Kiểm tra lại dịch vụ chính `kho-viet`: Branch vẫn là `main`, không đổi biến môi trường nào.
-5. Chạy `python manage.py seed_staging` một lần bằng Shell của Render (nếu có) hoặc Job; ghi lại mật khẩu thử.
+4. Chủ phần mềm tự thêm biến `STAGING_SEED_PASSWORD` (mật khẩu chung của 4 tài khoản thử) trên trang Environment của dịch vụ thử. Render khởi động lại; `start.sh` gọi `seed_staging --auto` để nạp dữ liệu thử đúng một lần. Gói Free không có Shell nên không cần chạy lệnh tay.
+5. Kiểm tra lại dịch vụ chính `kiemsoatnoibolemon`: Branch vẫn là `main`, không đổi biến môi trường nào.
 
-`render.yaml` hiện chỉ mô tả dịch vụ chính và **không** được sửa trong đợt này, để tránh Render Blueprint tự tạo hoặc đổi dịch vụ.
+`render.yaml` không được sửa trong đợt này, để tránh Render Blueprint tự tạo hoặc đổi dịch vụ.
 
-Lưu ý: Render Free ngủ khi không có truy cập, lần mở đầu có thể chậm. Điều kiện gói Free của Render và Neon thay đổi theo thời gian; kiểm tra trên tài khoản trước khi tạo, không hứa hạn mức.
+Lưu ý: Render Free ngủ khi không có truy cập, lần mở đầu có thể chậm khoảng một phút. Điều kiện gói Free của Render và Neon thay đổi theo thời gian; kiểm tra trên tài khoản trước khi tạo, không hứa hạn mức.
 
 ## Đưa một phiên bản lên bản thử
 

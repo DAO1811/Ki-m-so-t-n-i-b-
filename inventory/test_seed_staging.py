@@ -46,3 +46,32 @@ class SeedStagingTests(TestCase):
         self.assertEqual(self.client.get("/documents/").status_code, 200)
         self.assertEqual(self.client.get("/stock/").status_code, 403)
         self.assertEqual(self.client.get("/documents/new/").status_code, 403)
+
+
+class SeedStagingAutoTests(TestCase):
+    """start.sh calls `seed_staging --auto` on staging at every boot."""
+
+    def test_auto_refuses_on_production(self):
+        with self.assertRaises(CommandError):
+            call_command("seed_staging", "--auto", stdout=StringIO())
+        self.assertFalse(Warehouse.objects.exists())
+
+    @override_settings(APP_ENVIRONMENT="staging")
+    def test_auto_skips_without_password_then_seeds_once_without_printing_it(self):
+        from unittest.mock import patch
+
+        with patch.dict("os.environ", {"STAGING_SEED_PASSWORD": ""}):
+            out = StringIO()
+            call_command("seed_staging", "--auto", stdout=out)
+        self.assertIn("Bỏ qua", out.getvalue())
+        self.assertFalse(Warehouse.objects.exists())
+        with patch.dict("os.environ", {"STAGING_SEED_PASSWORD": "Mat-khau-thu-2026"}):
+            out = StringIO()
+            call_command("seed_staging", "--auto", stdout=out)
+            self.assertNotIn("Mat-khau-thu-2026", out.getvalue())
+            user = get_user_model().objects.get(username="thu_admin")
+            self.assertTrue(user.check_password("Mat-khau-thu-2026"))
+            again = StringIO()
+            call_command("seed_staging", "--auto", stdout=again)
+        self.assertIn("đã có dữ liệu", again.getvalue())
+        self.assertEqual(Warehouse.objects.count(), 2)

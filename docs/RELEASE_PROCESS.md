@@ -22,7 +22,7 @@ Trong chat, cung cấp ảnh/video chụp trực tiếp từ mã nguồn đang c
 6. Chỉ khi mọi dòng Đạt và chủ phần mềm báo **"Đạt <nhãn>"** mới merge đúng commit đó vào `main`, đặt `APP_VERSION=vN+1` trên dịch vụ chính và gắn tag `vN+1` trên commit đó.
 7. Lưu bảng đã điền vào `docs/nghiem-thu/<phiên bản>.md`, ghi tóm tắt vào `CHANGELOG.md`.
 
-Trong suốt thời gian sửa và thử, nhân viên vẫn dùng bản chính như thường: không deploy, migrate hay đổi biến môi trường của dịch vụ chính `kho-viet` khi chưa có "Đạt <nhãn>". Thay đổi database phải tương thích ngược (chỉ thêm bảng/cột, không xóa hay đổi tên dữ liệu đang dùng trong cùng một lần phát hành).
+Trong suốt thời gian sửa và thử, nhân viên vẫn dùng bản chính như thường: không deploy, migrate hay đổi biến môi trường của dịch vụ chính trên Render `kiemsoatnoibolemon` (Docker, nhánh `main`) khi chưa có "Đạt <nhãn>". Thay đổi database phải tương thích ngược (chỉ thêm bảng/cột, không xóa hay đổi tên dữ liệu đang dùng trong cùng một lần phát hành).
 
 ## Quay lại phiên bản trước khi bản chính gặp sự cố
 
