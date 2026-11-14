@@ -146,3 +146,105 @@ def open_stream(messages):
         raise ProviderError(
             "timeout" if time.monotonic() >= deadline else "provider_error"
         ) from None
+
+
+@dataclass(frozen=True)
+class Completion:
+    content: str
+    tool_calls: list
+    usage: int | None
+
+
+def complete(messages, tools=None, seconds=MAX_SECONDS):
+    """One non-streaming call that may return tool calls (Trợ lý AI v2).
+
+    Same safety as open_stream: fixed endpoint, no redirects, no retries,
+    bounded size and an absolute deadline; provider bodies are never logged.
+    """
+    conf = configuration()
+    if not conf.ready:
+        raise ProviderError("not_configured")
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "stream": False,
+        "reasoning_effort": "low",
+        "include_reasoning": False,
+        "max_completion_tokens": MAX_OUTPUT_TOKENS,
+    }
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+        payload["parallel_tool_calls"] = True
+    req = urllib.request.Request(
+        ENDPOINT,
+        data=json.dumps(payload, ensure_ascii=False).encode(),
+        headers={
+            "Authorization": "Bearer " + conf.key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    seconds = max(1.0, min(float(seconds), float(MAX_SECONDS)))
+    deadline = time.monotonic() + seconds
+    try:
+        with (
+            urllib.request.build_opener(NoRedirect).open(
+                req, timeout=seconds
+            ) as response,
+            deadline_guard(response, deadline),
+        ):
+            if response.status != 200:
+                raise ProviderError("provider_error")
+            raw = response.read(262145)
+        if len(raw) > 262144:
+            raise ProviderError("provider_error")
+        data = json.loads(raw)
+        if data.get("error"):
+            raise ProviderError("provider_error")
+        message = (data.get("choices") or [{}])[0].get("message") or {}
+        content = message.get("content") or ""
+        if not isinstance(content, str):
+            raise ProviderError("provider_error")
+        calls = []
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            name, arguments = function.get("name"), function.get("arguments")
+            if not (
+                isinstance(call.get("id"), str)
+                and isinstance(name, str)
+                and isinstance(arguments, str)
+                and len(call["id"]) <= 100
+                and len(name) <= 64
+                and len(arguments) <= 2000
+            ):
+                raise ProviderError("provider_error")
+            calls.append({"id": call["id"], "name": name, "arguments": arguments})
+        usage = (data.get("usage") or {}).get("total_tokens")
+        return Completion(
+            content, calls, usage if type(usage) is int and usage >= 0 else None
+        )
+    except urllib.error.HTTPError as exc:
+        code = (
+            "provider_limit"
+            if exc.code == 429
+            else "invalid_key"
+            if exc.code in {401, 403}
+            else "provider_error"
+        )
+        exc.close()
+        raise ProviderError(code) from None
+    except (TimeoutError, socket.timeout):
+        raise ProviderError("timeout") from None
+    except (
+        urllib.error.URLError,
+        OSError,
+        ValueError,
+        AttributeError,
+        IndexError,
+        TypeError,
+        KeyError,
+    ):
+        raise ProviderError(
+            "timeout" if time.monotonic() >= deadline else "provider_error"
+        ) from None

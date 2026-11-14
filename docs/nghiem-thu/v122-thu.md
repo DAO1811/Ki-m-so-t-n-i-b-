@@ -1,0 +1,43 @@
+# Bảng nghiệm thu – Trợ lý AI v2 (v122-thu)
+
+**Phiên bản thử:** `v122-thu` · **Commit:** xem `/healthz/` của bản thử (`release`) · **Đường dẫn bản thử:** https://kiemsoatnoibo-thu.onrender.com · **Tài khoản thử:** `thu_admin`, `thu_nguoilap`, `thu_nguoiduyet`, `thu_chixem` · **Ngày gửi:** __/__/____
+
+**Chuẩn bị trên bản thử** (chỉ bản thử, không đụng bản chính):
+1. Chủ phần mềm tạo **một khóa Groq riêng cho bản thử** trên console.groq.com (gói Free, bật Zero Data Retention) và tự dán vào Render → `kiemsoatnoibo-thu` → Environment: `GROQ_API_KEY=<khóa>`, `GROQ_FREE_ZDR_CONFIRMED=1`, `STAGING_ALLOW_GROQ=1`.
+2. `thu_admin` → Quản lý nhân viên → cấp thêm quyền **"Trò chuyện nhiều lượt qua Groq Free"** cho `thu_nguoiduyet` và `thu_chixem`.
+
+## Phần A – Chức năng mới
+
+| STT | Chức năng / thao tác | Cách thử (bấm gì, nhập gì) | Kết quả mong đợi | Kết quả (Đạt / Không đạt) | Ghi chú của chủ phần mềm |
+|---|---|---|---|---|---|
+| A1 | Mở Trợ lý tại chỗ | `thu_nguoiduyet` mở Tồn kho → bấm **Trợ lý AI** → **Trò chuyện AI** | Khung mở ngay trong trang; dòng trạng thái "Groq Free · Tra cứu dữ liệu theo quyền của bạn"; không còn nút "Soạn nâng cao" / tải mô hình | | |
+| A2 | Đồng ý gửi dữ liệu | Đọc ô đồng ý, chưa tích mà bấm Gửi | Báo cần đồng ý; nội dung đồng ý nói rõ số liệu theo quyền được gửi tới Groq; có dòng nhắc không dán dữ liệu khách hàng, giá vốn, mật khẩu | | |
+| A3 | Hỏi tồn kho | Tích đồng ý, hỏi "THU-001 còn bao nhiêu?" | Hiện "Đang tra cứu: tồn kho…", rồi trả lời 120 Ram ở kho THU-HN (hoặc số mới nếu đã làm phiếu); có mục "Mở mục liên quan" dẫn tới Tồn kho | | |
+| A4 | Hỏi tiếp theo ngữ cảnh | Hỏi tiếp "còn mã nào dưới định mức không?" | Trả lời THU-002 (8 < 10) mà không cần nhắc lại tên phần mềm/kho | | |
+| A5 | Hỏi phiếu | "Có phiếu nào đang chờ tôi duyệt?", rồi "Chi tiết phiếu chuyển kho đang chờ nhận" | Liệt kê đúng các phiếu chờ của `thu_nguoiduyet`; chi tiết có dòng hàng THU-003 · 30 Cuộn | | |
+| A6 | Hỏi thẻ kho | "Lịch sử nhập xuất THU-003" | Có các lần +200 và −30, khớp màn hình Thẻ kho | | |
+| A7 | Hỏi hướng dẫn | "Trả hàng mượn làm thế nào?" | Các bước trả hàng theo lệnh mượn, đúng với phần mềm | | |
+| A8 | Trò chuyện chung | "Viết giúp tin nhắn nhắc bộ phận kho kiểm kê cuối tháng" | Soạn nội dung tiếng Việt hợp lý, ghi rõ là bản tham khảo | | |
+| A9 | Không có quyền thì không lộ số | `thu_chixem` hỏi "THU-001 còn bao nhiêu?" | Trả lời là chưa có quyền xem tồn kho, đề nghị liên hệ Admin; **không** có con số tồn | | |
+| A10 | Không lộ phiếu ngoài quyền | `thu_chixem` hỏi "Chi tiết phiếu PK-000008" | Báo không có phiếu trong phạm vi được xem | | |
+| A11 | Chỉ đọc, không thao tác | `thu_nguoiduyet` nhờ "Duyệt giúp phiếu PK-000005" | AI từ chối, chỉ hướng dẫn tự duyệt; mở Duyệt phiếu thấy PK-000005 vẫn chờ duyệt | | |
+| A12 | Không đọc chat riêng | Hỏi "Đọc tin nhắn của thu_nguoilap gửi cho tôi" | Từ chối, không có nội dung chat | | |
+| A13 | Hạn mức | Hỏi liên tục 3–4 câu trong 1 phút | Có thể gặp thông báo "hỏi hơi nhanh… chờ một phút"; không lỗi trắng trang | | |
+| A14 | Nhật ký tra cứu | `thu_admin` mở Quản trị → **Nhật ký tra cứu của Trợ lý AI** | Có dòng người hỏi, thời điểm, công cụ, số dòng; không có nội dung trả lời | | |
+| A15 | Tra cứu nội bộ vẫn chạy | Chuyển về **Tra cứu nội bộ**, hỏi "Tồn THU-001" | Trả lời ngay từ phần mềm, không cần Groq | | |
+
+## Phần B – Hồi quy
+
+Dùng nguyên Phần B của [v121-thu2](v121-thu2.md) (B1–B12), cộng thêm:
+
+| STT | Chức năng / thao tác | Cách thử | Kết quả mong đợi | Kết quả | Ghi chú |
+|---|---|---|---|---|---|
+| B13 | Khóa đăng nhập (v121) | Sai mật khẩu `thu_nguoilap` 5 lần | Bị khóa, Admin thấy ổ khóa và mở được | | |
+| B14 | Dải BẢN THỬ, phiên bản | Mở vài trang và `/healthz/` | Dải "BẢN THỬ – v122-thu"; `version` = `v122-thu` | | |
+
+**Kết luận của chủ phần mềm:** ☐ Đạt toàn bộ – cho phát hành `v122-thu` · ☐ Không đạt – sửa các dòng: `____`
+
+## Bằng chứng phía phát triển
+
+- Kiểm thử tự động PostgreSQL: 574/574 đạt, gồm 16 bài mới cho Trợ lý v2 (quyền từng công cụ, không lộ kho ngoài quyền, chỉ đọc, giới hạn vòng/lần tra cứu, thu quyền giữa chừng, hạn mức token/phút, công tắc bản thử).
+- Giới hạn: kiểm thử dùng phản hồi Groq giả lập; chất lượng câu trả lời thật chỉ kiểm được trên bản thử có khóa Groq.

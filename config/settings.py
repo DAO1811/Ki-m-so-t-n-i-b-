@@ -121,6 +121,10 @@ if APP_ENVIRONMENT == STAGING:
     GOOGLE_DRIVE_CLIENT_ID = GOOGLE_DRIVE_CLIENT_SECRET = ""
     GOOGLE_PICKER_API_KEY = GOOGLE_CLOUD_PROJECT_NUMBER = ""
     EMAIL_BACKEND = "config.mail.StagingBlockedEmailBackend"
+# Owner opt-in to test Trợ lý AI v2 on staging with a staging-only Groq key.
+STAGING_ALLOW_GROQ = (
+    APP_ENVIRONMENT == STAGING and os.environ.get("STAGING_ALLOW_GROQ") == "1"
+)
 INVENTORY_COMPANY_NAME = os.environ.get("INVENTORY_COMPANY_NAME", "DHD")
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 # Password-login lockout (login_guard). Render's proxy appends the client IP to

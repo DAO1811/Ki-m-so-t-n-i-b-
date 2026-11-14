@@ -1,6 +1,6 @@
 # Đặc tả Trợ lý AI v2 (dự kiến phiên bản v122)
 
-Trạng thái: **đặc tả, chưa triển khai**. Làm sau khi `v121` được duyệt, trên nhánh và bản thử riêng.
+Trạng thái: **đã triển khai trên nhánh `claude/ai-v2`, chờ bản thử `v122-thu`**. Chủ phần mềm chọn làm song song với phát hành `v121`.
 
 ## Quyết định của chủ phần mềm (14/11/2026)
 
@@ -14,7 +14,7 @@ Trạng thái: **đặc tả, chưa triển khai**. Làm sau khi `v121` được
 2. Phần mềm gửi câu hỏi và lịch sử trò chuyện gần đây sang Groq, kèm danh sách **công cụ tra cứu chỉ đọc**.
 3. Khi cần số liệu, mô hình yêu cầu một công cụ. Phần mềm chạy công cụ đó **bằng đúng quyền và phạm vi kho của người hỏi**, rút gọn kết quả rồi gửi lại cho mô hình.
 4. Mô hình trả lời bằng tiếng Việt, kèm đường dẫn tới màn hình nguồn để người dùng đối chiếu.
-5. Tối đa 4 lần gọi công cụ cho một câu hỏi; mỗi kết quả tối đa 50 dòng. Hết giới hạn thì trả lời theo phần đã có và hướng dẫn mở màn hình nguồn.
+5. Tối đa 3 vòng và 4 lần gọi công cụ cho một câu hỏi; mỗi kết quả tối đa 30 dòng / 3.000 byte; cả lượt tối đa 40 giây. Hết giới hạn thì trả lời theo phần đã có và hướng dẫn mở màn hình nguồn.
 
 ## Công cụ tra cứu (chỉ đọc, theo quyền)
 

@@ -40,6 +40,10 @@ class ChatJob(models.Model):
     error = models.CharField(
         max_length=40, blank=True
     )  # allowlisted code, no raw provider errors
+    # Trợ lý AI v2: encrypted source links of tool results and a short status
+    # such as "Đang tra cứu: tồn kho" shown while tools run.
+    sources = models.TextField(blank=True, default="")
+    progress = models.CharField(max_length=120, blank=True, default="")
     reserved_tokens = models.PositiveIntegerField()
     charged_tokens = models.PositiveIntegerField(null=True)
     request_day = models.DateField()
@@ -53,5 +57,22 @@ class ChatJob(models.Model):
         indexes = [
             models.Index(
                 fields=["owner_id", "created_at"], name="ai_chat_owner_created"
+            )
+        ]
+
+
+class ChatToolAudit(models.Model):
+    """Who asked, when, which lookup ran and how many rows; never the answer."""
+
+    owner_id = models.PositiveBigIntegerField()
+    job_id = models.UUIDField()
+    tool = models.CharField(max_length=40)
+    rows = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["owner_id", "created_at"], name="ai_tool_owner_created"
             )
         ]

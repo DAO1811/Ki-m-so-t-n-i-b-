@@ -23,6 +23,13 @@ Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng 
 - Khung trò chuyện Groq có dòng nhắc không dán dữ liệu khách hàng, giá vốn hay mật khẩu.
 - Sửa bài kiểm thử chập chờn của Trợ lý AI; 2 bài chỉ chạy được trên PostgreSQL được đánh dấu rõ khi chạy SQLite.
 
+## v122 – Trợ lý AI v2 (đang làm, chưa thử)
+
+- Trò chuyện AI qua Groq Free tự tra cứu dữ liệu trong phần mềm theo đúng quyền của người hỏi: hàng hóa, tồn kho, thẻ kho, phiếu, việc chờ duyệt, kiểm kê, hàng cho mượn, sai lệch, hướng dẫn. Chỉ đọc; không tạo, sửa hay duyệt.
+- Câu trả lời có số liệu kèm đường dẫn tới màn hình nguồn; khi đang tra cứu hiện "Đang tra cứu: …".
+- Ghi nhật ký mỗi lần AI tra cứu (người hỏi, thời điểm, công cụ, số dòng).
+- Gỡ phần AI chạy trong trình duyệt (Qwen, khoảng 800 MB tải về), kho mã nhẹ đi khoảng 22 MB.
+
 ## Các phiên bản trước
 
 Chưa gắn số phiên bản. Bản chính hiện chạy commit `7eb1e8d` (đăng nhập passkey). Số phiên bản khởi điểm chờ chủ phần mềm chốt; lịch sử chi tiết sẽ được viết lại ở Đợt 2.
