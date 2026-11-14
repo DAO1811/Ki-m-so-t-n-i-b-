@@ -12,7 +12,7 @@ from .models import LoginThrottle
 
 PASSWORD = "dung-mat-khau-thu"
 WRONG = "sai-mat-khau"
-LOCKED = "Đăng nhập tạm khóa"
+LOCKED = "liên hệ quản trị viên để mở khóa"
 
 
 class LoginLockoutTests(TestCase):
@@ -68,11 +68,55 @@ class LoginLockoutTests(TestCase):
             self.login(username=name)
         self.assertContains(self.login(username="NV_thu"), LOCKED)
 
-    def test_lock_expires(self):
+    def test_employee_lock_never_expires_until_admin_unlocks(self):
         for _ in range(5):
             self.login()
-        LoginThrottle.objects.update(locked_until=timezone.now() - timedelta(seconds=1))
+        row = LoginThrottle.objects.get(scope="user", key="nv_thu")
+        self.assertTrue(row.admin_unlock_required)
+        self.assertIsNone(row.locked_until)
+        LoginThrottle.objects.update(
+            window_started_at=timezone.now() - timedelta(days=30),
+            updated_at=timezone.now() - timedelta(days=30),
+        )
+        call_command("cleanup_login_throttle", stdout=StringIO())
+        self.assertContains(self.login(password=PASSWORD, ip="198.51.100.3"), LOCKED)
+        # Admin unlocks through the admin action; the employee signs in again.
+        admin_user = get_user_model().objects.create_superuser("quan_tri")
+        self.client.force_login(admin_user)
+        page = self.client.get("/")
+        self.assertContains(page, "1 tài khoản bị khóa đăng nhập")
+        self.client.post(
+            "/admin/login_guard/loginthrottle/",
+            {
+                "action": "unlock_selected",
+                "_selected_action": list(
+                    LoginThrottle.objects.values_list("pk", flat=True)
+                ),
+            },
+        )
+        self.assertFalse(
+            LoginThrottle.objects.filter(admin_unlock_required=True).exists()
+        )
+        self.assertNotContains(self.client.get("/"), "bị khóa đăng nhập")
+        self.client.logout()
         self.assertEqual(self.login(password=PASSWORD).status_code, 302)
+
+    def test_admin_account_lock_expires_by_itself(self):
+        get_user_model().objects.create_superuser("sep", password=PASSWORD)
+        for _ in range(5):
+            self.login(username="sep")
+        row = LoginThrottle.objects.get(scope="user", key="sep")
+        self.assertFalse(row.admin_unlock_required)
+        self.assertIsNotNone(row.locked_until)
+        self.assertContains(self.login(username="sep", password=PASSWORD), LOCKED)
+        LoginThrottle.objects.update(locked_until=timezone.now() - timedelta(seconds=1))
+        self.assertEqual(self.login(username="sep", password=PASSWORD).status_code, 302)
+
+    def test_employee_does_not_see_lock_notice(self):
+        for _ in range(5):
+            self.login(username="khac")
+        self.client.force_login(self.user)
+        self.assertNotContains(self.client.get("/"), "bị khóa đăng nhập")
 
     def test_old_failures_outside_window_reset(self):
         for _ in range(4):
@@ -119,15 +163,18 @@ class LoginLockoutTests(TestCase):
         self.assertNotEqual(response.status_code, 404)
         self.assertNotIn(LOCKED, response.content.decode())
 
-    def test_cleanup_command_keeps_active_locks(self):
+    def test_cleanup_keeps_real_account_locks_only(self):
         for _ in range(5):
             self.login()
+        for _ in range(5):
+            self.login(username="khong_ton_tai", ip="198.51.100.2")
         self.login(username="cu", ip="198.51.100.1")
         LoginThrottle.objects.update(updated_at=timezone.now() - timedelta(days=2))
         call_command("cleanup_login_throttle", stdout=StringIO())
+        # Old counters, IP counters and locks of names with no account are gone.
         self.assertEqual(
             sorted(LoginThrottle.objects.values_list("key", flat=True)),
-            ["nv_thu"],  # unlocked IP counter and old "cu" counters are gone
+            ["nv_thu"],
         )
 
 

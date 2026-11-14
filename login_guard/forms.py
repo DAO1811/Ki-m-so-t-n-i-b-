@@ -1,40 +1,33 @@
-import math
-
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 
 from . import services
 
+# One message for every lock (account, unknown name, IP) so the response never
+# reveals whether an account exists or is an Admin.
 LOCK_MESSAGE = (
-    "Đăng nhập tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau {minutes} phút "
-    "hoặc liên hệ quản trị viên."
+    "Đăng nhập đã bị khóa do nhập sai mật khẩu nhiều lần. "
+    "Vui lòng liên hệ quản trị viên để mở khóa."
 )
 
 
 class GuardedAuthenticationForm(AuthenticationForm):
-    """Django's login form plus database-backed lockout. Same message for every
-    account name, existing or not."""
+    """Django's login form plus database-backed lockout."""
 
-    def _locked(self, until):
-        minutes = max(1, math.ceil((until - timezone.now()).total_seconds() / 60))
-        return ValidationError(
-            LOCK_MESSAGE.format(minutes=minutes), code="login_locked"
-        )
+    def _locked(self):
+        return ValidationError(LOCK_MESSAGE, code="login_locked")
 
     def clean(self):
         username = self.cleaned_data.get("username")
         ip = services.client_ip(self.request) if self.request else "unknown"
-        until = services.locked_until(username, ip)
-        if until:
-            raise self._locked(until)
+        if services.is_locked(username, ip):
+            raise self._locked()
         try:
             cleaned = super().clean()
         except ValidationError as exc:
             if getattr(exc, "code", None) == "invalid_login":
-                until = services.register_failure(username, ip)
-                if until:
-                    raise self._locked(until) from exc
+                if services.register_failure(username, ip):
+                    raise self._locked() from exc
             raise
         services.clear_account(username)
         return cleaned

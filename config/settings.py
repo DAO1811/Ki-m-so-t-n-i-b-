@@ -78,6 +78,7 @@ TEMPLATES = [
                 "inventory.workspace.workspace_context",
                 "passkeys.context.passkey_context",
                 "config.context.environment_context",
+                "login_guard.context.lockout_context",
             ]
         },
     }

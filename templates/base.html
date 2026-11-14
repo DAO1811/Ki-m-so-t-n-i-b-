@@ -58,6 +58,7 @@
         </div>
         <div class="topbar-actions">
           {% if access.chat_use %}<a class="icon-button chat-notify-link" href="{% url 'chat_home' %}" aria-label="Tin nhắn nội bộ">{% icon 'message' %}<span class="chat-badge" id="chat-global-unread" hidden></span></a>{% endif %}
+          {% if locked_login_count %}<a class="icon-button chat-notify-link" href="/admin/login_guard/loginthrottle/?admin_unlock_required__exact=1" aria-label="{{ locked_login_count }} tài khoản bị khóa đăng nhập, chờ Admin mở khóa" title="{{ locked_login_count }} tài khoản bị khóa đăng nhập, chờ Admin mở khóa">{% icon 'lock' %}<span class="chat-badge">{{ locked_login_count }}</span></a>{% endif %}
           {% if access.any_approve %}<a class="icon-button" href="{% url 'approvals' %}" aria-label="Phiếu chờ duyệt">{% icon 'bell' %}</a>{% endif %}
           <button class="icon-button" id="refresh-page" aria-label="Làm mới dữ liệu">{% icon 'refresh' %}</button>
           {% if access.warehouse_scope and current_module.key == "warehouse" %}<form method="post"

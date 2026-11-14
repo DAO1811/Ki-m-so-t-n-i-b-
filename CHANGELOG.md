@@ -15,7 +15,7 @@ Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng 
 
 ### Sửa lỗi và rủi ro an toàn (Đợt 1)
 
-- Đăng nhập bằng mật khẩu: sai 5 lần trong 15 phút với cùng tài khoản thì tạm khóa tài khoản đó 15 phút; sai 20 lần từ cùng một địa chỉ IP thì tạm khóa IP đó. Thông báo giống nhau dù tài khoản có tồn tại hay không. Đăng nhập đúng xóa bộ đếm. Passkey và phiên đang đăng nhập không bị ảnh hưởng. Admin xem và mở khóa tại Quản trị → "Khóa tạm đăng nhập". Lệnh dọn: `cleanup_login_throttle`.
+- Đăng nhập bằng mật khẩu: nhân viên sai 5 lần trong 15 phút thì bị khóa đến khi Admin mở khóa (tài khoản Admin tự mở sau 15 phút); sai 20 lần từ cùng một địa chỉ IP thì tạm khóa IP đó 15 phút. Thông báo giống nhau dù tài khoản có tồn tại hay không. Đăng nhập đúng xóa bộ đếm. Admin thấy biểu tượng ổ khóa kèm số tài khoản chờ mở và mở khóa ngay trong trang Quản trị. Passkey và phiên đang đăng nhập không bị ảnh hưởng. Lệnh dọn: `cleanup_login_throttle`.
 - Không khai báo `DEBUG` thì mặc định tắt chế độ gỡ lỗi (trước đây ngoài Render sẽ tự bật). Dockerfile đặt `DEBUG=0` và khởi động bằng `start.sh` như Render.
 - Gunicorn trên Render chờ tối đa 120 giây mỗi yêu cầu (trước là 30 giây), để nhập Excel lớn và xuất báo cáo không bị cắt.
 - Mật khẩu Admin đầu tiên tạo bằng `bootstrap_admin` cần ít nhất 12 ký tự và không trùng tên tài khoản. Chính sách mật khẩu của nhân viên giữ nguyên.

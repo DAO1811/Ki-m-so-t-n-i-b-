@@ -10,6 +10,9 @@ class LoginThrottle(models.Model):
     failures = models.PositiveIntegerField("Số lần sai", default=0)
     window_started_at = models.DateTimeField("Bắt đầu đếm")
     locked_until = models.DateTimeField("Khóa đến", null=True, blank=True)
+    admin_unlock_required = models.BooleanField(
+        "Chờ Admin mở khóa", default=False, db_default=False
+    )
     lockouts = models.PositiveIntegerField("Số lần bị khóa", default=0)
     updated_at = models.DateTimeField("Cập nhật", auto_now=True, db_index=True)
 

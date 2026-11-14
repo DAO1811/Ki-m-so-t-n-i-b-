@@ -4,15 +4,18 @@ Phân hệ `login_guard` (bảng riêng `login_guard_loginthrottle`) bảo vệ 
 
 | Ngưỡng | Mặc định | Biến cấu hình (trong `config/settings.py`) |
 |---|---|---|
-| Sai liên tiếp theo tài khoản | 5 lần trong 15 phút → khóa 15 phút | `LOGIN_USER_MAX_FAILURES`, `LOGIN_WINDOW_SECONDS`, `LOGIN_LOCK_SECONDS` |
+| Sai theo tài khoản nhân viên | 5 lần trong 15 phút → **khóa đến khi Admin mở** | `LOGIN_USER_MAX_FAILURES`, `LOGIN_WINDOW_SECONDS` |
+| Sai theo tài khoản Admin | 5 lần trong 15 phút → khóa 15 phút rồi tự mở | `LOGIN_LOCK_SECONDS` |
 | Sai theo địa chỉ IP | 20 lần trong 15 phút → khóa 15 phút | `LOGIN_IP_MAX_FAILURES` |
 
 - Ngưỡng IP cao hơn vì nhiều nhân viên trong cùng văn phòng có thể dùng chung một IP công cộng.
 - Bộ đếm lưu trong database nên đúng với cả 2 worker Gunicorn. Không lưu mật khẩu; chỉ lưu tên tài khoản đã nhập (chữ thường) hoặc IP.
-- Thông báo lỗi giống nhau dù tài khoản có tồn tại hay không. Khi đang khóa, phần mềm không kiểm tra mật khẩu, kể cả mật khẩu đúng.
+- Chủ phần mềm chốt ngày 14/11/2026: nhân viên sai 5 lần phải liên hệ Admin. Tài khoản Admin tự mở sau 15 phút vì nếu mọi Admin đều bị khóa vĩnh viễn thì không còn ai mở được; Admin vẫn đăng nhập được bằng passkey.
+- Mọi trường hợp khóa đều hiện cùng một thông báo: "Đăng nhập đã bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng liên hệ quản trị viên để mở khóa." Tên không tồn tại cũng bị khóa y như tài khoản thật, nên không lộ tài khoản nào có thật hay là Admin. Khi đang khóa, phần mềm không kiểm tra mật khẩu, kể cả mật khẩu đúng.
+- Admin thấy biểu tượng ổ khóa có số đếm trên thanh trên cùng khi có tài khoản chờ mở khóa.
 - Đăng nhập đúng xóa bộ đếm của tài khoản. Passkey và các phiên đang đăng nhập không bị ảnh hưởng.
-- Admin xem danh sách tại **Quản trị → Bảo vệ đăng nhập → Khóa tạm đăng nhập**; xóa một dòng để mở khóa ngay.
-- Lệnh dọn bộ đếm cũ không còn khóa: `python manage.py cleanup_login_throttle --days 1`.
+- Admin mở khóa: bấm biểu tượng ổ khóa (hoặc **Quản trị → Bảo vệ đăng nhập → Khóa tạm đăng nhập**), chọn dòng, chọn hành động **"Mở khóa các dòng đã chọn"**. Nếu nhân viên quên mật khẩu, đặt lại tại Quản lý nhân viên → Sửa.
+- Lệnh dọn bộ đếm cũ: `python manage.py cleanup_login_throttle --days 1`. Lệnh giữ lại khóa của tài khoản có thật cho đến khi Admin mở; khóa của tên không tồn tại bị xóa.
 
 ## Địa chỉ IP sau proxy
 

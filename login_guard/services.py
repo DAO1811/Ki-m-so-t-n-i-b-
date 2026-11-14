@@ -1,10 +1,13 @@
 """Password-login throttling stored in the database (shared by all workers).
 
-Policy: per account name, LOGIN_USER_MAX_FAILURES wrong passwords within the
-window lock that name for LOGIN_LOCK_SECONDS; per client IP the threshold is
-LOGIN_IP_MAX_FAILURES (higher, because an office may share one public IP).
-Messages are identical whether or not the account exists. Passkey sign-in and
-existing sessions are not affected.
+Policy (owner decision 14/11/2026): LOGIN_USER_MAX_FAILURES wrong passwords
+within the window lock an account name until an Admin unlocks it. Superuser
+accounts instead unlock after LOGIN_LOCK_SECONDS, otherwise a single attacker
+could lock every Admin out with nobody left to unlock. Per client IP the
+threshold is LOGIN_IP_MAX_FAILURES (higher, because an office may share one
+public IP) and always expires. Names that match no account behave exactly like
+employee accounts, so responses never reveal whether an account exists.
+Passkey sign-in and existing sessions are not affected.
 """
 
 import ipaddress
@@ -12,7 +15,9 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .models import LoginThrottle
@@ -79,19 +84,25 @@ def _keys(username, ip):
     return keys
 
 
-def locked_until(username, ip):
-    """Latest active lock for this account name or IP, else None."""
+def _active(now):
+    return Q(admin_unlock_required=True) | Q(locked_until__gt=now)
+
+
+def is_locked(username, ip):
+    """True while this account name or IP has an active lock."""
     now = timezone.now()
-    until = None
-    for scope, key in _keys(username, ip):
-        row = (
-            LoginThrottle.objects.filter(scope=scope, key=key, locked_until__gt=now)
-            .values_list("locked_until", flat=True)
-            .first()
-        )
-        if row and (until is None or row > until):
-            until = row
-    return until
+    return any(
+        LoginThrottle.objects.filter(_active(now), scope=scope, key=key).exists()
+        for scope, key in _keys(username, ip)
+    )
+
+
+def _is_superuser_name(name):
+    return (
+        get_user_model()
+        .objects.filter(username__iexact=name, is_superuser=True, is_active=True)
+        .exists()
+    )
 
 
 def _locked_row(scope, key, now):
@@ -108,22 +119,25 @@ def _locked_row(scope, key, now):
 
 @transaction.atomic
 def register_failure(username, ip):
-    """Count one wrong password; return the lock expiry if a lock now applies."""
+    """Count one wrong password; return True if a lock now applies."""
     now = timezone.now()
     caps = limits()
-    result = None
+    locked = False
     for scope, key in _keys(username, ip):
         row = _locked_row(scope, key, now)
-        if row.locked_until and row.locked_until > now:
-            result = max(result or row.locked_until, row.locked_until)
+        if row.admin_unlock_required or (row.locked_until and row.locked_until > now):
+            locked = True
             continue
         if row.locked_until or now - row.window_started_at > window():
             row.failures, row.window_started_at, row.locked_until = 0, now, None
         row.failures += 1
         if row.failures >= caps[scope]:
-            row.locked_until = now + lock_duration()
+            if scope == "user" and not _is_superuser_name(key):
+                row.admin_unlock_required = True
+            else:
+                row.locked_until = now + lock_duration()
             row.lockouts += 1
-            result = max(result or row.locked_until, row.locked_until)
+            locked = True
             logger.warning(
                 "Password login locked: scope=%s key=%s failures=%d",
                 scope,
@@ -131,7 +145,7 @@ def register_failure(username, ip):
                 row.failures,
             )
         row.save()
-    return result
+    return locked
 
 
 def clear_account(username):
@@ -140,12 +154,37 @@ def clear_account(username):
     ).delete()
 
 
+def _existing_names():
+    return {
+        name.casefold()
+        for name in get_user_model().objects.values_list("username", flat=True)
+    }
+
+
+def locked_accounts():
+    """Locks of real accounts waiting for an Admin (shown to Admins)."""
+    rows = LoginThrottle.objects.filter(scope="user", admin_unlock_required=True)
+    names = _existing_names()
+    return [row for row in rows.order_by("-updated_at") if row.key in names]
+
+
+def unlock(rows):
+    return LoginThrottle.objects.filter(pk__in=[row.pk for row in rows]).delete()[0]
+
+
 def purge(older_than=None):
-    """Delete counters with no active lock that were last touched long ago."""
-    cutoff = timezone.now() - (older_than or timedelta(days=1))
-    deleted, _ = (
-        LoginThrottle.objects.filter(updated_at__lt=cutoff)
-        .exclude(locked_until__gt=timezone.now())
-        .delete()
+    """Delete stale counters. Admin-required locks of real accounts are kept
+    until an Admin unlocks them; those of names with no account are dropped."""
+    now = timezone.now()
+    cutoff = now - (older_than or timedelta(days=1))
+    stale = LoginThrottle.objects.filter(updated_at__lt=cutoff).exclude(
+        locked_until__gt=now
     )
+    names = _existing_names()
+    keep = [
+        row.pk
+        for row in stale.filter(scope="user", admin_unlock_required=True)
+        if row.key in names
+    ]
+    deleted, _ = stale.exclude(pk__in=keep).delete()
     return deleted
