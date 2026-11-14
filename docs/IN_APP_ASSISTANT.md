@@ -1,3 +1,5 @@
+**Cập nhật ngày 14/11/2026 (Trợ lý AI v2, chờ duyệt bản thử `v122-thu`):** chủ phần mềm chọn chỉ dùng Groq Free và đồng ý gửi số liệu theo quyền người hỏi để AI trả lời. Phần **Soạn nâng cao bằng Qwen trong trình duyệt đã được gỡ** (mã, worker, cấu hình và thư mục `static/vendor/transformers-3.8.1`). "Tra cứu nội bộ" bên dưới giữ nguyên. Đặc tả mới: [AI_ASSISTANT_V2_SPEC.md](AI_ASSISTANT_V2_SPEC.md). Các đoạn nói về Qwen bên dưới chỉ còn giá trị lịch sử.
+
 **Bổ sung ngày 04/11/2026:** chủ phần mềm đã đồng ý Groq Free cho trò chuyện nhiều lượt và yêu cầu cập nhật bản chính. Xem [cấu hình, quota và dữ liệu](GROQ_FREE_CHAT.md). Phần tra cứu trực tiếp bên dưới giữ nguyên; mô hình Qwen trên thiết bị vẫn là lựa chọn riêng.
 
 # Trợ lý trong màn hình làm việc
