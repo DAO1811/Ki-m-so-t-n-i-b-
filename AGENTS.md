@@ -18,3 +18,8 @@
 - Máy người dùng cung cấp là Windows, RAM 8 GB. Phương án mô hình nội bộ mới đang ở bước đề xuất/kiểm chứng, chưa được kết nối. Không gọi mô hình của bên khác là ChatGPT/OpenAI, không hứa chất lượng/tốc độ khi chưa thử.
 
 - Làm rõ cùng ngày: Trợ lý phải mở ngay trong phần mềm tại mục người dùng đang sử dụng. Không yêu cầu người dùng mở/cài ứng dụng AI riêng; bản thử hiện chọn CPU/WebAssembly trong trình duyệt. Chưa phát hành khi chủ phần mềm chưa xem và duyệt.
+
+## Quyết định Trợ lý AI, xác nhận ngày 14/11/2026
+
+- Chủ phần mềm chọn trò chuyện qua Groq Free và đồng ý gửi dữ liệu theo đúng quyền của người hỏi sang Groq để trả lời về số liệu trong phần mềm. Thay lựa chọn CPU/WebAssembly trong trình duyệt ngày 04/11/2026; phần Qwen trong trình duyệt sẽ được gỡ. Vẫn không dùng API trả phí, không gửi chat nội bộ, mật khẩu, khóa hay tệp đính kèm. Đặc tả: `docs/AI_ASSISTANT_V2_SPEC.md`.
+- Đăng nhập: nhân viên sai mật khẩu 5 lần phải liên hệ Admin mở khóa; tài khoản Admin tự mở sau 15 phút.
