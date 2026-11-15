@@ -53,6 +53,7 @@ def workspace_context(request):
         "human_resources": "Quản lý nhân sự",
         "deviations": "Xử lý sai lệch",
         "password_change": "Đổi mật khẩu",
+        "device_sessions": "Thiết bị đang đăng nhập",
         "dashboard": "Tổng quan",
         "documents": "Quản lý phiếu",
         "document_new": "Lập phiếu",

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>{% icon 'shield' %}Thiết bị đang đăng nhập</h1>
+      <p>Các trình duyệt đang đăng nhập tài khoản của bạn. Thấy thiết bị lạ thì đăng xuất ngay và đổi mật khẩu.</p>
+    </div>
+  </div>
+  <section class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Thiết bị</th><th>Địa chỉ IP</th><th>Đăng nhập lúc</th><th>Hoạt động gần nhất</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td data-label="Thiết bị"><strong>{{ row.device|default:"Thiết bị" }}</strong>{% if row.session_key == current_key %} <span class="count-chip">Thiết bị này</span>{% endif %}</td>
+              <td data-label="Địa chỉ IP">{{ row.ip|default:"—" }}</td>
+              <td data-label="Đăng nhập lúc">{{ row.created_at|date:'d/m/Y H:i' }}</td>
+              <td data-label="Hoạt động gần nhất">{{ row.last_seen|date:'d/m/Y H:i' }}</td>
+              <td>
+                {% if row.session_key != current_key %}
+                  <form method="post" action="{% url 'device_session_logout' row.pk %}">{% csrf_token %}<button class="button secondary" type="submit">Đăng xuất</button></form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">Chưa có thiết bị nào được ghi nhận.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if rows|length > 1 %}
+      <form method="post" action="{% url 'device_sessions_logout_others' %}" class="form-actions">{% csrf_token %}<button class="button" type="submit">{% icon 'logout' %}Đăng xuất tất cả thiết bị khác</button></form>
+    {% endif %}
+  </section>
+{% endblock %}

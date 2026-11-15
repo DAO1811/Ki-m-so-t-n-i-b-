@@ -143,6 +143,12 @@ def navigation(request, access):
                 "active": route == "password_change",
             },
             {
+                "label": "Thiết bị đang đăng nhập",
+                "icon": "shield",
+                "url": reverse("device_sessions"),
+                "active": route == "device_sessions",
+            },
+            {
                 "label": "Face ID / Windows Hello",
                 "icon": "shield",
                 "url": reverse("passkeys_manage"),

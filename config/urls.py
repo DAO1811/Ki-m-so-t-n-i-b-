@@ -9,6 +9,7 @@ from .health import health
 urlpatterns = [
     path("", include("passkeys.urls")),
     path("healthz/", health, name="health"),
+    path("", include("device_sessions.urls")),
     path("admin/", admin.site.urls),
     path("login/", GuardedLoginView.as_view(), name="login"),
     path("logout/", auth.LogoutView.as_view(), name="logout"),

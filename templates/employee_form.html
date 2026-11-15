@@ -82,6 +82,19 @@
       <a class="button secondary" href="{% url 'team' %}">Quay lại</a>
     </div>
   </form>
+  {% if editing and user.is_superuser and form.instance.pk %}
+    <section class="panel form-panel" aria-labelledby="devices-title">
+      <div class="panel-title"><h2 id="devices-title">Thiết bị đang đăng nhập</h2></div>
+      <p class="hint">Khi nhân viên nghỉ việc hoặc mất máy, đăng xuất tài khoản khỏi mọi thiết bị. Nên khóa tài khoản (bỏ chọn "Đang hoạt động") hoặc đổi mật khẩu cùng lúc.</p>
+      <div class="form-actions">
+        <form method="post" action="{% url 'employee_logout_everywhere' form.instance.pk %}" onsubmit="return confirm('Đăng xuất tài khoản này khỏi mọi thiết bị?');">
+          {% csrf_token %}
+          <button class="button secondary" type="submit">{% icon 'logout' %}Đăng xuất khỏi mọi thiết bị</button>
+        </form>
+        <a class="button secondary" href="/admin/device_sessions/devicesession/?user__id__exact={{ form.instance.pk }}">Xem danh sách thiết bị</a>
+      </div>
+    </section>
+  {% endif %}
 {% endblock %}
 
 {% block scripts %}{{ permission_dependencies|json_script:'permission-dependencies' }}<script src="{% static 'permissions.js' %}" defer></script>{% endblock %}

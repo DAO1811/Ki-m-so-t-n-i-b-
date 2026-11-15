@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "ai_assistant.apps.AIAssistantConfig",
     "passkeys.apps.PasskeysConfig",
     "login_guard.apps.LoginGuardConfig",
+    "device_sessions.apps.DeviceSessionsConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "passkeys.middleware.PasskeySessionMiddleware",
+    "device_sessions.middleware.DeviceSessionMiddleware",
     "inventory.permission_middleware.FunctionAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
