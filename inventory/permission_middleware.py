@@ -96,7 +96,9 @@ class FunctionAccessMiddleware(MiddlewareMixin):
 
             allowed = route_allowed(request.user, name, request.method)
         elif name in {"processes", "human_resources"}:
-            allowed = request.method in {"GET", "HEAD"}
+            # Placeholder modules are Admin-only until they have features
+            # (Admins return earlier); employees get 403 like other modules.
+            allowed = False
         elif name in {"dashboard", "password_change", "warehouse_scope"}:
             allowed = True
         elif name in ADMIN_VIEWS:

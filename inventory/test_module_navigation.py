@@ -44,21 +44,21 @@ class ModuleNavigationTests(TestCase):
         self.assertEqual(response.context["current_module"]["key"], "administration")
         self.assertNotContains(response, 'id="global-warehouse"')
 
-    def test_placeholders_are_authenticated_read_only_and_do_not_grant_permissions(
-        self,
-    ):
+    def test_placeholders_are_admin_only_and_read_only(self):
+        # Owner decision 14/11/2026: hide unfinished modules from employees.
         for route in ["processes", "human_resources"]:
             url = reverse(route)
             self.assertEqual(self.client.get(url).status_code, 302)
             self.client.force_login(self.reader)
+            self.assertEqual(self.client.get(url).status_code, 403)
+            self.assertIn(self.client.post(url).status_code, (403, 405))
+            self.assertEqual(self.client.get(reverse("team")).status_code, 403)
+            self.client.force_login(self.admin)
             response = self.client.get(url)
             self.assertContains(response, "Chưa triển khai")
             self.assertEqual(response.context["current_module"]["key"], route)
             self.assertNotContains(response, 'id="global-warehouse"')
-            self.assertNotContains(response, 'href="/team/"')
-            self.assertNotContains(response, 'href="/settings/drive/"')
             self.assertIn(self.client.post(url).status_code, (403, 405))
-            self.assertEqual(self.client.get(reverse("team")).status_code, 403)
             self.client.logout()
 
     def test_reader_keeps_only_existing_authorized_links(self):
@@ -68,5 +68,5 @@ class ModuleNavigationTests(TestCase):
         self.assertNotContains(response, 'href="/operations/in/"')
         self.assertNotContains(response, 'href="/approvals/"')
         self.assertContains(response, reverse("deviations"))
-        self.assertContains(response, reverse("processes"))
-        self.assertContains(response, reverse("human_resources"))
+        self.assertNotContains(response, 'href="' + reverse("processes") + '"')
+        self.assertNotContains(response, 'href="' + reverse("human_resources") + '"')

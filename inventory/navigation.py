@@ -201,6 +201,10 @@ def module_navigation(sections, route, access=None):
     ]:
         if key in ("warehouse", "administration", "chat") and not groups:
             continue
+        # Owner decision 14/11/2026: modules without business features yet are
+        # shown to Admins only.
+        if key in ("processes", "human_resources") and not (access or {}).get("admin"):
+            continue
         active = any(i["active"] for g in groups for i in g["items"])
         modules.append(
             {
