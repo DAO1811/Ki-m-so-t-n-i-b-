@@ -181,11 +181,23 @@ class ProductionPresentationTests(TestCase):
     @override_settings(APP_VERSION="v121")
     def test_every_page_footer_and_login_show_the_version(self):
         mark = "<span data-app-version>Phiên bản v121</span>"
-        self.assertContains(self.client.get("/login/"), mark, html=False)
+        login = self.client.get("/login/")
+        self.assertContains(login, mark, html=False)
+        # Also inside the login card, visible on phones.
+        self.assertContains(
+            login, '<p class="auth-version">Phiên bản v121</p>', html=False
+        )
         self.client.force_login(self.admin)
         for url in ("/", "/stock/", "/products/"):
             with self.subTest(url=url):
-                self.assertContains(self.client.get(url), mark, html=False)
+                page = self.client.get(url)
+                self.assertContains(page, mark, html=False)
+                # Sidebar, next to the account name, visible without scrolling.
+                self.assertContains(
+                    page,
+                    '<small class="sidebar-version">Phiên bản v121</small>',
+                    html=False,
+                )
 
     @override_settings(APP_VERSION="v120")
     def test_admin_footer_shows_version(self):

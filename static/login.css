@@ -80,6 +80,7 @@
 .auth-submit:hover { background: linear-gradient(115deg, #fff0ca, #e9cc8c); border-color: #f7e5b6; color: #302411; box-shadow: 0 5px 25px #d9b96b24; }
 .auth-help { margin: 27px 0 0; color: #949ba8; text-align: center; font-size: 11px; line-height: 1.8; }
 .auth-help > span { color: #c6ccd5; white-space: nowrap; }
+.auth-version { margin: 6px 0 0; color: #7d8592; text-align: center; font-size: 10px; letter-spacing: .3px; }
 .auth-error { display: flex; align-items: flex-start; gap: 9px; padding: 12px; margin-bottom: 22px; background: #ee637711; color: #ffb0bc; border: 1px solid #ee637730; border-radius: 10px; font-size: 12px; }
 .auth-error > .icon { flex-shrink: 0; width: 17px; height: 17px; margin-top: 1px; }
 .auth-page .errorlist { color: #ffb0bc; }

@@ -39,7 +39,7 @@
           {% else %}
             Không gian làm việc
           {% endif %}
-        </small></span>
+        </small><small class="sidebar-version">Phiên bản {{ app_version }}</small></span>
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}
           <button class="icon-button" aria-label="Đăng xuất">{% icon 'logout' %}</button>
