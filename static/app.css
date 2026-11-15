@@ -6317,23 +6317,6 @@ pre.deviation-audit {
   opacity: 0.5;
   cursor: wait;
 }
-.ai-prepare {
-  margin: 0 16px 10px;
-  padding: 12px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  font-size: 11px;
-  line-height: 1.7;
-}
-.ai-prepare p {
-  margin: 6px 0 10px;
-}
-.ai-prepare > div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 .ai-thread {
   overflow: auto;
   flex: 1;
@@ -6499,23 +6482,6 @@ pre.deviation-audit {
   .ai-head {
     padding: 14px 16px;
   }
-}
-.ai-refine-button {
-  display: block;
-  margin-top: 9px;
-}
-.ai-refinement {
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px dashed var(--line);
-  border-radius: 9px;
-  background: var(--surface-alt);
-}
-.ai-refinement > strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 10px;
-  color: var(--muted);
 }
 .ai-modes { display: flex; gap: 6px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
 .ai-modes button { flex: 1; border: 1px solid var(--line); border-radius: 9px; padding: 8px; font: inherit; font-size: 11px; background: var(--surface); color: var(--muted); cursor: pointer; }

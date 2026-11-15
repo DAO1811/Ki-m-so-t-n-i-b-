@@ -1,4 +1,5 @@
-/* Multi-turn Groq conversation. No API key, model download, localStorage or form scraping. */
+/* Multi-turn Groq conversation with permission-checked lookups (Trợ lý AI v2).
+   No API key, model download, localStorage or form scraping. */
 export class CloudConversation {
   constructor({
     root,
@@ -39,9 +40,8 @@ export class CloudConversation {
     this.$("ai-mode-cloud").setAttribute("aria-pressed", String(active));
     this.$("ai-mode-internal").setAttribute("aria-pressed", String(!active));
     this.$("ai-cloud-info").hidden = !active;
-    this.$("ai-enable").hidden = active;
     this.$("ai-question").placeholder = active
-      ? "Trò chuyện, nhờ viết nội dung hoặc hỏi tiếp…"
+      ? "Hỏi gì cũng được: tồn kho, phiếu, cách thao tác, nhờ viết nội dung…"
       : "Hỏi về thao tác, mã hàng, số phiếu…";
     this.controls();
     if (active) this.status();
@@ -89,7 +89,7 @@ export class CloudConversation {
           : `Groq Free đã cấu hình · Tối đa ${data.requests_per_day} lượt/người/ngày trong hạn mức chung. Lượt hỏi dài có thể hết token sớm hơn.`;
       if (this.active)
         this.$("ai-engine-state").textContent = this.available
-          ? "Groq Free · Không cần tải mô hình"
+          ? "Groq Free · Tra cứu dữ liệu theo quyền của bạn"
           : "Trò chuyện AI · Chưa sẵn sàng";
     } catch (e) {
       this.available = false;
@@ -148,7 +148,7 @@ export class CloudConversation {
       "Đang gửi câu hỏi…",
       "Trò chuyện AI · Groq Free",
     ));
-    const timer = setTimeout(() => controller.abort(), 50000);
+    const timer = setTimeout(() => controller.abort(), 70000);
     try {
       const start = await this.fetch(
         "/assistant/api/cloud/start/",
@@ -188,11 +188,14 @@ export class CloudConversation {
           if (generation !== this.generation) return;
           if (data.text)
             card.querySelector(".ai-msg-body").textContent = data.text;
+          else if (data.progress)
+            card.querySelector(".ai-msg-body").textContent = data.progress;
           if (data.state === "DONE") {
             this.conversation = data.conversation;
             this.job = null;
             card.querySelector(".ai-msg-label").textContent =
               "Groq Free · GPT-OSS · Nội dung AI tham khảo";
+            if (data.sources && data.sources.length) this.sources(card, data);
             break;
           }
           if (["FAILED", "CANCELLED"].includes(data.state)) {

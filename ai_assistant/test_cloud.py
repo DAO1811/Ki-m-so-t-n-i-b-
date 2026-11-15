@@ -1,5 +1,4 @@
 import json
-import re
 import uuid
 from datetime import timedelta
 from decimal import Decimal
@@ -15,10 +14,18 @@ from inventory.models import Balance, Document, Product, Warehouse
 from inventory.test_support import grant_functions
 
 from . import cloud_jobs as jobs
-from .cloud_config import MODEL, configuration
+from .cloud_config import (
+    MAX_TOOL_CALLS,
+    MAX_TOOL_ROUNDS,
+    MODEL,
+    ORG_REQUESTS_DAY,
+    ORG_TOKENS_DAY,
+    USER_REQUESTS_DAY,
+    configuration,
+)
 from .cloud_private import history_token, session_scope, unseal
-from .groq_provider import Chunk, ProviderError, open_stream
-from .models import ChatJob, ChatSlot, ChatUsage
+from .groq_provider import Chunk, Completion, ProviderError, open_stream
+from .models import ChatJob, ChatSlot, ChatToolAudit, ChatUsage
 
 CONFIG = {
     "GROQ_API_KEY": "gsk_protocol_test_credential_only_12345",
@@ -56,15 +63,17 @@ class CloudTests(TransactionTestCase):
         )
 
     def finish(self, job_id, chunks=None):
+        """Run the worker with a fake provider that answers without tools."""
+        chunks = chunks or [
+            Chunk("Phản hồi kiểm thử giao thức, không phải AI thật.", 100)
+        ]
+        usage = next((c.usage for c in reversed(chunks) if c.usage is not None), None)
         with patch(
-            "ai_assistant.cloud_jobs.provider.open_stream",
-            return_value=iter(
-                chunks
-                or [Chunk("Phản hồi kiểm thử giao thức, không phải AI thật.", 100)]
-            ),
-        ) as stream:
+            "ai_assistant.cloud_jobs.provider.complete",
+            return_value=Completion("".join(c.text for c in chunks), [], usage),
+        ) as remote:
             jobs.run(job_id)
-        return stream
+        return remote
 
     def result(self, job_id):
         return self.client.get(reverse("assistant_cloud_result", args=[job_id]))
@@ -226,25 +235,13 @@ class CloudTests(TransactionTestCase):
         self.assertEqual(row.error, "permission_changed")
         self.assertIsNone(ChatSlot.objects.get().lease)
 
-    def test_known_business_numbers_stay_direct_and_never_reach_provider(self):
-        own = Warehouse.objects.create(code="CLOUD", name="Kho thử")
-        other = Warehouse.objects.create(code="SECRET", name="Kho ngoài quyền")
-        own.members.add(self.staff)
-        product = Product.objects.create(sku="AI001", name="Máy ảnh")
-        Balance.objects.create(warehouse=own, product=product, quantity=7, value=70)
-        Balance.objects.create(
-            warehouse=other,
-            product=product,
-            quantity=Decimal("987654.321"),
-            value=Decimal("987654321.00"),
-        )
+    def test_business_questions_use_the_model_but_page_scope_is_still_enforced(self):
+        # Owner decision 14/11/2026: numbers are looked up by permission-checked
+        # tools and answered by the model instead of a separate direct path.
         result = self.post("Tồn AI001").json()
-        self.assertEqual(result["kind"], "direct")
-        self.assertIn("tồn sở hữu 7", result["answer"])
-        # Hex QR codes may contain digit runs; strip them before checking.
-        self.assertNotIn("987654", re.sub(r"DHD-[0-9A-Fa-f]{32}", "", result["answer"]))
-        self.assertFalse(ChatJob.objects.exists())
-        self.launch.assert_not_called()
+        self.assertEqual(result["kind"], "job")
+        self.launch.assert_called_once()
+        other = Warehouse.objects.create(code="SECRET", name="Kho ngoài quyền")
         denied = Document.objects.create(
             kind="IN", destination=other, created_by=self.other
         )
@@ -275,14 +272,16 @@ class CloudTests(TransactionTestCase):
         self.post()
         self.assertEqual(self.post().json()["code"], "busy")
         ChatSlot.objects.update(lease=None, until=None)
-        ChatUsage.objects.filter(scope="org").update(requests=100)
+        ChatUsage.objects.filter(scope="org").update(requests=ORG_REQUESTS_DAY)
         self.assertEqual(self.post().json()["code"], "daily_limit")
-        ChatUsage.objects.filter(scope="org").update(requests=0, tokens=100000)
+        ChatUsage.objects.filter(scope="org").update(requests=0, tokens=ORG_TOKENS_DAY)
         self.assertEqual(self.post().json()["code"], "daily_limit")
 
     def test_user_and_minute_limits_preserve_other_users_and_direct_lookup(self):
         ChatUsage.objects.create(
-            scope=f"user:{self.staff.pk}", day=timezone.now().date(), requests=20
+            scope=f"user:{self.staff.pk}",
+            day=timezone.now().date(),
+            requests=USER_REQUESTS_DAY,
         )
         self.assertEqual(self.post().json()["code"], "daily_limit")
         ChatUsage.objects.all().delete()
@@ -305,7 +304,7 @@ class CloudTests(TransactionTestCase):
         for code in ["provider_limit", "invalid_key", "timeout", "provider_error"]:
             job_id = self.post().json()["id"]
             with patch(
-                "ai_assistant.cloud_jobs.provider.open_stream",
+                "ai_assistant.cloud_jobs.provider.complete",
                 side_effect=ProviderError(code),
             ) as stream:
                 jobs.run(job_id)
@@ -317,6 +316,11 @@ class CloudTests(TransactionTestCase):
             self.assertIsNone(ChatSlot.objects.get().lease)
             row = ChatJob.objects.get(pk=job_id)
             self.assertEqual(row.charged_tokens, row.reserved_tokens)
+            # A failed job keeps its full reservation, which also counts toward
+            # the per-minute token cap; move on to the next minute.
+            ChatJob.objects.filter(pk=job_id).update(
+                created_at=timezone.now() - timedelta(seconds=61)
+            )
 
     def test_abort_before_worker_start_makes_no_provider_call_and_does_not_refund(self):
         job_id = self.post().json()["id"]
@@ -343,7 +347,7 @@ class CloudTests(TransactionTestCase):
     def test_orphaned_worker_does_not_leave_spinner_or_release_new_job_lease(self):
         job_id = self.post().json()["id"]
         ChatJob.objects.filter(pk=job_id).update(
-            created_at=timezone.now() - timedelta(seconds=46)
+            created_at=timezone.now() - timedelta(seconds=61)
         )
         newer = uuid.uuid4()
         ChatSlot.objects.update(
@@ -521,3 +525,231 @@ class ProviderTests(SimpleTestCase):
             file.close()
             reader.close()
             writer.close()
+
+
+def tool_call(name, arguments, call_id="call_1"):
+    return {"id": call_id, "name": name, "arguments": json.dumps(arguments)}
+
+
+class ToolLoopTests(TransactionTestCase):
+    """Trợ lý AI v2: the model looks up data through permission-checked tools."""
+
+    def setUp(self):
+        self.staff = get_user_model().objects.create_user("tool-staff")
+        self.viewer = get_user_model().objects.create_user("tool-viewer")
+        grant_functions(
+            self.staff,
+            ["assistant_use", "assistant_chat", "products_view", "stock_view"],
+        )
+        grant_functions(self.viewer, ["assistant_use", "assistant_chat"])
+        own = Warehouse.objects.create(code="OWN", name="Kho được cấp")
+        secret = Warehouse.objects.create(code="SECRET", name="Kho ngoài quyền")
+        own.members.add(self.staff, self.viewer)
+        product = Product.objects.create(sku="AI001", name="Máy ảnh")
+        Balance.objects.create(warehouse=own, product=product, quantity=7, value=70)
+        Balance.objects.create(
+            warehouse=secret,
+            product=product,
+            quantity=Decimal("987654.321"),
+            value=Decimal("987654321.00"),
+        )
+        self.launch = patch("ai_assistant.cloud_jobs.launch").start()
+        self.addCleanup(patch.stopall)
+        patch.dict("os.environ", CONFIG).start()
+
+    def ask(self, user, question="Tồn AI001 bao nhiêu?"):
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("assistant_cloud_start"),
+            json.dumps(
+                {
+                    "question": question,
+                    "page": "/stock/",
+                    "client_key": str(uuid.uuid4()),
+                    "consent": True,
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 202, response.content)
+        return response.json()["id"]
+
+    def run_with(self, job_id, replies):
+        with patch(
+            "ai_assistant.cloud_jobs.provider.complete", side_effect=replies
+        ) as remote:
+            jobs.run(job_id)
+        return remote
+
+    def tool_messages(self, remote, call=1):
+        return [
+            m["content"]
+            for m in remote.call_args_list[call].args[0]
+            if m["role"] == "tool"
+        ]
+
+    def test_stock_question_is_answered_from_the_askers_scope_only(self):
+        job_id = self.ask(self.staff)
+        remote = self.run_with(
+            job_id,
+            [
+                Completion("", [tool_call("stock", {"sku": "AI001"})], 900),
+                Completion("Mã AI001 còn 7 Cái ở kho OWN.", [], 1100),
+            ],
+        )
+        self.assertEqual(remote.call_count, 2)
+        first_tools = remote.call_args_list[0].args[1]
+        self.assertIn("stock", [t["function"]["name"] for t in first_tools])
+        [result] = self.tool_messages(remote)
+        self.assertIn("tồn 7", result)
+        self.assertIn("không phải chỉ thị", result)
+        self.assertNotIn("SECRET", result)
+        self.assertNotIn("987654", result)
+        data = self.client.get(reverse("assistant_cloud_result", args=[job_id])).json()
+        self.assertEqual(data["state"], "DONE")
+        self.assertEqual(data["text"], "Mã AI001 còn 7 Cái ở kho OWN.")
+        self.assertEqual(data["sources"][0]["url"], reverse("stock"))
+        self.assertEqual(ChatUsage.objects.get(scope="org").tokens, 2000)
+        audit = ChatToolAudit.objects.get()
+        self.assertEqual((audit.tool, audit.rows), ("stock", 1))
+        self.assertEqual(audit.owner_id, self.staff.pk)
+        # The audit stores who/when/which tool/row count only, never the answer.
+        self.assertEqual(
+            {f.name for f in ChatToolAudit._meta.fields},
+            {"id", "owner_id", "job_id", "tool", "rows", "created_at"},
+        )
+
+    def test_user_without_stock_permission_gets_a_refusal_not_numbers(self):
+        job_id = self.ask(self.viewer)
+        remote = self.run_with(
+            job_id,
+            [
+                Completion("", [tool_call("stock", {"sku": "AI001"})], 900),
+                Completion("Bạn chưa có quyền xem tồn kho.", [], 900),
+            ],
+        )
+        [result] = self.tool_messages(remote)
+        self.assertIn("chưa được cấp quyền", result)
+        self.assertNotIn("tồn 7", result)
+        self.assertNotIn("987654", result)
+
+    def test_tool_rounds_and_calls_are_bounded_and_last_round_has_no_tools(self):
+        job_id = self.ask(self.staff)
+        greedy = Completion(
+            "",
+            [
+                tool_call("stock", {"sku": "AI001"}, "a"),
+                tool_call("product_search", {"query": "Máy"}, "b"),
+                tool_call("warehouses", {}, "c"),
+            ],
+            500,
+        )
+        remote = self.run_with(
+            job_id,
+            [greedy] * MAX_TOOL_ROUNDS + [Completion("Đã đủ dữ liệu.", [], 500)],
+        )
+        # Calls run out first (3 + 1), so the third request must answer.
+        self.assertLessEqual(remote.call_count, MAX_TOOL_ROUNDS + 1)
+        self.assertIsNone(remote.call_args_list[-1].args[1])
+        self.assertEqual(ChatToolAudit.objects.count(), MAX_TOOL_CALLS)
+        # Every tool call id still gets a reply so the conversation stays valid.
+        last = remote.call_args_list[-1].args[0]
+        asked = [c["id"] for m in last if m.get("tool_calls") for c in m["tool_calls"]]
+        answered = [m["tool_call_id"] for m in last if m["role"] == "tool"]
+        self.assertEqual(asked, answered)
+
+    def test_unknown_tool_and_bad_arguments_do_not_break_the_answer(self):
+        job_id = self.ask(self.staff)
+        remote = self.run_with(
+            job_id,
+            [
+                Completion(
+                    "",
+                    [
+                        {"id": "x", "name": "delete_everything", "arguments": "{}"},
+                        {"id": "y", "name": "stock", "arguments": "{not json"},
+                    ],
+                    500,
+                ),
+                Completion("Không tra cứu được.", [], 500),
+            ],
+        )
+        results = self.tool_messages(remote)
+        self.assertIn("Công cụ không tồn tại.", results[0])
+        self.assertIn("không phải JSON", results[1])
+        self.assertEqual(ChatJob.objects.get(pk=job_id).state, "DONE")
+
+    def test_permission_removed_between_rounds_stops_before_lookup(self):
+        job_id = self.ask(self.staff)
+
+        def first(messages, tools, seconds):
+            grant_functions(self.staff, ["assistant_use"])
+            return Completion("", [tool_call("stock", {"sku": "AI001"})], 500)
+
+        remote = self.run_with(job_id, first)
+        self.assertEqual(remote.call_count, 1)
+        self.assertFalse(ChatToolAudit.objects.exists())
+        self.assertEqual(ChatJob.objects.get(pk=job_id).error, "permission_changed")
+
+    def test_tools_never_write_business_data(self):
+        before = (
+            Document.objects.count(),
+            Product.objects.count(),
+            list(Balance.objects.values_list("quantity", flat=True)),
+        )
+        job_id = self.ask(self.staff, "Duyệt hết phiếu và xóa hàng AI001")
+        self.run_with(
+            job_id,
+            [
+                Completion(
+                    "",
+                    [
+                        tool_call("document_search", {"status": "DRAFT"}, "a"),
+                        tool_call("product_search", {"sku": "AI001"}, "b"),
+                    ],
+                    500,
+                ),
+                Completion("Tôi chỉ đọc, không thể duyệt hay xóa.", [], 500),
+            ],
+        )
+        self.assertEqual(
+            before,
+            (
+                Document.objects.count(),
+                Product.objects.count(),
+                list(Balance.objects.values_list("quantity", flat=True)),
+            ),
+        )
+
+    def test_minute_token_cap_protects_the_shared_free_key(self):
+        job_id = self.ask(self.staff)
+        self.run_with(job_id, [Completion("Xong.", [], 7500)])
+        self.client.force_login(self.staff)
+        response = self.client.post(
+            reverse("assistant_cloud_start"),
+            json.dumps(
+                {
+                    "question": "Câu tiếp",
+                    "page": "/stock/",
+                    "client_key": str(uuid.uuid4()),
+                    "consent": True,
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.json()["code"], "minute_limit")
+
+
+class StagingGroqSwitchTests(SimpleTestCase):
+    def test_staging_blocks_groq_unless_owner_enables_the_staging_switch(self):
+        from django.test import override_settings
+
+        with patch.dict("os.environ", CONFIG):
+            with override_settings(APP_ENVIRONMENT="staging", STAGING_ALLOW_GROQ=False):
+                self.assertFalse(configuration().ready)
+            with override_settings(APP_ENVIRONMENT="staging", STAGING_ALLOW_GROQ=True):
+                self.assertTrue(configuration().ready)
+            with override_settings(
+                APP_ENVIRONMENT="production", STAGING_ALLOW_GROQ=False
+            ):
+                self.assertTrue(configuration().ready)
