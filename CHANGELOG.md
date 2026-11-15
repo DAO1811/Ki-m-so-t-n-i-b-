@@ -2,6 +2,11 @@
 
 Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng tiếng Việt dễ hiểu và nhãn bản thử đã được chủ phần mềm duyệt. Quy trình ở [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
+## v122 – Hiển thị phiên bản (chờ thử `v122-thu`)
+
+- Bản chính hiện số phiên bản đang dùng (ví dụ "Phiên bản v122") ở 3 chỗ: dưới tên tài khoản ở menu trái, chân trang mọi màn hình, và trong khung đăng nhập (kể cả trên điện thoại).
+- Bản thử hiện số của bản chính cộng 1 kèm "-thu" (ví dụ bản chính `v121` thì bản thử `v122-thu`), vì đó là bản đang thử để nâng cấp.
+
 ## Chưa phát hành
 
 Đang chờ chủ phần mềm thử trên bản thử và báo Đạt.
