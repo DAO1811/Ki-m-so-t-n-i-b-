@@ -92,7 +92,7 @@
         {% endfor %}
         {% block content %}{% endblock %}
         <footer>
-          <span>DHD · Kiểm soát nội bộ</span>{% if current_module.key == "warehouse" %}<span class="footer-safe">{% icon 'shield' %} Theo dõi rõ ràng · Không cho phép âm tồn</span>{% endif %}
+          <span>DHD · Kiểm soát nội bộ · <span data-app-version>Phiên bản {{ app_version }}</span></span>{% if current_module.key == "warehouse" %}<span class="footer-safe">{% icon 'shield' %} Theo dõi rõ ràng · Không cho phép âm tồn</span>{% endif %}
         </footer>
       </div>
     </main>

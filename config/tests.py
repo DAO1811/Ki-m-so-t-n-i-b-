@@ -178,6 +178,15 @@ class ProductionPresentationTests(TestCase):
             "không dán dữ liệu khách hàng, giá vốn hay mật khẩu",
         )
 
+    @override_settings(APP_VERSION="v121")
+    def test_every_page_footer_and_login_show_the_version(self):
+        mark = "<span data-app-version>Phiên bản v121</span>"
+        self.assertContains(self.client.get("/login/"), mark, html=False)
+        self.client.force_login(self.admin)
+        for url in ("/", "/stock/", "/products/"):
+            with self.subTest(url=url):
+                self.assertContains(self.client.get(url), mark, html=False)
+
     @override_settings(APP_VERSION="v120")
     def test_admin_footer_shows_version(self):
         self.client.force_login(self.admin)

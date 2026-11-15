@@ -25,6 +25,7 @@
 | A13 | Hạn mức | Hỏi liên tục 3–4 câu trong 1 phút | Có thể gặp thông báo "hỏi hơi nhanh… chờ một phút"; không lỗi trắng trang | | |
 | A14 | Nhật ký tra cứu | `thu_admin` mở Quản trị → **Nhật ký tra cứu của Trợ lý AI** | Có dòng người hỏi, thời điểm, công cụ, số dòng; không có nội dung trả lời | | |
 | A15 | Tra cứu nội bộ vẫn chạy | Chuyển về **Tra cứu nội bộ**, hỏi "Tồn THU-001" | Trả lời ngay từ phần mềm, không cần Groq | | |
+| A16 | Hiện số phiên bản | Mở trang đăng nhập, rồi Tổng quan, Tồn kho; kéo xuống cuối trang | Chân trang có "Phiên bản v122-thu" ở mọi màn hình, kể cả trang đăng nhập | | |
 
 ## Phần B – Hồi quy
 
