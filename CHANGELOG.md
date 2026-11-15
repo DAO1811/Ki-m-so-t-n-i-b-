@@ -2,17 +2,27 @@
 
 Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng tiếng Việt dễ hiểu và nhãn bản thử đã được chủ phần mềm duyệt. Quy trình ở [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
-## v122 – đang thử trên bản thử (chưa phát hành)
-
-### Hiển thị phiên bản
-- Bản chính hiện số phiên bản đang dùng (ví dụ "Phiên bản v122") ở 3 chỗ: dưới tên tài khoản ở menu trái, chân trang mọi màn hình, và trong khung đăng nhập (kể cả trên điện thoại).
-- Bản thử hiện số của bản chính cộng 1 kèm "-thu" (bản chính `v121` thì bản thử `v122-thu`).
+## v123 – đang làm (chưa thử)
 
 ### Trợ lý AI v2
 - Trò chuyện AI qua Groq Free tự tra cứu dữ liệu trong phần mềm theo đúng quyền của người hỏi: hàng hóa, tồn kho, thẻ kho, phiếu, việc chờ duyệt, kiểm kê, hàng cho mượn, sai lệch, hướng dẫn. Chỉ đọc; không tạo, sửa hay duyệt.
 - Câu trả lời có số liệu kèm đường dẫn tới màn hình nguồn; khi đang tra cứu hiện "Đang tra cứu: …".
 - Ghi nhật ký mỗi lần AI tra cứu (người hỏi, thời điểm, công cụ, số dòng); Admin xem trong Quản trị.
 - Gỡ phần AI chạy trong trình duyệt (Qwen, khoảng 800 MB tải về), kho mã nhẹ đi khoảng 22 MB.
+
+### Thiết bị đang đăng nhập (mục 4.3)
+- Mỗi người xem các thiết bị đang đăng nhập tài khoản mình, đăng xuất từ xa từng thiết bị hoặc tất cả thiết bị khác.
+- Admin đăng xuất một nhân viên khỏi mọi thiết bị ngay trong trang sửa nhân viên (khi nghỉ việc, mất máy).
+
+### Quy trình và Nhân sự
+- Hai mục chưa có nghiệp vụ chỉ hiện với Admin; nhân viên không còn thấy (câu 12).
+
+## v122 – 15/11/2026
+
+Đã phát hành lên bản chính (commit `ddf4b76`). Chủ phần mềm báo **"Đạt v122-thu, phát hành"** ngày 15/11/2026. Nhánh khôi phục Neon: `khoi-phuc-truoc-v122-20261115`.
+
+- Bản chính hiện số phiên bản đang dùng ở 3 chỗ: dưới tên tài khoản ở menu trái, chân trang mọi màn hình, và trong khung đăng nhập (kể cả trên điện thoại).
+- Bản thử hiện số của bản chính cộng 1 kèm "-thu" (quy tắc chủ phần mềm chốt ngày 15/11/2026).
 
 ## v121 – 15/11/2026
 

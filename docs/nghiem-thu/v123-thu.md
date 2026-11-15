@@ -1,6 +1,6 @@
-# Bảng nghiệm thu – Trợ lý AI v2 (v122-thu)
+# Bảng nghiệm thu – Trợ lý AI v2 (v123-thu)
 
-**Phiên bản thử:** `v122-thu2` · **Commit:** xem `/healthz/` của bản thử (`release`) · **Đường dẫn bản thử:** https://kiemsoatnoibo-thu.onrender.com · **Tài khoản thử:** `thu_admin`, `thu_nguoilap`, `thu_nguoiduyet`, `thu_chixem` · **Ngày gửi:** __/__/____
+**Phiên bản thử:** `v123-thu` (bản chính đang là `v122`) · **Commit:** xem `/healthz/` của bản thử (`release`) · **Đường dẫn bản thử:** https://kiemsoatnoibo-thu.onrender.com · **Tài khoản thử:** `thu_admin`, `thu_nguoilap`, `thu_nguoiduyet`, `thu_chixem` · **Ngày gửi:** __/__/____
 
 **Chuẩn bị trên bản thử** (chỉ bản thử, không đụng bản chính):
 1. Chủ phần mềm tạo **một khóa Groq riêng cho bản thử** trên console.groq.com (gói Free, bật Zero Data Retention) và tự dán vào Render → `kiemsoatnoibo-thu` → Environment: `GROQ_API_KEY=<khóa>`, `GROQ_FREE_ZDR_CONFIRMED=1`, `STAGING_ALLOW_GROQ=1`.
@@ -25,7 +25,11 @@
 | A13 | Hạn mức | Hỏi liên tục 3–4 câu trong 1 phút | Có thể gặp thông báo "hỏi hơi nhanh… chờ một phút"; không lỗi trắng trang | | |
 | A14 | Nhật ký tra cứu | `thu_admin` mở Quản trị → **Nhật ký tra cứu của Trợ lý AI** | Có dòng người hỏi, thời điểm, công cụ, số dòng; không có nội dung trả lời | | |
 | A15 | Tra cứu nội bộ vẫn chạy | Chuyển về **Tra cứu nội bộ**, hỏi "Tồn THU-001" | Trả lời ngay từ phần mềm, không cần Groq | | |
-| A16 | Hiện số phiên bản | Mở trang đăng nhập (máy tính và điện thoại), rồi Tổng quan, Tồn kho | Trong khung đăng nhập, dưới "Cần hỗ trợ?", có "Phiên bản v122-thu2"; ở menu trái, dưới tên tài khoản, có "Phiên bản v122-thu2"; chân trang cũng có dòng này | | |
+| A16 | Thiết bị đang đăng nhập | `thu_nguoilap` đăng nhập trên máy tính và điện thoại. Trên máy tính: menu Quản trị hệ thống → **Thiết bị đang đăng nhập** | Thấy 2 dòng (ví dụ "Chrome trên Windows", "Safari trên iPhone/iPad"), dòng máy tính có nhãn "Thiết bị này" | | |
+| A17 | Đăng xuất từ xa | Bấm **Đăng xuất** ở dòng điện thoại, rồi tải lại trang trên điện thoại | Điện thoại về trang đăng nhập; máy tính vẫn dùng bình thường | | |
+| A18 | Admin đăng xuất nhân viên | `thu_admin` → Tài khoản & phân quyền → sửa `thu_nguoilap` → **Đăng xuất khỏi mọi thiết bị** | Mọi thiết bị của `thu_nguoilap` về trang đăng nhập; tài khoản khác không bị ảnh hưởng | | |
+| A19 | Nhân viên không đăng xuất được người khác | `thu_nguoilap` gõ địa chỉ `/team/<số của thu_admin>/logout-everywhere/` (phải bấm qua biểu mẫu nên thường không làm được) | Bị chặn | | |
+| A20 | Ẩn Quy trình, Nhân sự | Đăng nhập `thu_nguoilap`, xem menu; rồi `thu_admin` | Nhân viên không thấy 2 mục này; gõ `/processes/` bị chặn. Admin vẫn thấy | | |
 
 ## Phần B – Hồi quy
 
@@ -34,9 +38,9 @@ Dùng nguyên Phần B của [v121-thu2](v121-thu2.md) (B1–B12), cộng thêm:
 | STT | Chức năng / thao tác | Cách thử | Kết quả mong đợi | Kết quả | Ghi chú |
 |---|---|---|---|---|---|
 | B13 | Khóa đăng nhập (v121) | Sai mật khẩu `thu_nguoilap` 5 lần | Bị khóa, Admin thấy ổ khóa và mở được | | |
-| B14 | Dải BẢN THỬ, phiên bản | Mở vài trang và `/healthz/` | Dải "BẢN THỬ – v122-thu2"; `version` = `v122-thu2` | | |
+| B14 | Dải BẢN THỬ, phiên bản | Mở vài trang và `/healthz/` | Dải "BẢN THỬ – v123-thu"; `version` = `v123-thu` | | |
 
-**Kết luận của chủ phần mềm:** ☐ Đạt toàn bộ – cho phát hành `v122-thu2` · ☐ Không đạt – sửa các dòng: `____`
+**Kết luận của chủ phần mềm:** ☐ Đạt toàn bộ – cho phát hành `v123-thu` · ☐ Không đạt – sửa các dòng: `____`
 
 ## Bằng chứng phía phát triển
 
