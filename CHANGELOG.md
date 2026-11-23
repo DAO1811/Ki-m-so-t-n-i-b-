@@ -4,7 +4,7 @@ Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng 
 
 ## v123 – 23/11/2026
 
-Phát hành theo chỉ đạo của chủ phần mềm ngày 23/11/2026: hoàn thiện phần đang dở và cập nhật bản chính, toàn quyền, không cần hỏi lại; ưu tiên đăng nhập Face ID.
+Phát hành theo chỉ đạo của chủ phần mềm ngày 23/11/2026: hoàn thiện phần đang dở và cập nhật bản chính, toàn quyền, không cần hỏi lại; ưu tiên đăng nhập Face ID. Đã lên bản chính (commit `37d9b0a`, 18:59 giờ Việt Nam 23/11/2026) sau khi chạy trên bản thử không lỗi. Nhánh khôi phục Neon: `khoi-phuc-truoc-v123-20261123`. Bản thử từ nay mang nhãn `v124-thu`.
 
 ### Đăng nhập bằng Face ID kiểu app ngân hàng
 - Trang đăng nhập có "Đăng nhập bằng Face ID"; Face ID không được thì nhập mật khẩu; "Quên mật khẩu? Liên hệ quản trị viên."

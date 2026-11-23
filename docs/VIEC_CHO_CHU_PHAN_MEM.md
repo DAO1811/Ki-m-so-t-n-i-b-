@@ -6,10 +6,10 @@ Lưu ngày 23/11/2026 theo yêu cầu của chủ phần mềm: tạm dừng, ch
 
 | Nơi | Phiên bản | Nội dung |
 |---|---|---|
-| Bản chính https://kiemsoatnoibolemon.onrender.com | `v122` (commit `ddf4b76`) | Khóa đăng nhập sai, bản thử, sửa lỗi Đợt 1, hiển thị số phiên bản |
-| Bản thử https://kiemsoatnoibo-thu.onrender.com | `v123-thu` (commit `b0aa7d0`) | Trợ lý AI v2, thiết bị đang đăng nhập (4.3), ẩn Quy trình/Nhân sự với nhân viên. Bảng nghiệm thu: [nghiem-thu/v123-thu.md](nghiem-thu/v123-thu.md) |
+| Bản chính https://kiemsoatnoibolemon.onrender.com | `v123` (commit `37d9b0a`, 23/11/2026) | Đăng nhập Face ID kiểu app ngân hàng, khóa ứng dụng, Trợ lý AI v2, thiết bị đang đăng nhập, ẩn Quy trình/Nhân sự với nhân viên |
+| Bản thử https://kiemsoatnoibo-thu.onrender.com | `v124-thu` (cùng mã với bản chính) | Chờ đợt nâng cấp tiếp theo |
 
-Nhánh khôi phục database đã tạo trên Neon: `khoi-phuc-truoc-v121-20261115`, `khoi-phuc-truoc-v122-20261115` (xóa khi bản chính chạy ổn lâu dài).
+Nhánh khôi phục database đã tạo trên Neon: `khoi-phuc-truoc-v121-20261115`, `khoi-phuc-truoc-v122-20261115`, `khoi-phuc-truoc-v123-20261123` (xóa khi bản chính chạy ổn lâu dài).
 
 ## Việc cần chủ phần mềm làm
 
