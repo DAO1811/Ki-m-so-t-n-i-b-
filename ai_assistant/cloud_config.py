@@ -24,6 +24,9 @@ USER_REQUESTS_MINUTE = 6
 # Trợ lý AI v2: tool rounds per question and the whole job deadline.
 MAX_TOOL_ROUNDS = 3
 MAX_TOOL_CALLS = 4
+# Another lookup round only while the question has used fewer tokens than this,
+# so one question stays well inside Groq Free's 8K tokens per minute.
+TOOL_ROUND_TOKEN_BUDGET = 4500
 JOB_SECONDS = 40
 
 

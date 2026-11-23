@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#0d1015">
     <title>{% if is_staging %}[THỬ] {% endif %}Đăng nhập · DHD KSNB</title>
+    {% include 'includes/app_head.html' %}
     <link rel="stylesheet" href="{% static 'app.css' %}">
     <link rel="stylesheet" href="{% static 'login.css' %}">{% include 'includes/staging_head.html' %}
     <script src="{% static 'login.js' %}" defer></script>
@@ -56,6 +57,17 @@
       <main class="auth-main" id="login-content">
         <div class="auth-card">
           <div class="auth-card-topline"><span class="auth-card-line"></span>{% icon 'shield' %}</div>
+          {% if passkeys_available %}
+          <div class="fid-quick" data-fid-quick hidden>
+            <div class="fid-face" aria-hidden="true">{% icon 'shield' %}</div>
+            <h1 data-fid-greeting>Đăng nhập bằng Face ID</h1>
+            <p class="auth-description">Nhìn vào màn hình để đăng nhập.</p>
+            <button type="button" class="pk-button pk-primary" data-fid-quick-button>{% icon 'shield' %}<span data-pk-label>Đăng nhập bằng Face ID</span></button>
+            <p data-pk-status class="pk-status" role="alert" hidden></p>
+            <button type="button" class="auth-link" data-fid-use-password>Dùng mật khẩu</button>
+            <button type="button" class="auth-link" data-fid-other-account>Đăng nhập tài khoản khác</button>
+          </div>
+          {% endif %}
           <h1>Đăng nhập</h1>
           <p class="auth-description">Truy cập hệ thống kiểm soát nội bộ.</p>
         <form method="post" class="auth-form">
@@ -82,18 +94,18 @@
           <button class="button auth-submit" type="submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
         </form>
           {% if passkeys_available %}
-          <section class="pk-login" aria-label="Đăng nhập bằng passkey">
+          <section class="pk-login" data-pk-login aria-label="Đăng nhập bằng Face ID">
             <div class="pk-divider"><span>hoặc</span></div>
-            <button type="button" id="passkey-login" class="pk-button pk-login-button" hidden>
-              {% icon 'shield' %}<span><strong data-pk-label>Đăng nhập bằng passkey</strong><small>Face ID · Windows Hello · vân tay / PIN</small></span>
+            <button type="button" id="passkey-login" data-pk-login-button class="pk-button pk-login-button" hidden>
+              {% icon 'shield' %}<span><strong data-pk-label>Đăng nhập bằng Face ID</strong><small data-pk-hint>Trên iPhone đã bật Face ID cho phần mềm</small></span>
             </button>
-            <p class="pk-note">Dùng passkey đã liên kết với tài khoản trên thiết bị của bạn. Cách xác minh do thiết bị quyết định.</p>
-            <p id="passkey-support" class="pk-note" hidden></p>
-            <p id="passkey-status" class="pk-status" role="alert" hidden></p>
-            <noscript><p class="pk-note">Bật JavaScript để dùng passkey. Bạn vẫn có thể đăng nhập bằng mật khẩu ở trên.</p></noscript>
+            <p class="pk-note">Face ID không được? Nhập tên đăng nhập và mật khẩu ở trên.</p>
+            <p id="passkey-support" data-pk-support class="pk-note" hidden></p>
+            <p id="passkey-status" data-pk-status class="pk-status" role="alert" hidden></p>
+            <noscript><p class="pk-note">Cần bật JavaScript để dùng Face ID. Bạn vẫn đăng nhập bằng mật khẩu ở trên.</p></noscript>
           </section>
           {% endif %}
-          <p class="auth-help">Cần hỗ trợ? <span>Liên hệ quản trị viên.</span></p>
+          <p class="auth-help">Quên mật khẩu? <span>Liên hệ quản trị viên.</span></p>
           <p class="auth-version">Phiên bản {{ app_version }}</p>
         </div>
       </main>

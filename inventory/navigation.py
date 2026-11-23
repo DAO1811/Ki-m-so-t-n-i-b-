@@ -149,7 +149,7 @@ def navigation(request, access):
                 "active": route == "device_sessions",
             },
             {
-                "label": "Face ID / Windows Hello",
+                "label": "Đăng nhập bằng Face ID",
                 "icon": "shield",
                 "url": reverse("passkeys_manage"),
                 "active": route == "passkeys_manage",

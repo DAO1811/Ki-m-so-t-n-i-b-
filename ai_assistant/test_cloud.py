@@ -753,3 +753,24 @@ class StagingGroqSwitchTests(SimpleTestCase):
                 APP_ENVIRONMENT="production", STAGING_ALLOW_GROQ=False
             ):
                 self.assertTrue(configuration().ready)
+
+
+class ToolBudgetTests(ToolLoopTests):
+    """Groq Free allows 8K tokens per minute: stop looking up once a question
+    has used most of the budget and answer from what was found."""
+
+    def test_no_further_lookup_after_the_token_budget(self):
+        job_id = self.ask(self.staff)
+        remote = self.run_with(
+            job_id,
+            [
+                Completion("", [tool_call("stock", {"sku": "AI001"})], 4600),
+                Completion("Mã AI001 còn 7 Cái.", [], 900),
+            ],
+        )
+        self.assertEqual(remote.call_count, 2)
+        self.assertIsNone(remote.call_args_list[1].args[1])
+        assistant = [
+            m for m in remote.call_args_list[1].args[0] if m.get("tool_calls")
+        ][0]
+        self.assertIsNone(assistant["content"])

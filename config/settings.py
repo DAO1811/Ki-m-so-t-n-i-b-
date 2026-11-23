@@ -61,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "passkeys.middleware.PasskeySessionMiddleware",
+    "passkeys.middleware.AppLockMiddleware",
     "device_sessions.middleware.DeviceSessionMiddleware",
     "inventory.permission_middleware.FunctionAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

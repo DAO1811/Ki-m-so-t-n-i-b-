@@ -1,5 +1,17 @@
 # Passkey: Face ID / Windows Hello
 
+## Đăng nhập kiểu app ngân hàng (cập nhật 23/11/2026, bản v123)
+
+Chủ phần mềm yêu cầu đăng nhập bằng Face ID như app ngân hàng; Face ID không được thì dùng mật khẩu; quên mật khẩu thì liên hệ quản trị viên. Giao diện dùng chữ "Face ID" (Windows Hello / vân tay trên máy khác), không bắt người dùng hiểu "passkey".
+
+1. **Bật lần đầu:** đăng nhập bằng mật khẩu trên iPhone (Safari) → lời mời "Đăng nhập nhanh bằng Face ID?" → **Bật Face ID** → **Bật Face ID cho thiết bị này** → nhìn vào màn hình. Trong 10 phút sau khi đăng nhập bằng mật khẩu không cần nhập lại mật khẩu (`RECENT_PASSWORD_LOGIN`). Tên thiết bị tự đặt ("iPhone", "Máy tính Windows"…).
+2. **Mở phần mềm lần sau:** thiết bị đã bật Face ID hiện màn hình "Xin chào, <tên>" và tự gọi Face ID; nhận diện xong là vào. Có "Dùng mật khẩu" và "Đăng nhập tài khoản khác". Ô tên đăng nhập có `autocomplete="username webauthn"` nên iPhone còn gợi ý tài khoản ngay trên bàn phím.
+3. **Khóa ứng dụng:** chỉ áp dụng cho phiên đã đăng nhập bằng Face ID. Rời phần mềm (ẩn/đóng app) hoặc không chạm/gõ quá 5 phút (`APP_LOCK_AFTER`) thì hiện màn hình khóa; mở bằng Face ID hoặc mật khẩu. Khóa ngay trong trang (`static/app-lock.js`) giữ nguyên nội dung đang nhập dở. Khi đang khóa, máy chủ trả trang `/unlock/` cho trang thường và mã 423 cho lời gọi dữ liệu (chat, trợ lý tự thử lại sau khi mở khóa). Phiên đăng nhập bằng mật khẩu **không bao giờ** bị khóa kiểu này.
+4. **Cài như app:** Safari → Chia sẻ → **Thêm vào Màn hình chính** (biểu tượng KSNB, `static/manifest.json`, `static/icons/`). Mở từ biểu tượng chạy toàn màn hình như app.
+
+Face ID do iPhone tự xác minh; phần mềm không mở camera, không lưu ảnh khuôn mặt. Mỗi thiết bị bật riêng. Kiểm thử: `passkeys/tests/test_faceid_flow.py`, `passkeys/tests/test_app_lock.py`; đã chạy trọn vòng bằng Chromium + thiết bị Face ID giả lập (thiết bị mới → bật Face ID → mở lại tự vào → khóa → mở khóa giữ nội dung).
+
+
 Passkey bổ sung cách đăng nhập cho tài khoản hiện có. Thiết bị/hệ điều hành quyết định dùng khuôn mặt, vân tay hoặc PIN; website không bắt buộc chỉ dùng khuôn mặt, không mở camera và không lưu ảnh khuôn mặt. Máy chủ lưu khóa công khai cùng thông tin quản lý passkey; khóa bí mật do thiết bị hoặc trình quản lý passkey giữ. Chức năng không gọi API AI hay API xác thực trả phí.
 
 ## Cấu hình và cài đặt

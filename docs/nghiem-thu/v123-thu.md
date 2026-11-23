@@ -30,6 +30,12 @@
 | A18 | Admin đăng xuất nhân viên | `thu_admin` → Tài khoản & phân quyền → sửa `thu_nguoilap` → **Đăng xuất khỏi mọi thiết bị** | Mọi thiết bị của `thu_nguoilap` về trang đăng nhập; tài khoản khác không bị ảnh hưởng | | |
 | A19 | Nhân viên không đăng xuất được người khác | `thu_nguoilap` gõ địa chỉ `/team/<số của thu_admin>/logout-everywhere/` (phải bấm qua biểu mẫu nên thường không làm được) | Bị chặn | | |
 | A20 | Ẩn Quy trình, Nhân sự | Đăng nhập `thu_nguoilap`, xem menu; rồi `thu_admin` | Nhân viên không thấy 2 mục này; gõ `/processes/` bị chặn. Admin vẫn thấy | | |
+| A21 | Face ID: bật lần đầu | Trên iPhone mở bằng Safari, đăng nhập bằng mật khẩu → bấm "Bật Face ID" trong lời mời → "Bật Face ID cho thiết bị này" → nhìn vào màn hình | Không phải nhập lại mật khẩu; danh sách hiện "iPhone" | | |
+| A22 | Face ID: mở lại như app ngân hàng | Đăng xuất, mở lại trang đăng nhập | Màn hình "Xin chào, …", Face ID tự hiện; nhận diện xong vào thẳng | | |
+| A23 | Face ID không được | Bấm Hủy ở Face ID, chọn "Dùng mật khẩu" | Hiện ô mật khẩu, đăng nhập bình thường; có dòng "Quên mật khẩu? Liên hệ quản trị viên." | | |
+| A24 | Khóa ứng dụng | Đã vào bằng Face ID, chuyển sang app khác hơn 5 phút rồi quay lại | Màn hình khóa; Face ID hoặc mật khẩu mở lại; nội dung đang nhập dở vẫn còn | | |
+| A25 | Phiên mật khẩu không bị khóa | Đăng nhập bằng mật khẩu trên máy tính, để yên hơn 5 phút | Không hiện màn hình khóa | | |
+| A26 | Cài như app | Safari → Chia sẻ → Thêm vào Màn hình chính, mở từ biểu tượng KSNB | Mở toàn màn hình, Face ID dùng như trên | | |
 
 ## Phần B – Hồi quy
 

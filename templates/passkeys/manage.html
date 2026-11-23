@@ -1,56 +1,73 @@
 {% extends 'base.html' %}
 {% load static ui %}
-{% block title %}Passkey · DHD KSNB{% endblock %}
+{% block title %}Đăng nhập bằng Face ID · DHD KSNB{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'passkeys.css' %}">
 <div class="pk-page">
   <div class="page-heading">
-    <div><h1>{% icon 'shield' %}Passkey của bạn</h1><p>Đăng nhập bằng Face ID, Windows Hello hoặc cách xác minh được thiết bị hỗ trợ.</p></div>
+    <div><h1>{% icon 'shield' %}Đăng nhập bằng Face ID</h1><p>Bật một lần trên mỗi thiết bị. Lần sau chỉ cần nhìn vào iPhone (hoặc chạm vân tay / Windows Hello trên máy tính) để đăng nhập.</p></div>
   </div>
-  <section class="pk-intro" aria-label="Cách passkey bảo vệ tài khoản">
+  <section class="pk-intro" aria-label="Cách dùng Face ID">
     <div class="pk-intro-icon">{% icon 'shield' %}</div>
-    <div><h2>Xác minh trên thiết bị của bạn</h2><p>Thiết bị có thể dùng khuôn mặt, vân tay hoặc PIN để mở khóa passkey. Website không mở camera và không lưu ảnh khuôn mặt. Passkey cần HTTPS cùng trình duyệt, thiết bị có hỗ trợ.</p><p class="pk-note">Tài khoản: <strong>{{ user.username }}</strong>. Bạn vẫn có thể đăng nhập bằng mật khẩu.</p></div>
+    <div>
+      <h2>Dùng trên iPhone</h2>
+      <ol class="pk-steps">
+        <li>Mở phần mềm bằng <strong>Safari</strong> trên chính iPhone đó (không mở từ Zalo, Messenger, Facebook).</li>
+        <li>iPhone cần bật <strong>Cài đặt → [tên bạn] → iCloud → Mật khẩu và Chuỗi khóa</strong>.</li>
+        <li>Bấm <strong>Bật Face ID cho thiết bị này</strong> bên dưới, nhìn vào màn hình để Face ID xác nhận.</li>
+        <li>Lần sau, ở trang đăng nhập bấm <strong>Đăng nhập bằng Face ID</strong>, hoặc chạm ô tên đăng nhập rồi chọn tài khoản hiện phía trên bàn phím.</li>
+      </ol>
+      <p class="pk-note">Face ID không được thì đăng nhập bằng mật khẩu như bình thường. Quên mật khẩu, liên hệ quản trị viên. Phần mềm không mở camera và không lưu ảnh khuôn mặt; Face ID do iPhone tự xác minh. Tài khoản: <strong>{{ user.username }}</strong>.</p>
+    </div>
   </section>
   <div class="pk-grid">
     <section class="pk-panel" aria-labelledby="passkey-register-title">
-      <div class="pk-panel-heading"><h2 id="passkey-register-title">Thêm passkey</h2><p>Liên kết thiết bị hoặc trình quản lý passkey với tài khoản hiện tại.</p></div>
+      <div class="pk-panel-heading"><h2 id="passkey-register-title">Bật Face ID cho thiết bị này</h2><p>Mỗi thiết bị bạn dùng (iPhone, iPad, máy tính) bật riêng một lần.</p></div>
       {% if credentials|length >= max_credentials|default:10 %}
-        <p class="pk-notice">Bạn đã có tối đa {{ max_credentials|default:10 }} passkey. Gỡ một passkey cũ để thêm passkey mới.</p>
+        <p class="pk-notice">Tài khoản đã bật Face ID trên tối đa {{ max_credentials|default:10 }} thiết bị. Tắt một thiết bị cũ trong danh sách bên cạnh trước khi bật thêm.</p>
       {% else %}
-        <form id="passkey-register-form" method="post" action="/account/passkeys/register/options/" class="pk-form">
+        <form id="passkey-register-form" method="post" action="/account/passkeys/register/options/" class="pk-form" data-pk-account="{{ user.get_full_name|default:user.username }}">
           {% csrf_token %}
-          <label for="passkey-label">Tên để dễ nhận biết</label>
-          <input id="passkey-label" name="label" type="text" maxlength="80" autocomplete="off" placeholder="Ví dụ: Laptop cá nhân" required>
-          <label for="passkey-password">Mật khẩu hiện tại</label>
-          <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
-          <p class="pk-note">Nhập mật khẩu để xác nhận thêm passkey. Sau đó làm theo hướng dẫn trên thiết bị.</p>
-          <button id="passkey-register" type="button" class="pk-button" hidden>{% icon 'shield' %}<span data-pk-label>Thêm passkey</span></button>
-          <p id="passkey-support" class="pk-note" hidden></p>
-          <p id="passkey-status" class="pk-status" role="alert" hidden></p>
-          <noscript><p class="pk-note">Bật JavaScript để thêm passkey. Bạn vẫn có thể quản lý passkey đã đăng ký và đăng nhập bằng mật khẩu.</p></noscript>
+          {% if password_optional %}
+            <input id="passkey-password" name="password" type="hidden" value="">
+            <p class="pk-note">Bạn vừa đăng nhập bằng mật khẩu trên thiết bị này nên <strong>không cần nhập lại mật khẩu</strong>.</p>
+          {% else %}
+            <label for="passkey-password">Mật khẩu hiện tại</label>
+            <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
+            <p class="pk-note">Nhập mật khẩu để xác nhận. Quên mật khẩu, liên hệ quản trị viên.</p>
+          {% endif %}
+          <details class="pk-rename">
+            <summary>Tên thiết bị: <span data-pk-device-name>Thiết bị này</span></summary>
+            <label for="passkey-label">Đổi tên để dễ nhận biết</label>
+            <input id="passkey-label" name="label" type="text" maxlength="80" autocomplete="off" placeholder="Ví dụ: iPhone của tôi" required>
+          </details>
+          <button id="passkey-register" data-pk-register-button type="button" class="pk-button pk-primary" hidden>{% icon 'shield' %}<span data-pk-label>Bật Face ID cho thiết bị này</span></button>
+          <p id="passkey-support" data-pk-support class="pk-note" hidden></p>
+          <p id="passkey-status" data-pk-status class="pk-status" role="alert" hidden></p>
+          <noscript><p class="pk-note">Cần bật JavaScript để dùng Face ID. Bạn vẫn đăng nhập bằng mật khẩu bình thường.</p></noscript>
         </form>
       {% endif %}
     </section>
     <section class="pk-panel" aria-labelledby="passkey-list-title">
-      <div class="pk-panel-heading pk-list-heading"><div><h2 id="passkey-list-title">Passkey đã đăng ký</h2><p>Chỉ quản lý passkey của tài khoản của bạn.</p></div><span class="pk-count">{{ credentials|length }}/{{ max_credentials|default:10 }}</span></div>
+      <div class="pk-panel-heading pk-list-heading"><div><h2 id="passkey-list-title">Thiết bị đã bật Face ID</h2><p>Chỉ thiết bị của tài khoản bạn.</p></div><span class="pk-count">{{ credentials|length }}/{{ max_credentials|default:10 }}</span></div>
       <div class="pk-list">
         {% for credential in credentials %}
           <article class="pk-credential">
-            <div class="pk-credential-title">{% icon 'lock' %}<h3>{{ credential.label }}</h3>{% if credential.backed_up %}<span class="pk-badge">Đã sao lưu</span>{% endif %}</div>
-            <dl class="pk-meta"><div><dt>Đã thêm</dt><dd>{{ credential.created_at|date:'d/m/Y H:i' }}</dd></div><div><dt>Dùng gần nhất</dt><dd>{% if credential.last_used_at %}{{ credential.last_used_at|date:'d/m/Y H:i' }}{% else %}Chưa sử dụng{% endif %}</dd></div></dl>
+            <div class="pk-credential-title">{% icon 'lock' %}<h3>{{ credential.label }}</h3>{% if credential.backed_up %}<span class="pk-badge">Đồng bộ iCloud / Google</span>{% endif %}</div>
+            <dl class="pk-meta"><div><dt>Bật lúc</dt><dd>{{ credential.created_at|date:'d/m/Y H:i' }}</dd></div><div><dt>Đăng nhập gần nhất</dt><dd>{% if credential.last_used_at %}{{ credential.last_used_at|date:'d/m/Y H:i' }}{% else %}Chưa dùng để đăng nhập{% endif %}</dd></div></dl>
             <details class="pk-remove">
-              <summary>Gỡ passkey</summary>
+              <summary>Tắt Face ID trên thiết bị này</summary>
               <form method="post" action="/account/passkeys/{{ credential.id }}/remove/" class="pk-form pk-remove-form">
                 {% csrf_token %}
-                <p class="pk-note">Passkey này sẽ không còn đăng nhập được vào tài khoản. Nhập mật khẩu hiện tại để xác nhận.</p>
+                <p class="pk-note">Thiết bị này sẽ không đăng nhập bằng Face ID được nữa (vẫn đăng nhập bằng mật khẩu). Nhập mật khẩu hiện tại để xác nhận.</p>
                 <label for="passkey-remove-{{ credential.id }}">Mật khẩu hiện tại</label>
                 <input id="passkey-remove-{{ credential.id }}" name="password" type="password" autocomplete="current-password" required>
-                <button type="submit" class="pk-button pk-danger">Gỡ passkey này</button>
+                <button type="submit" class="pk-button pk-danger">Tắt Face ID</button>
               </form>
             </details>
           </article>
         {% empty %}
-          <div class="pk-empty">{% icon 'lock' %}<h3>Chưa có passkey</h3><p>Thêm passkey để đăng nhập bằng cách xác minh trên thiết bị của bạn.</p></div>
+          <div class="pk-empty">{% icon 'lock' %}<h3>Chưa thiết bị nào bật Face ID</h3><p>Bấm "Bật Face ID cho thiết bị này" trên iPhone của bạn.</p></div>
         {% endfor %}
       </div>
     </section>

@@ -30,3 +30,64 @@ class PasskeySessionMiddleware:
             if not valid:
                 logout(request)
         return self.get_response(request)
+
+
+class AppLockMiddleware:
+    """Bank-app style lock for sessions that signed in with Face ID.
+
+    After APP_LOCK_AFTER seconds without any request (app closed or phone put
+    away), or when the page itself locks after inactivity, every page asks for
+    Face ID again at /unlock/ (password also works). Password-only sessions are
+    never affected.
+    """
+
+    OPEN_PATHS = ("/static/", "/healthz/", "/unlock/", "/logout/", "/login/")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from urllib.parse import quote
+
+        from django.http import JsonResponse
+        from django.shortcuts import redirect
+
+        from . import services
+
+        try:
+            applies = services.app_lock_applies(request)
+        except DatabaseError:
+            applies = False
+        if not applies:
+            return self.get_response(request)
+        now = services.now_seconds()
+        seen = request.session.get("app_seen_at")
+        locked = request.session.get("app_locked") is True
+        if not locked and type(seen) is int and now - seen > services.APP_LOCK_AFTER:
+            services.lock(request)
+            locked = True
+        if locked and not request.path.startswith(self.OPEN_PATHS):
+            wants_json = (
+                "application/json" in request.headers.get("Accept", "")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or "/api/" in request.path
+                or request.method not in ("GET", "HEAD")
+            )
+            if wants_json:
+                # 423 Locked, not 401/403: page scripts (chat, assistant) treat it
+                # as a temporary failure and resume after unlocking instead of
+                # assuming the access was revoked.
+                return JsonResponse(
+                    {
+                        "error": "Phần mềm đã khóa. Mở khóa bằng Face ID.",
+                        "locked": True,
+                        "unlock": "/unlock/",
+                    },
+                    status=423,
+                )
+            return redirect(
+                "/unlock/?next=" + quote(request.get_full_path(), safe="/?=&")
+            )
+        if not locked and (type(seen) is not int or now - seen >= 30):
+            request.session["app_seen_at"] = now
+        return self.get_response(request)

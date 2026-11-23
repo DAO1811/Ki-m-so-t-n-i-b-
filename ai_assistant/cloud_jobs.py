@@ -34,6 +34,7 @@ from .cloud_config import (
     ORG_REQUESTS_MINUTE,
     ORG_TOKENS_DAY,
     ORG_TOKENS_MINUTE,
+    TOOL_ROUND_TOKEN_BUDGET,
     USER_REQUESTS_DAY,
     USER_REQUESTS_MINUTE,
     USER_TOKENS_DAY,
@@ -338,7 +339,11 @@ def run(job_id):
             if remaining <= 1:
                 raise provider.ProviderError("timeout")
             # The last round must answer from what was already looked up.
-            allow_tools = round_ < MAX_TOOL_ROUNDS and calls_used < MAX_TOOL_CALLS
+            allow_tools = (
+                round_ < MAX_TOOL_ROUNDS
+                and calls_used < MAX_TOOL_CALLS
+                and usage < TOOL_ROUND_TOKEN_BUDGET
+            )
             reply = provider.complete(
                 messages, lookup.specs() if allow_tools else None, remaining
             )
@@ -350,7 +355,8 @@ def run(job_id):
             messages.append(
                 {
                     "role": "assistant",
-                    "content": reply.content or "",
+                    # OpenAI-compatible APIs expect null content next to tool calls.
+                    "content": reply.content or None,
                     "tool_calls": [
                         {
                             "id": call["id"],

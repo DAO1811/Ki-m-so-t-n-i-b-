@@ -14,6 +14,12 @@ LOCK_MESSAGE = (
 class GuardedAuthenticationForm(AuthenticationForm):
     """Django's login form plus database-backed lockout."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # "webauthn" lets iPhone/Android show the saved Face ID / fingerprint
+        # sign-in above the keyboard when the username field is tapped.
+        self.fields["username"].widget.attrs["autocomplete"] = "username webauthn"
+
     def _locked(self):
         return ValidationError(LOCK_MESSAGE, code="login_locked")
 

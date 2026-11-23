@@ -175,7 +175,6 @@ def complete(messages, tools=None, seconds=MAX_SECONDS):
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
-        payload["parallel_tool_calls"] = True
     req = urllib.request.Request(
         ENDPOINT,
         data=json.dumps(payload, ensure_ascii=False).encode(),

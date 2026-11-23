@@ -31,8 +31,8 @@ from .data import number
 from .guides import GUIDES
 from .knowledge import ARTICLES, find_article
 
-MAX_ROWS = 30
-MAX_TEXT_BYTES = 3000
+MAX_ROWS = 20
+MAX_TEXT_BYTES = 2000
 MAX_CALLS_PER_QUESTION = 4
 
 KINDS = {

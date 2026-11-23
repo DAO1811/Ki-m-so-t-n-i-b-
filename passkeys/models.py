@@ -25,7 +25,8 @@ class PasskeyCredential(models.Model):
 class Ceremony(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kind = models.CharField(
-        max_length=10, choices=[("register", "Register"), ("login", "Login")]
+        max_length=10,
+        choices=[("register", "Register"), ("login", "Login"), ("unlock", "Unlock")],
     )
     session_hash = models.CharField(max_length=64)
     challenge = models.BinaryField()

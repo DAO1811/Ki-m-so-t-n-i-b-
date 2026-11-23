@@ -29,6 +29,7 @@ from passkeys.models import (
     RateBucket,
     SecurityEvent,
 )
+from passkeys.services import PasskeyError
 
 from .fixtures import SoftwareAuthenticator, b64url, unb64url
 
@@ -1092,7 +1093,8 @@ class ConcurrentPasskeyTests(CeremonyHelpers, TransactionTestCase):
         self.assertEqual(status, 400)
         self.assertEqual(
             body,
-            {"error": "Không thể xác thực passkey. Hãy thử lại hoặc dùng mật khẩu."},
+            # Same generic message as any other failure (no account enumeration).
+            {"error": str(PasskeyError())},
         )
         self.assertNotIn("_auth_user_id", session)
         self.assertFalse(get_user_model().objects.filter(pk=user_id).exists())

@@ -23,7 +23,7 @@ def api(*, authenticated=False):
         def inner(request):
             if authenticated and not request.user.is_authenticated:
                 return JsonResponse(
-                    {"error": "Đăng nhập lại bằng mật khẩu trước khi quản lý passkey."},
+                    {"error": "Đăng nhập lại bằng mật khẩu trước khi bật Face ID."},
                     status=401,
                 )
             if not authenticated and request.user.is_authenticated:
@@ -51,13 +51,14 @@ def api(*, authenticated=False):
             except IntegrityError:
                 return JsonResponse(
                     {
-                        "error": "Không thể lưu passkey này. Hãy thử lại hoặc dùng mật khẩu."
+                        "error": "Chưa lưu được Face ID cho thiết bị này. Hãy thử lại "
+                        "hoặc dùng mật khẩu."
                     },
                     status=400,
                 )
             except DatabaseError:
                 return JsonResponse(
-                    {"error": "Passkey tạm thời chưa sẵn sàng. Hãy dùng mật khẩu."},
+                    {"error": "Face ID tạm thời chưa sẵn sàng. " + services.FALLBACK},
                     status=503,
                 )
             except (ValueError, TypeError, KeyError, UnicodeError):
@@ -82,7 +83,8 @@ def manage(request):
                 user=request.user, revoked_at__isnull=True
             ).order_by("-created_at"),
             "max_credentials": services.MAX_CREDENTIALS,
-            "page_name": "Face ID / Windows Hello",
+            "page_name": "Đăng nhập bằng Face ID",
+            "password_optional": services.recent_password_login(request),
         },
     )
 
@@ -98,7 +100,11 @@ def register_options(request, data):
         or not 1 <= len(label.strip()) <= 80
     ):
         raise services.PasskeyError(
-            "Điền tên passkey (tối đa 80 ký tự) và mật khẩu xác nhận."
+            "Điền tên thiết bị (tối đa 80 ký tự) và mật khẩu xác nhận."
+        )
+    if not password and not services.recent_password_login(request):
+        raise services.PasskeyError(
+            "Nhập mật khẩu hiện tại để xác nhận. Quên mật khẩu, liên hệ quản trị viên."
         )
     return services.register_options(request, password, label.strip())
 
@@ -116,10 +122,12 @@ def login_options(request, data):
 
 @api()
 def login_verify(request, data):
+    target = services.login_finish(
+        request, data.get("ceremony_id"), data.get("credential")
+    )
     return {
-        "redirect": services.login_finish(
-            request, data.get("ceremony_id"), data.get("credential")
-        )
+        "redirect": target,
+        "name": request.user.get_full_name() or request.user.get_username(),
     }
 
 
@@ -142,6 +150,6 @@ def remove(request, pk):
     else:
         messages.success(
             request,
-            "Đã thu hồi passkey. Các phiên đăng nhập bằng passkey này sẽ phải đăng nhập lại.",
+            "Đã tắt Face ID trên thiết bị đó. Thiết bị đó sẽ phải đăng nhập lại.",
         )
     return redirect("passkeys_manage")

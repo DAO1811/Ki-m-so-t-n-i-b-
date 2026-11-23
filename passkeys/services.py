@@ -26,12 +26,19 @@ from .models import (
 
 TTL = 120
 MAX_CREDENTIALS = 10
+# Within this many seconds after a password sign-in in the same session, Face ID
+# can be turned on without re-typing the password (owner request 23/11/2026).
+RECENT_PASSWORD_LOGIN = 600
+FALLBACK = "Hãy đăng nhập bằng mật khẩu. Quên mật khẩu, liên hệ quản trị viên."
+# Bank-app style lock: a session that signed in with Face ID asks for Face ID
+# again after this many seconds away (owner request 23/11/2026).
+APP_LOCK_AFTER = 300
 
 
 class PasskeyError(Exception):
     def __init__(
         self,
-        message="Không thể xác thực passkey. Hãy thử lại hoặc dùng mật khẩu.",
+        message="Chưa xác thực được bằng Face ID. " + FALLBACK,
         status=400,
     ):
         super().__init__(message)
@@ -58,7 +65,7 @@ def configuration():
         )
     ):
         raise PasskeyError(
-            "Passkey chưa được cấu hình cho địa chỉ website này. Bạn vẫn có thể đăng nhập bằng mật khẩu.",
+            "Đăng nhập bằng Face ID chưa dùng được trên địa chỉ này. " + FALLBACK,
             503,
         )
     return rp, origin.rstrip("/")
@@ -109,7 +116,11 @@ def bump(scope, identifier, limit, seconds=60):
 def guard(request, kind, user=None):
     rp, origin = configuration()
     if request.get_host().lower() != urlsplit(origin).netloc.lower():
-        raise PasskeyError("Hãy mở đúng địa chỉ website đã đăng ký passkey.", 400)
+        raise PasskeyError(
+            "Hãy mở đúng địa chỉ phần mềm (kiemsoatnoibolemon.onrender.com). "
+            + FALLBACK,
+            400,
+        )
     # REMOTE_ADDR is trusted by the server; arbitrary forwarded headers are not.
     bump("ip", request.META.get("REMOTE_ADDR", "unknown"), 180)
     binding = session_binding(request)
@@ -224,6 +235,18 @@ def inspect_credential(credential):
     return credential_id
 
 
+def mark_password_login(request):
+    request.session["password_login_at"] = int(timezone.now().timestamp())
+
+
+def recent_password_login(request):
+    """True for 10 minutes after a password sign-in in this exact session."""
+    stamp = request.session.get("password_login_at")
+    if type(stamp) is not int or not request.user.is_authenticated:
+        return False
+    return 0 <= timezone.now().timestamp() - stamp <= RECENT_PASSWORD_LOGIN
+
+
 def register_options(request, password, label):
     from webauthn import generate_registration_options, options_to_json
     from webauthn.helpers.structs import (
@@ -237,10 +260,15 @@ def register_options(request, password, label):
     ceremony = new_ceremony(
         request, "register", user=request.user, payload={"label": label}
     )
-    if not check_password(password, request.user.password):
+    if not (
+        (password and check_password(password, request.user.password))
+        or (not password and recent_password_login(request))
+    ):
         ceremony.used_at = timezone.now()
         ceremony.save(update_fields=["used_at"])
-        raise PasskeyError("Mật khẩu xác nhận chưa đúng.")
+        raise PasskeyError(
+            "Mật khẩu xác nhận chưa đúng. Quên mật khẩu, liên hệ quản trị viên."
+        )
     with transaction.atomic():
         user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
         if not user.is_active or not hmac.compare_digest(
@@ -252,7 +280,8 @@ def register_options(request, password, label):
         )
         if len(credentials) >= MAX_CREDENTIALS:
             raise PasskeyError(
-                "Bạn đã có tối đa 10 passkey. Thu hồi passkey cũ trước khi thêm."
+                "Tài khoản đã bật Face ID trên tối đa 10 thiết bị. "
+                "Gỡ một thiết bị cũ trước khi thêm."
             )
         identity, _ = PasskeyIdentity.objects.get_or_create(user=user)
         options = generate_registration_options(
@@ -307,7 +336,7 @@ def register_finish(request, raw_id, credential):
             PasskeyCredential.objects.filter(user=user, revoked_at__isnull=True).count()
             >= MAX_CREDENTIALS
         ):
-            raise PasskeyError("Bạn đã có tối đa 10 passkey.")
+            raise PasskeyError("Tài khoản đã bật Face ID trên tối đa 10 thiết bị.")
         PasskeyCredential.objects.create(
             user=user,
             credential_id=bytes_to_base64url(result.credential_id),
@@ -420,6 +449,125 @@ def login_finish(request, raw_id, credential):
     return ceremony.payload["next"]
 
 
+def app_lock_applies(request):
+    """Only sessions that signed in with Face ID use the bank-style lock."""
+    return (
+        request.user.is_authenticated
+        and "passkey_credential_id" in request.session
+        and getattr(settings, "PASSKEY_ENABLED", True)
+    )
+
+
+def now_seconds():
+    return int(timezone.now().timestamp())
+
+
+def lock(request):
+    request.session["app_locked"] = True
+
+
+def mark_unlocked(request):
+    request.session.pop("app_locked", None)
+    request.session["app_seen_at"] = now_seconds()
+
+
+def unlock_options(request):
+    from webauthn import generate_authentication_options, options_to_json
+    from webauthn.helpers.structs import (
+        PublicKeyCredentialDescriptor,
+        UserVerificationRequirement,
+    )
+
+    if not app_lock_applies(request):
+        raise PasskeyError("Phiên này không cần mở khóa.", 409)
+    ceremony = new_ceremony(request, "unlock", user=request.user)
+    credentials = list(
+        PasskeyCredential.objects.filter(user=request.user, revoked_at__isnull=True)
+    )
+    if not credentials:
+        raise PasskeyError("Tài khoản chưa bật Face ID. " + FALLBACK)
+    options = generate_authentication_options(
+        rp_id=ceremony.rp_id,
+        challenge=bytes(ceremony.challenge),
+        timeout=TTL * 1000,
+        user_verification=UserVerificationRequirement.REQUIRED,
+        allow_credentials=[
+            PublicKeyCredentialDescriptor(id=binary(c.credential_id, maximum=1023))
+            for c in credentials
+        ],
+    )
+    return {
+        "ceremony_id": str(ceremony.pk),
+        "publicKey": json.loads(options_to_json(options)),
+    }
+
+
+def unlock_finish(request, raw_id, credential):
+    from webauthn import verify_authentication_response
+    from webauthn.helpers.structs import CredentialDeviceType
+
+    if not app_lock_applies(request):
+        raise PasskeyError("Phiên này không cần mở khóa.", 409)
+    ceremony = take_ceremony(request, raw_id, "unlock")
+    if ceremony.user_id != request.user.pk:
+        raise PasskeyError()
+    inspect_credential(credential)
+    with transaction.atomic():
+        # Same lock order as sign-in: account, then credential.
+        user = (
+            get_user_model()
+            .objects.select_for_update()
+            .filter(pk=request.user.pk, is_active=True)
+            .first()
+        )
+        current = (
+            PasskeyCredential.objects.select_for_update()
+            .filter(credential_id=credential["id"], user=user, revoked_at__isnull=True)
+            .first()
+            if user is not None
+            else None
+        )
+        identity = PasskeyIdentity.objects.filter(user=user).first()
+        if current is None or identity is None:
+            raise PasskeyError()
+        handle = credential["response"].get("userHandle")
+        if handle is not None and binary(handle, maximum=64) != identity.handle.bytes:
+            raise PasskeyError()
+        try:
+            result = verify_authentication_response(
+                credential=credential,
+                expected_challenge=bytes(ceremony.challenge),
+                expected_rp_id=ceremony.rp_id,
+                expected_origin=ceremony.origin,
+                credential_public_key=bytes(current.public_key),
+                credential_current_sign_count=0
+                if current.backup_eligible
+                else current.sign_count,
+                require_user_verification=True,
+            )
+        except Exception:
+            raise PasskeyError() from None
+        if (
+            result.credential_device_type == CredentialDeviceType.MULTI_DEVICE
+        ) != current.backup_eligible:
+            raise PasskeyError()
+        current.sign_count = max(current.sign_count, result.new_sign_count)
+        current.backed_up = result.credential_backed_up
+        current.last_used_at = timezone.now()
+        current.save(update_fields=["sign_count", "backed_up", "last_used_at"])
+        SecurityEvent.objects.create(user=user, action="unlocked")
+    mark_unlocked(request)
+
+
+def unlock_with_password(request, password):
+    if not app_lock_applies(request):
+        raise PasskeyError("Phiên này không cần mở khóa.", 409)
+    guard(request, "unlock-password", request.user)
+    if not check_password(password, request.user.password):
+        raise PasskeyError("Mật khẩu chưa đúng. Quên mật khẩu, liên hệ quản trị viên.")
+    mark_unlocked(request)
+
+
 def revoke(request, pk, password):
     guard(request, "revoke", request.user)
     with transaction.atomic():
@@ -432,7 +580,7 @@ def revoke(request, pk, password):
             .first()
         )
         if key is None:
-            raise PasskeyError("Passkey không tồn tại hoặc đã được thu hồi.", 404)
+            raise PasskeyError("Thiết bị này không còn bật Face ID.", 404)
         key.revoked_at = timezone.now()
         key.save(update_fields=["revoked_at"])
         SecurityEvent.objects.create(user=user, action="revoked")

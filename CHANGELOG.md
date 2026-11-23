@@ -2,13 +2,24 @@
 
 Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng tiếng Việt dễ hiểu và nhãn bản thử đã được chủ phần mềm duyệt. Quy trình ở [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
-## v123 – đang làm (chưa thử)
+## v123 – 23/11/2026
+
+Phát hành theo chỉ đạo của chủ phần mềm ngày 23/11/2026: hoàn thiện phần đang dở và cập nhật bản chính, toàn quyền, không cần hỏi lại; ưu tiên đăng nhập Face ID.
+
+### Đăng nhập bằng Face ID kiểu app ngân hàng
+- Trang đăng nhập có "Đăng nhập bằng Face ID"; Face ID không được thì nhập mật khẩu; "Quên mật khẩu? Liên hệ quản trị viên."
+- Sau khi đăng nhập bằng mật khẩu, iPhone được mời "Bật Face ID" — bật ngay, không phải nhập lại mật khẩu (trong 10 phút).
+- Thiết bị đã bật Face ID: mở phần mềm là Face ID tự hiện ("Xin chào, …"), nhận diện xong vào thẳng; iPhone còn gợi ý tài khoản trên bàn phím.
+- Phiên đăng nhập bằng Face ID tự khóa khi rời phần mềm hoặc không dùng quá 5 phút; mở lại bằng Face ID hoặc mật khẩu, nội dung đang nhập dở vẫn giữ. Phiên đăng nhập bằng mật khẩu không bị ảnh hưởng.
+- Thêm được phần mềm vào Màn hình chính iPhone như một app (biểu tượng KSNB).
+
 
 ### Trợ lý AI v2
 - Trò chuyện AI qua Groq Free tự tra cứu dữ liệu trong phần mềm theo đúng quyền của người hỏi: hàng hóa, tồn kho, thẻ kho, phiếu, việc chờ duyệt, kiểm kê, hàng cho mượn, sai lệch, hướng dẫn. Chỉ đọc; không tạo, sửa hay duyệt.
 - Câu trả lời có số liệu kèm đường dẫn tới màn hình nguồn; khi đang tra cứu hiện "Đang tra cứu: …".
 - Ghi nhật ký mỗi lần AI tra cứu (người hỏi, thời điểm, công cụ, số dòng); Admin xem trong Quản trị.
 - Gỡ phần AI chạy trong trình duyệt (Qwen, khoảng 800 MB tải về), kho mã nhẹ đi khoảng 22 MB.
+- Mỗi câu hỏi giữ dưới hạn mức 8.000 token/phút của Groq Free (ngừng tra cứu thêm khi đã dùng nhiều token). Cần Admin dán khóa `GROQ_API_KEY` trên Render thì trò chuyện AI mới chạy.
 
 ### Thiết bị đang đăng nhập (mục 4.3)
 - Mỗi người xem các thiết bị đang đăng nhập tài khoản mình, đăng xuất từ xa từng thiết bị hoặc tất cả thiết bị khác.
