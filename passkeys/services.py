@@ -3,9 +3,10 @@
 import base64
 import hmac
 import json
+import re
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -30,9 +31,12 @@ MAX_CREDENTIALS = 10
 # can be turned on without re-typing the password (owner request 23/11/2026).
 RECENT_PASSWORD_LOGIN = 600
 FALLBACK = "Hãy đăng nhập bằng mật khẩu. Quên mật khẩu, liên hệ quản trị viên."
-# Bank-app style lock: a session that signed in with Face ID asks for Face ID
-# again after this many seconds away (owner request 23/11/2026).
-APP_LOCK_AFTER = 300
+# Bank-app style lock for every signed-in session (owner requests 23-24/11/2026):
+# leaving the app or leaving it untouched asks for Face ID or the password again.
+# Defaults; settings APP_LOCK_*_SECONDS override them (see lock_timing).
+APP_LOCK_AWAY = 60  # page hidden / app left this long
+APP_LOCK_IDLE = 300  # page open but untouched this long
+APP_LOCK_SERVER_GAP = 120  # no request at all this long (app closed, phone away)
 
 
 class PasskeyError(Exception):
@@ -137,7 +141,9 @@ def prune():
 
 
 def new_ceremony(request, kind, *, user=None, payload=None):
-    rp, origin, binding = guard(request, kind, user)
+    # Only turning Face ID on confirms a password; the unlock ceremony is bound
+    # to the account but limited per session and IP, not by password attempts.
+    rp, origin, binding = guard(request, kind, user if kind == "register" else None)
     prune()
     # Replace only ceremonies of the same purpose in this browser session.
     Ceremony.objects.filter(
@@ -450,16 +456,45 @@ def login_finish(request, raw_id, credential):
 
 
 def app_lock_applies(request):
-    """Only sessions that signed in with Face ID use the bank-style lock."""
+    """Every signed-in session uses the bank-style lock (APP_LOCK_ENABLED)."""
+    return request.user.is_authenticated and getattr(settings, "APP_LOCK_ENABLED", True)
+
+
+def lock_timing():
+    """(away, idle, server gap) in seconds, with floors that keep the app usable."""
+    away = max(15, int(getattr(settings, "APP_LOCK_AWAY_SECONDS", APP_LOCK_AWAY)))
+    idle = max(60, int(getattr(settings, "APP_LOCK_IDLE_SECONDS", APP_LOCK_IDLE)))
+    gap = max(
+        90,
+        away,
+        int(getattr(settings, "APP_LOCK_SERVER_GAP_SECONDS", APP_LOCK_SERVER_GAP)),
+    )
+    return away, idle, gap
+
+
+def identity(user):
+    """Name and avatar letter shown on the bank-style sign-in screens."""
+    name = (user.get_full_name() or user.get_username()).strip()
+    # Vietnamese given name is the last word ("Đào Hữu Đạo" -> "Đ").
+    words = re.findall(r"[^\W\d_]+", re.sub(r"\([^)]*\)", " ", name))
+    return name, ((words[-1] if words else name)[:1] or "?").upper()
+
+
+def has_face_id(user):
+    """The account turned on Face ID on at least one device."""
     return (
-        request.user.is_authenticated
-        and "passkey_credential_id" in request.session
-        and getattr(settings, "PASSKEY_ENABLED", True)
+        user.is_authenticated
+        and available()
+        and PasskeyCredential.objects.filter(
+            user=user, revoked_at__isnull=True
+        ).exists()
     )
 
 
 def now_seconds():
-    return int(timezone.now().timestamp())
+    # Real wall-clock time away from the app. Read directly so that tests which
+    # patch time.time or timezone.now for other features never lock a session.
+    return int(datetime.now(UTC).timestamp())
 
 
 def lock(request):
@@ -560,12 +595,30 @@ def unlock_finish(request, raw_id, credential):
 
 
 def unlock_with_password(request, password):
+    """Sign back in to a locked session with the password (any account).
+
+    Wrong passwords count toward the same lockout as the login page (owner
+    rule 14/11/2026: 5 wrong passwords lock an employee until an Admin unlocks).
+    """
+    from login_guard import services as login_guard
+    from login_guard.forms import LOCK_MESSAGE
+
     if not app_lock_applies(request):
         raise PasskeyError("Phiên này không cần mở khóa.", 409)
-    guard(request, "unlock-password", request.user)
+    username = request.user.get_username()
+    ip = login_guard.client_ip(request)
+    if login_guard.is_locked(username, ip):
+        raise PasskeyError(LOCK_MESSAGE, 403)
+    bump("ip", request.META.get("REMOTE_ADDR", "unknown"), 180)
+    bump("password-confirm", request.user.pk, 5)
     if not check_password(password, request.user.password):
+        if login_guard.register_failure(username, ip):
+            raise PasskeyError(LOCK_MESSAGE, 403)
         raise PasskeyError("Mật khẩu chưa đúng. Quên mật khẩu, liên hệ quản trị viên.")
+    login_guard.clear_account(username)
     mark_unlocked(request)
+    # Counts as a fresh password sign-in: Face ID can be turned on right away.
+    mark_password_login(request)
 
 
 def revoke(request, pk, password):

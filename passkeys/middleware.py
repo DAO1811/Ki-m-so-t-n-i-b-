@@ -33,12 +33,11 @@ class PasskeySessionMiddleware:
 
 
 class AppLockMiddleware:
-    """Bank-app style lock for sessions that signed in with Face ID.
+    """Bank-app style lock for every signed-in session.
 
-    After APP_LOCK_AFTER seconds without any request (app closed or phone put
-    away), or when the page itself locks after inactivity, every page asks for
-    Face ID again at /unlock/ (password also works). Password-only sessions are
-    never affected.
+    After APP_LOCK_SERVER_GAP seconds without any request (app closed or phone
+    put away), or when the page locks itself (left the app / untouched), every
+    page asks again at /unlock/: Face ID where turned on, otherwise the password.
     """
 
     OPEN_PATHS = ("/static/", "/healthz/", "/unlock/", "/logout/", "/login/")
@@ -61,9 +60,10 @@ class AppLockMiddleware:
         if not applies:
             return self.get_response(request)
         now = services.now_seconds()
+        _away, _idle, gap = services.lock_timing()
         seen = request.session.get("app_seen_at")
         locked = request.session.get("app_locked") is True
-        if not locked and type(seen) is int and now - seen > services.APP_LOCK_AFTER:
+        if not locked and type(seen) is int and now - seen > gap:
             services.lock(request)
             locked = True
         if locked and not request.path.startswith(self.OPEN_PATHS):
@@ -79,7 +79,7 @@ class AppLockMiddleware:
                 # assuming the access was revoked.
                 return JsonResponse(
                     {
-                        "error": "Phần mềm đã khóa. Mở khóa bằng Face ID.",
+                        "error": "Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục.",
                         "locked": True,
                         "unlock": "/unlock/",
                     },

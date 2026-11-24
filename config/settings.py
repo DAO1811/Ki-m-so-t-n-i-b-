@@ -139,6 +139,15 @@ LOGIN_LOCK_SECONDS = 15 * 60
 LOGIN_TRUSTED_PROXY_HOPS = int(
     os.environ.get("LOGIN_TRUSTED_PROXY_HOPS", "1" if render_hostname else "0")
 )
+# Bank-style sessions (owner requests 24/11/2026, "giống app ACB"): closing the
+# browser or the home-screen app ends the session, and leaving the app or not
+# touching it asks for Face ID or the password again (passkeys app lock).
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 12 * 60 * 60
+APP_LOCK_ENABLED = os.environ.get("APP_LOCK_ENABLED", "1") == "1"
+APP_LOCK_AWAY_SECONDS = int(os.environ.get("APP_LOCK_AWAY_SECONDS", "60"))
+APP_LOCK_IDLE_SECONDS = int(os.environ.get("APP_LOCK_IDLE_SECONDS", "300"))
+APP_LOCK_SERVER_GAP_SECONDS = int(os.environ.get("APP_LOCK_SERVER_GAP_SECONDS", "120"))
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"

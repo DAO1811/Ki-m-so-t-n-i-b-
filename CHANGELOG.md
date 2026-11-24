@@ -2,6 +2,22 @@
 
 Mỗi lần phát hành ghi: phiên bản, ngày, nội dung thay đổi bằng tiếng Việt dễ hiểu và nhãn bản thử đã được chủ phần mềm duyệt. Quy trình ở [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
+## v124 – 24/11/2026
+
+Theo yêu cầu của chủ phần mềm ngày 24/11/2026: "thoát ra khỏi phần mềm thì bắt đăng nhập lại, không cho lưu mật khẩu như các ngân hàng", "làm giống ACB". Áp dụng chỉ đạo ngày 23/11/2026 (hoàn thiện đăng nhập Face ID và cập nhật bản chính, toàn quyền, không cần hỏi lại).
+
+### Đăng nhập và phiên làm việc kiểu app ngân hàng (giống ACB)
+- Màn hình đăng nhập mới: thiết bị đã dùng hiện "Xin chào, <họ tên>", chỉ hỏi mật khẩu; nút Face ID nằm cạnh nút Đăng nhập và tự hiện Face ID nếu thiết bị đã bật; có "Đăng nhập tài khoản khác" và "Quên mật khẩu? Liên hệ quản trị viên." Thiết bị chỉ nhớ tên tài khoản, không nhớ mật khẩu.
+- Áp dụng cho **mọi tài khoản** (trước đây chỉ phiên Face ID): đóng trình duyệt/app là hết phiên; rời phần mềm quá 1 phút hoặc không thao tác 5 phút thì phải đăng nhập lại bằng Face ID hoặc mật khẩu; nội dung đang nhập dở vẫn giữ. Đang gọi nội bộ thì không khóa.
+- Ô mật khẩu không mời trình duyệt lưu hay tự điền (`autocomplete="off"`).
+- Sai mật khẩu khi đăng nhập lại tính chung luật 5 lần: nhân viên bị khóa tới khi Admin mở.
+- Bật Face ID một chạm ngay trong lời mời sau khi đăng nhập bằng mật khẩu; hướng dẫn iPhone viết lại ("Lưu mã khóa?" → Tiếp tục, không cần vào Cài đặt).
+- Thời gian khóa chỉnh được bằng biến môi trường `APP_LOCK_AWAY_SECONDS`, `APP_LOCK_IDLE_SECONDS`; tắt khẩn cấp bằng `APP_LOCK_ENABLED=0`.
+
+### Sửa lỗi
+- Màn hình khóa trong trang (có từ v123): nhập sai mật khẩu một lần thì nút gửi bị vô hiệu hóa luôn; nay nhập lại được.
+- Mở khóa bằng Face ID không còn bị tính vào hạn mức 5 lần xác nhận mật khẩu mỗi phút; nhiều tab không cùng lúc hỏi Face ID.
+
 ## v123 – 23/11/2026
 
 Phát hành theo chỉ đạo của chủ phần mềm ngày 23/11/2026: hoàn thiện phần đang dở và cập nhật bản chính, toàn quyền, không cần hỏi lại; ưu tiên đăng nhập Face ID. Đã lên bản chính (commit `37d9b0a`, 18:59 giờ Việt Nam 23/11/2026) sau khi chạy trên bản thử không lỗi. Nhánh khôi phục Neon: `khoi-phuc-truoc-v123-20261123`. Bản thử từ nay mang nhãn `v124-thu`.

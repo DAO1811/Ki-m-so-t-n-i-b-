@@ -49,8 +49,8 @@ class FaceIdTurnOnTests(CeremonyHelpers, TestCase):
         client = self.password_login()
         page = client.get(MANAGE + "?bat=1", HTTP_HOST="localhost")
         self.assertContains(page, "không cần nhập lại mật khẩu")
-        self.assertNotContains(
-            page, 'type="password" autocomplete="current-password" required'
+        self.assertContains(
+            page, '<input id="passkey-password" name="password" type="hidden"'
         )
         options = self.turn_on(client)
         self.assertEqual(options.status_code, 200, options.content)
@@ -91,7 +91,7 @@ class FaceIdTurnOnTests(CeremonyHelpers, TestCase):
         self.assertEqual(self.turn_on(client).status_code, 400)
         self.assertContains(
             client.get(MANAGE, HTTP_HOST="localhost"),
-            'autocomplete="current-password" required',
+            'name="password" type="password" autocomplete="off" required',
         )
 
     def test_turn_on_invitation_only_right_after_a_password_login(self):
@@ -99,6 +99,8 @@ class FaceIdTurnOnTests(CeremonyHelpers, TestCase):
         page = client.get("/account/password/", HTTP_HOST="localhost")
         self.assertContains(page, 'id="pk-offer"')
         self.assertContains(page, "passkeys-offer.js")
+        # One tap turns Face ID on right here, like a banking app.
+        self.assertContains(page, "data-pk-offer-enable")
         # Not repeated on the Face ID page itself.
         self.assertNotContains(
             client.get(MANAGE, HTTP_HOST="localhost"), 'id="pk-offer"'
@@ -130,8 +132,9 @@ class FaceIdTurnOnTests(CeremonyHelpers, TestCase):
 
     def test_login_page_offers_face_id_with_password_fallback(self):
         page = Client().get("/login/", HTTP_HOST="localhost")
-        self.assertContains(page, "Đăng nhập bằng Face ID")
-        self.assertContains(page, "Face ID không được? Nhập tên đăng nhập và mật khẩu")
+        self.assertContains(page, 'aria-label="Đăng nhập bằng Face ID"')
+        # Bank-app style: a remembered account can switch to another one.
+        self.assertContains(page, "Đăng nhập tài khoản khác")
         self.assertContains(
             page, "Quên mật khẩu? <span>Liên hệ quản trị viên.</span>", html=False
         )

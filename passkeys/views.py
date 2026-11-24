@@ -128,6 +128,7 @@ def login_verify(request, data):
     return {
         "redirect": target,
         "name": request.user.get_full_name() or request.user.get_username(),
+        "username": request.user.get_username(),
     }
 
 

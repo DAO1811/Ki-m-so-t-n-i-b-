@@ -1,6 +1,7 @@
-/* Face ID / fingerprint sign-in, turn-on and bank-style unlock through the
-   browser's WebAuthn (passkey) API. If Face ID fails, the password still works;
-   a forgotten password is reset by an Admin. */
+/* Face ID / fingerprint sign-in, turn-on and the bank-style "sign in again"
+   screen through the browser's WebAuthn (passkey) API. If Face ID fails, the
+   password still works; a forgotten password is reset by an Admin. The device
+   only remembers that Face ID is on for an account name, never a password. */
 (() => {
   "use strict";
   if (window.__dhdFaceId) return;
@@ -40,14 +41,49 @@
     remove(key) { try { window.localStorage.removeItem(key); } catch { /* private mode */ } },
   };
 
-  function remember(name) {
+  function remember(username, name) {
     storage.set("dhd-faceid-enabled", "1");
+    if (typeof username === "string" && username) {
+      storage.set("dhd-faceid-user", username.slice(0, 150));
+      storage.set("dhd-last-user", JSON.stringify({
+        u: username.slice(0, 150),
+        n: (typeof name === "string" && name ? name : username).slice(0, 80),
+      }));
+    }
     if (typeof name === "string" && name) storage.set("dhd-faceid-name", name.slice(0, 80));
   }
 
   function forget() {
     storage.remove("dhd-faceid-enabled");
+    storage.remove("dhd-faceid-user");
     storage.remove("dhd-faceid-name");
+  }
+
+  /* Face ID was turned on (or used) on this device for this account. */
+  function faceIdOn(username) {
+    if (storage.get("dhd-faceid-enabled") !== "1") return false;
+    const owner = (storage.get("dhd-faceid-user") || "").toLowerCase();
+    return !owner || !username || owner === String(username).toLowerCase();
+  }
+
+  async function platformReady() {
+    try { return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+    catch { return false; }
+  }
+
+  function unlockedElsewhereSignal() {
+    // Other open tabs of the app drop their lock screen too (app-lock.js).
+    storage.set("dhd-app-unlocked", String(Date.now()));
+  }
+
+  function finishRegister(scope, show, message) {
+    show(message);
+    if (scope.hasAttribute("data-pk-offer")) {
+      for (const button of scope.querySelectorAll("button")) button.hidden = true;
+      window.setTimeout(() => { scope.hidden = true; }, 4000);
+    } else {
+      window.setTimeout(() => window.location.reload(), 1500);
+    }
   }
 
   function statusIn(scope) {
@@ -166,7 +202,7 @@
     if (error instanceof PasskeyRequestError) return error.message;
     if (error?.name === "NotAllowedError") {
       if (kind === "register") return `Chưa bật được ${method}: bạn đã hủy hoặc xác minh chưa xong. Bấm lại nút để thử lần nữa.`;
-      if (kind === "unlock") return `Chưa mở khóa được bằng ${method}. Bấm lại nút, hoặc chọn "Dùng mật khẩu".`;
+      if (kind === "unlock") return `Chưa đăng nhập được bằng ${method}. Chạm lại biểu tượng ${method}, hoặc nhập mật khẩu.`;
       return `Chưa đăng nhập được bằng ${method}: bạn đã hủy, hoặc thiết bị này chưa bật ${method} cho phần mềm. ` + FALLBACK;
     }
     if (error?.name === "InvalidStateError") {
@@ -221,7 +257,7 @@
     if (busy || !supported || trigger.disabled) return false;
     if (kind === "register") {
       const form = scope.closest("form") || scope;
-      if (!form.reportValidity()) {
+      if (typeof form.reportValidity === "function" && !form.reportValidity()) {
         form.querySelector("details.pk-rename")?.setAttribute("open", "");
         return false;
       }
@@ -247,23 +283,35 @@
       succeeded = true;
       if (kind === "register") {
         if (result.ok !== true) throw new PasskeyRequestError(`Chưa xác nhận được việc bật ${method}. Tải lại trang để kiểm tra.`);
-        remember(scope.dataset.pkAccount || "");
-        show(`Đã bật ${method} cho thiết bị này. Lần sau mở phần mềm, chỉ cần nhìn vào màn hình để đăng nhập.`);
-        window.setTimeout(() => window.location.reload(), 1500);
-      } else if (kind === "unlock" && inline) {
-        show("");
-        document.dispatchEvent(new CustomEvent("dhd-faceid-unlocked"));
+        remember(scope.dataset.pkUsername || "", scope.dataset.pkAccount || "");
+        finishRegister(scope, show, `Đã bật ${method} cho thiết bị này. Lần sau mở phần mềm, chỉ cần nhìn vào màn hình để đăng nhập.`);
+      } else if (kind === "unlock") {
+        // Binds an older device flag to this account.
+        if (scope.dataset.account) storage.set("dhd-faceid-user", scope.dataset.account.slice(0, 150));
+        unlockedElsewhereSignal();
+        if (inline) {
+          show("");
+          document.dispatchEvent(new CustomEvent("dhd-faceid-unlocked"));
+        } else {
+          show("Đăng nhập thành công. Đang quay lại…");
+          go(result);
+        }
       } else {
-        if (kind === "login") remember(result.name);
-        show(kind === "unlock" ? "Đã mở khóa. Đang quay lại…" : "Đăng nhập thành công. Đang chuyển trang…");
+        remember(result.username, result.name);
+        show("Đăng nhập thành công. Đang chuyển trang…");
         go(result);
       }
     } catch (error) {
       const quick = window.performance.now() - started < 1500;
-      if (auto && quick && error?.name === "NotAllowedError") {
-        show(`Chạm nút bên dưới để ${kind === "unlock" ? "mở khóa" : "đăng nhập"} bằng ${method}.`);
+      if (kind === "register" && error?.name === "InvalidStateError") {
+        // This device already has Face ID for the account: treat it as on.
+        remember(scope.dataset.pkUsername || "", scope.dataset.pkAccount || "");
+        finishRegister(scope, show, `${method} đã được bật sẵn trên thiết bị này. Lần sau chỉ cần nhìn vào màn hình để đăng nhập.`);
+      } else if (auto && quick && error?.name === "NotAllowedError") {
+        show(`Chạm biểu tượng ${method} bên cạnh nút Đăng nhập để ${kind === "unlock" ? "đăng nhập lại" : "đăng nhập"}.`);
       } else {
         show(errorMessage(error, kind), true);
+        scope.querySelector("[data-pk-offer-more]")?.removeAttribute("hidden");
       }
     } finally {
       if (password && password.type !== "hidden") password.value = "";
@@ -321,7 +369,7 @@
         ceremony_id: options.ceremony_id,
         credential: serialize(credential, false),
       });
-      remember(result.name);
+      remember(result.username, result.name);
       go(result);
     } catch (error) {
       window.clearTimeout(refresh);
@@ -335,50 +383,33 @@
     }
   }
 
-  /* ---- Login page ------------------------------------------------------- */
+  /* ---- Login page (bank-app style) -------------------------------------- */
   const loginSection = document.querySelector("[data-pk-login]");
-  if (loginSection) {
-    const loginButton = loginSection.querySelector("[data-pk-login-button]");
-    const hint = loginSection.querySelector("[data-pk-hint]");
-    const quick = document.querySelector("[data-fid-quick]");
-    const card = loginSection.closest(".auth-card");
-    if (loginButton?.querySelector("[data-pk-label]")) {
-      loginButton.querySelector("[data-pk-label]").textContent = `Đăng nhập bằng ${method}`;
-    }
-    if (hint) hint.textContent = `Trên ${deviceName === "Thiết bị của tôi" ? "thiết bị" : deviceName} đã bật ${method} cho phần mềm`;
+  const loginButton = document.querySelector("[data-pk-login-button]");
+  if (loginSection && loginButton) {
+    const card = loginButton.closest("[data-bank-login]");
+    const label = `Đăng nhập bằng ${method}`;
+    loginButton.setAttribute("aria-label", label);
+    loginButton.title = label;
+    loginButton.querySelector("[data-pk-label]").textContent = label;
     if (!supported) {
       unsupportedNote(loginSection);
     } else {
-      loginButton.hidden = false;
-      loginButton.addEventListener("click", () => run("login", loginButton, loginSection));
-      // After a failed password attempt keep the password form in front.
+      // After a failed password attempt keep the password in front.
       const hadError = Boolean(document.querySelector(".auth-error, .auth-page .errorlist"));
-      const remembered = storage.get("dhd-faceid-enabled") === "1" && !hadError;
-      if (quick && card && remembered) {
-        /* Bank-app style: this device turned on Face ID, so lead with it. */
-        const quickButton = quick.querySelector("[data-fid-quick-button]");
-        const greeting = quick.querySelector("[data-fid-greeting]");
-        const name = storage.get("dhd-faceid-name");
-        if (greeting) greeting.textContent = name ? `Xin chào, ${name}` : `Đăng nhập bằng ${method}`;
-        quickButton.querySelector("[data-pk-label]").textContent = `Đăng nhập bằng ${method}`;
-        quick.hidden = false;
-        card.classList.add("fid-quick-on");
-        const usePassword = () => {
-          card.classList.remove("fid-quick-on");
-          quick.hidden = true;
+      const account = () => card?.dataset.bankUser || "";
+      loginButton.addEventListener("click", () => run("login", loginButton, loginSection));
+      document.addEventListener("dhd-login-other", () => startConditional(loginSection));
+      platformReady().then((ready) => {
+        const enabled = Boolean(account()) && faceIdOn(account());
+        if (ready || enabled) loginButton.hidden = false;
+        if (enabled && !hadError) {
+          /* Like a banking app: this device turned on Face ID, so ask for it now. */
+          run("login", loginButton, loginSection, { auto: true });
+        } else if (!account()) {
           startConditional(loginSection);
-          document.getElementById("id_username")?.focus();
-        };
-        quick.querySelector("[data-fid-use-password]")?.addEventListener("click", usePassword);
-        quick.querySelector("[data-fid-other-account]")?.addEventListener("click", () => {
-          forget();
-          usePassword();
-        });
-        quickButton.addEventListener("click", () => run("login", quickButton, quick));
-        run("login", quickButton, quick, { auto: true });
-      } else {
-        startConditional(loginSection);
-      }
+        }
+      });
     }
   }
 
@@ -416,26 +447,48 @@
     }
   }
 
-  /* ---- Unlock (unlock page and the in-page lock screen) ------------------- */
+  /* ---- One-tap "Bật Face ID" right after a password sign-in --------------- */
+  const offer = document.querySelector("[data-pk-offer]");
+  const offerButton = offer?.querySelector("[data-pk-offer-enable]");
+  if (offer && offerButton) {
+    const labelInput = offer.querySelector('[name="label"]');
+    if (labelInput && !labelInput.value) labelInput.value = deviceName;
+    offerButton.querySelector("[data-pk-label]").textContent = `Bật ${method}`;
+    if (supported) offerButton.addEventListener("click", () => run("register", offerButton, offer));
+  }
+
+  /* ---- Sign in again (the /unlock/ page and the in-page lock screen) ------ */
   for (const scope of document.querySelectorAll("[data-pk-unlock]")) {
     const inline = scope.dataset.pkUnlock === "inline";
     const unlockButton = scope.querySelector("[data-pk-unlock-button]");
-    unlockButton.querySelector("[data-pk-label]").textContent = `Mở khóa bằng ${method}`;
+    const account = scope.dataset.account || "";
+    const accountHasFaceId = scope.dataset.pkFaceid === "1";
+    const label = `Đăng nhập bằng ${method}`;
+    unlockButton.setAttribute("aria-label", label);
+    unlockButton.title = label;
+    unlockButton.querySelector("[data-pk-label]").textContent = label;
+    if (!accountHasFaceId && account &&
+        (storage.get("dhd-faceid-user") || "").toLowerCase() === account.toLowerCase()) {
+      forget();  // Face ID was turned off for this account on the server.
+    }
     const start = (auto) => run("unlock", unlockButton, scope, { auto, inline });
-    if (!supported) {
-      unsupportedNote(scope);
-    } else {
+    if (accountHasFaceId && supported && faceIdOn(account)) {
       unlockButton.hidden = false;
       unlockButton.addEventListener("click", () => start(false));
       if (!inline) start(true);
-      else document.addEventListener("dhd-app-locked", () => start(true));
+      // Ask for Face ID only in the tab the person is looking at.
+      else document.addEventListener("dhd-app-locked", () => { if (!document.hidden) start(true); });
+    } else if (accountHasFaceId && !supported) {
+      unsupportedNote(scope);
     }
     const passwordForm = scope.querySelector("[data-pk-unlock-password]");
+    // Capture phase: runs before the page-wide "disable buttons on submit"
+    // handler (workspace.js), which then sees the submit was handled here.
     passwordForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const show = statusIn(scope);
       const input = passwordForm.querySelector('[name="password"]');
-      const submit = passwordForm.querySelector("button");
+      const submit = passwordForm.querySelector('button[type="submit"]');
       submit.disabled = true;
       try {
         const result = await postJSON("/unlock/password/", {
@@ -443,10 +496,13 @@
           next: nextValue(scope),
         });
         input.value = "";
+        if (input.type !== "password") input.type = "password";
+        unlockedElsewhereSignal();
         if (inline) {
           show("");
           document.dispatchEvent(new CustomEvent("dhd-faceid-unlocked"));
         } else {
+          show("Đăng nhập thành công. Đang quay lại…");
           go(result);
         }
       } catch (error) {
@@ -455,6 +511,6 @@
       } finally {
         submit.disabled = false;
       }
-    });
+    }, true);
   }
 })();

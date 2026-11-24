@@ -55,27 +55,24 @@
 
       </section>
       <main class="auth-main" id="login-content">
-        <div class="auth-card">
+        <div class="auth-card bank-card" data-bank-login>
           <div class="auth-card-topline"><span class="auth-card-line"></span>{% icon 'shield' %}</div>
-          {% if passkeys_available %}
-          <div class="fid-quick" data-fid-quick hidden>
-            <div class="fid-face" aria-hidden="true">{% icon 'shield' %}</div>
-            <h1 data-fid-greeting>Đăng nhập bằng Face ID</h1>
-            <p class="auth-description">Nhìn vào màn hình để đăng nhập.</p>
-            <button type="button" class="pk-button pk-primary" data-fid-quick-button>{% icon 'shield' %}<span data-pk-label>Đăng nhập bằng Face ID</span></button>
-            <p data-pk-status class="pk-status" role="alert" hidden></p>
-            <button type="button" class="auth-link" data-fid-use-password>Dùng mật khẩu</button>
-            <button type="button" class="auth-link" data-fid-other-account>Đăng nhập tài khoản khác</button>
+          {# Bank-app style: a device that signed in before greets the account and asks only for Face ID or the password. #}
+          <div class="bank-hello" data-bank-hello hidden>
+            <div class="bank-avatar" data-bank-avatar aria-hidden="true"></div>
+            <p class="bank-hello-text">Xin chào,</p>
+            <h1 class="bank-name" data-bank-name></h1>
           </div>
-          {% endif %}
-          <h1>Đăng nhập</h1>
-          <p class="auth-description">Truy cập hệ thống kiểm soát nội bộ.</p>
-        <form method="post" class="auth-form">
+          <div data-bank-default>
+            <h1>Đăng nhập</h1>
+            <p class="auth-description">Truy cập hệ thống kiểm soát nội bộ.</p>
+          </div>
+        <form method="post" class="auth-form" autocomplete="off">
           {% csrf_token %}
           {% if form.non_field_errors %}
             <div class="auth-error" role="alert">{% icon 'alert' %}<div>{{ form.non_field_errors }}</div></div>
           {% endif %}
-          <div class="auth-field">
+          <div class="auth-field" data-bank-username>
             <label for="{{ form.username.id_for_label }}">Tên đăng nhập</label>
             <div class="auth-input">{% icon 'users' %}{{ form.username }}</div>
             {{ form.username.errors }}
@@ -91,20 +88,19 @@
             {{ form.password.errors }}
           </div>
           <input type="hidden" name="next" value="{{ next }}">
-          <button class="button auth-submit" type="submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
+          <div class="bank-actions">
+            <button class="button auth-submit" type="submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
+            {% if passkeys_available %}<button type="button" id="passkey-login" class="bank-faceid" data-pk-login-button aria-label="Đăng nhập bằng Face ID" title="Đăng nhập bằng Face ID" hidden>{% icon 'faceid' %}<span class="sr-only" data-pk-label>Đăng nhập bằng Face ID</span></button>{% endif %}
+          </div>
         </form>
           {% if passkeys_available %}
-          <section class="pk-login" data-pk-login aria-label="Đăng nhập bằng Face ID">
-            <div class="pk-divider"><span>hoặc</span></div>
-            <button type="button" id="passkey-login" data-pk-login-button class="pk-button pk-login-button" hidden>
-              {% icon 'shield' %}<span><strong data-pk-label>Đăng nhập bằng Face ID</strong><small data-pk-hint>Trên iPhone đã bật Face ID cho phần mềm</small></span>
-            </button>
-            <p class="pk-note">Face ID không được? Nhập tên đăng nhập và mật khẩu ở trên.</p>
+          <div class="pk-login" data-pk-login>
             <p id="passkey-support" data-pk-support class="pk-note" hidden></p>
             <p id="passkey-status" data-pk-status class="pk-status" role="alert" hidden></p>
             <noscript><p class="pk-note">Cần bật JavaScript để dùng Face ID. Bạn vẫn đăng nhập bằng mật khẩu ở trên.</p></noscript>
-          </section>
+          </div>
           {% endif %}
+          <div class="bank-links"><button type="button" class="auth-link" data-bank-other hidden>Đăng nhập tài khoản khác</button></div>
           <p class="auth-help">Quên mật khẩu? <span>Liên hệ quản trị viên.</span></p>
           <p class="auth-version">Phiên bản {{ app_version }}</p>
         </div>

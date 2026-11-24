@@ -92,13 +92,19 @@
           </div>
         {% endfor %}
         {% if passkey_offer and request.resolver_match.url_name != 'passkeys_manage' %}
-          <div class="pk-offer" id="pk-offer" role="region" aria-label="Bật Face ID" hidden>
-            {% icon 'shield' %}
-            <div><strong data-pk-offer-title>Đăng nhập nhanh bằng Face ID?</strong><span>Bật một lần trên thiết bị này, lần sau chỉ cần nhìn vào màn hình để đăng nhập.</span></div>
-            <a class="button" href="{% url 'passkeys_manage' %}?bat=1">Bật Face ID</a>
+          <div class="pk-offer" id="pk-offer" role="region" aria-label="Bật Face ID" data-pk-offer data-pk-username="{{ request.user.get_username }}" data-pk-account="{{ request.user.get_full_name|default:request.user.get_username }}" hidden>
+            {% icon 'faceid' %}
+            <div><strong data-pk-offer-title>Đăng nhập nhanh bằng Face ID?</strong><span>Bật một lần trên thiết bị này. Lần sau mở phần mềm chỉ cần nhìn vào màn hình, không cần nhập mật khẩu.</span></div>
+            <input type="hidden" name="password" value="">
+            <input type="hidden" name="label" value="">
+            <button type="button" class="button" data-pk-offer-enable><span data-pk-label>Bật Face ID</span></button>
             <button type="button" class="button secondary" data-pk-offer-dismiss>Để sau</button>
+            <p data-pk-status class="pk-status" role="alert" hidden></p>
+            <a class="pk-offer-more" href="{% url 'passkeys_manage' %}" data-pk-offer-more hidden>Mở trang cài đặt Face ID</a>
           </div>
+          <link rel="stylesheet" href="{% static 'passkeys.css' %}">
           <script src="{% static 'passkeys-offer.js' %}" defer></script>
+          {% if not app_lock_active %}<script src="{% static 'passkeys.js' %}" defer></script>{% endif %}
         {% endif %}
         {% block content %}{% endblock %}
         <footer>
@@ -113,33 +119,18 @@
     {% if access.assistant_use %}{% include 'ai_assistant/widget.html' %}{% endif %}
     {% block scripts %}{% endblock %}
     {% if app_lock_active %}
-      <div class="auth-page app-lock" id="app-lock" data-lock-after="{{ app_lock_after }}" hidden>
+      {# Bank-app style lock (every account): leaving the app or not touching it asks to sign in again; unsaved work stays under the lock screen. #}
+      <div class="auth-page app-lock" id="app-lock" data-lock-away="{{ app_lock_away }}" data-lock-idle="{{ app_lock_idle }}" data-idle-minutes="{{ app_lock_idle_minutes }}" data-account="{{ request.user.get_username }}" data-account-name="{{ app_lock_name }}" hidden>
+        <header class="auth-header">
+          <div class="auth-brand"><span class="auth-brand-symbol">{% icon 'warehouse' %}</span><span>DHD<span class="auth-brand-divider"></span>KSNB</span></div>
+        </header>
         <main class="auth-main auth-unlock">
-          <div class="auth-card" data-pk-unlock="inline" role="dialog" aria-modal="true" aria-labelledby="app-lock-title">
-            <div class="fid-face" aria-hidden="true">{% icon 'shield' %}</div>
-            <h1 id="app-lock-title">Phần mềm đã khóa</h1>
-            <p class="auth-description">Nhìn vào màn hình để mở khóa bằng Face ID. Nội dung đang làm dở vẫn được giữ nguyên.</p>
-            <button type="button" data-pk-unlock-button class="pk-button pk-primary" hidden>{% icon 'shield' %}<span data-pk-label>Mở khóa bằng Face ID</span></button>
-            <p data-pk-support class="pk-note" hidden></p>
-            <p data-pk-status class="pk-status" role="alert" hidden></p>
-            <details class="unlock-password">
-              <summary>Dùng mật khẩu</summary>
-              <form data-pk-unlock-password>
-                <label for="app-lock-password">Mật khẩu</label>
-                <input id="app-lock-password" name="password" type="password" autocomplete="current-password" required>
-                <button type="submit" class="button auth-submit"><span>Mở khóa</span>{% icon 'arrow' %}</button>
-              </form>
-            </details>
-            <form method="post" action="{% url 'logout' %}">
-              {% csrf_token %}
-              <button type="submit" class="auth-link">Đăng xuất</button>
-            </form>
-            <p class="auth-help">Quên mật khẩu? <span>Liên hệ quản trị viên.</span></p>
-          </div>
+          {% include 'passkeys/includes/unlock_card.html' with mode='inline' %}
         </main>
       </div>
       <link rel="stylesheet" href="{% static 'login.css' %}">
       <link rel="stylesheet" href="{% static 'passkeys.css' %}">
+      <script src="{% static 'login.js' %}" defer></script>
       <script src="{% static 'passkeys.js' %}" defer></script>
       <script src="{% static 'app-lock.js' %}" defer></script>
     {% endif %}

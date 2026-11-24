@@ -5,11 +5,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#0d1015">
-    <title>{% if is_staging %}[THỬ] {% endif %}Mở khóa · DHD KSNB</title>
+    <title>{% if is_staging %}[THỬ] {% endif %}Đăng nhập lại · DHD KSNB</title>
     {% include 'includes/app_head.html' %}
     <link rel="stylesheet" href="{% static 'app.css' %}">
     <link rel="stylesheet" href="{% static 'login.css' %}">
     <link rel="stylesheet" href="{% static 'passkeys.css' %}">{% include 'includes/staging_head.html' %}
+    <script src="{% static 'login.js' %}" defer></script>
     <script src="{% static 'passkeys.js' %}" defer></script>
   </head>
   <body class="auth-page{% if is_staging %} is-staging{% endif %}">{% include 'includes/staging_banner.html' %}
@@ -19,30 +20,8 @@
       <span class="auth-header-caption">KIỂM SOÁT NỘI BỘ</span>
     </header>
     <main class="auth-main auth-unlock" id="login-content">
-      <div class="auth-card" data-pk-unlock>
-        <div class="fid-face" aria-hidden="true">{% icon 'shield' %}</div>
-        <h1>Xin chào, {{ display_name }}</h1>
-        <p class="auth-description">Phần mềm đã khóa để bảo vệ dữ liệu. Nhìn vào màn hình để mở khóa bằng Face ID.</p>
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ next }}">
-        <button type="button" id="passkey-unlock" data-pk-unlock-button class="pk-button pk-primary" hidden>{% icon 'shield' %}<span data-pk-label>Mở khóa bằng Face ID</span></button>
-        <p data-pk-support class="pk-note" hidden></p>
-        <p data-pk-status class="pk-status" role="alert" hidden></p>
-        <details class="unlock-password">
-          <summary>Dùng mật khẩu</summary>
-          <form data-pk-unlock-password>
-            <label for="unlock-password">Mật khẩu</label>
-            <input id="unlock-password" name="password" type="password" autocomplete="current-password" required>
-            <button type="submit" class="button auth-submit"><span>Mở khóa</span>{% icon 'arrow' %}</button>
-          </form>
-        </details>
-        <form method="post" action="{% url 'logout' %}">
-          {% csrf_token %}
-          <button type="submit" class="auth-link">Đăng xuất</button>
-        </form>
-        <p class="auth-help">Quên mật khẩu? <span>Liên hệ quản trị viên.</span></p>
-        <p class="auth-version">Phiên bản {{ app_version }}</p>
-      </div>
+      {% include 'passkeys/includes/unlock_card.html' with mode='page' %}
+      <p class="auth-version">Phiên bản {{ app_version }}</p>
     </main>
   </body>
 </html>

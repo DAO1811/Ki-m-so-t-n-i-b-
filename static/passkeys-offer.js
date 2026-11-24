@@ -1,4 +1,5 @@
-/* Invite this device to turn on Face ID right after a password sign-in. */
+/* Invite this device to turn on Face ID right after a password sign-in, like a
+   banking app. The "Bật Face ID" button itself is handled by passkeys.js. */
 (() => {
   "use strict";
   const box = document.getElementById("pk-offer");
@@ -9,8 +10,10 @@
   const write = (store, key) => {
     try { window[store].setItem(key, "1"); } catch { /* private mode */ }
   };
-  if (read("localStorage", "dhd-faceid-enabled") === "1" ||
-      read("sessionStorage", "dhd-faceid-later") === "1") return;
+  const username = (box.dataset.pkUsername || "").toLowerCase();
+  const owner = (read("localStorage", "dhd-faceid-user") || "").toLowerCase();
+  const enabled = read("localStorage", "dhd-faceid-enabled") === "1" && (!owner || owner === username);
+  if (enabled || read("sessionStorage", "dhd-faceid-later") === "1") return;
   const api = window.PublicKeyCredential;
   if (!window.isSecureContext || !api ||
       typeof api.isUserVerifyingPlatformAuthenticatorAvailable !== "function") return;

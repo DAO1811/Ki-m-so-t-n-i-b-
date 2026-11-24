@@ -35,6 +35,7 @@ ICONS = {
     "moon": '<path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/>',
     "refresh": '<path d="M20 7a9 9 0 1 0 1 8M20 2v5h-5"/>',
     "logout": '<path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4"/>',
+    "faceid": '<path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M9 9v1.5M15 9v1.5M12 9v4.5h-1M9 16.5a4.5 4.5 0 0 0 6 0"/>',
     "lock": '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
     "edit": '<path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5"/>',
     "trash": '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>',

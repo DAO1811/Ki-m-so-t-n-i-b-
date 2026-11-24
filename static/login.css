@@ -105,30 +105,38 @@
 }
 @media (max-width: 360px) { .auth-layout { padding: 12px 14px 28px; } .auth-card { padding: 28px 23px; } }
 @media (prefers-reduced-motion: reduce) { .auth-page * { transition: none !important; } }
-/* Bank-app style Face ID screen for devices that turned Face ID on. */
-.fid-quick { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
-.fid-quick[hidden] { display: none; }
-.fid-quick h1 { margin: 6px 0 0; }
-.fid-quick .auth-description { margin: 0 0 6px; }
-.fid-quick .pk-button, .fid-quick .pk-status { width: 100%; }
-.auth-card.fid-quick-on > h1,
-.auth-card.fid-quick-on > .auth-description,
-.auth-card.fid-quick-on > .auth-form,
-.auth-card.fid-quick-on > .pk-login { display: none; }
-.fid-face { display: grid; place-items: center; width: 84px; height: 84px; border: 1px solid #e9cc8c55; border-radius: 24px; background: #e9cc8c12; color: #e9cc8c; }
-.fid-face .icon { width: 44px; height: 44px; }
+/* Bank-app style sign-in (owner request 24/11/2026, "giống app ACB"): greeting
+   with the remembered account, password and a Face ID button side by side. */
+.bank-hello { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.bank-hello[hidden], [data-bank-default][hidden], .bank-links [hidden] { display: none; }
+.bank-avatar { display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: 12px; border: 1px solid #e9cc8c66; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #f3dea633, #e9cc8c0d); color: #f0dba8; font-size: 28px; font-weight: 700; }
+.bank-hello-text { margin: 0; color: #a7adb9; font-size: 14px; }
+.auth-card h1.bank-name { margin: 2px 0 0; font-size: 26px; letter-spacing: -.4px; overflow-wrap: anywhere; }
+.bank-card.bank-remembered [data-bank-username] { display: none; }
+.bank-card.bank-remembered .auth-form { margin-top: 22px; }
+.bank-actions { display: flex; align-items: stretch; gap: 10px; margin-top: 29px; }
+.bank-actions .auth-submit { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+.bank-faceid { flex: 0 0 56px; display: grid; place-items: center; width: 56px; min-height: 52px; padding: 0; border: 1px solid #e9cc8c80; border-radius: 10px; background: #e9cc8c14; color: #f0dba8; cursor: pointer; }
+.bank-faceid[hidden] { display: none; }
+.bank-faceid .icon { width: 30px; height: 30px; }
+.bank-faceid:hover { background: #e9cc8c26; border-color: #f3dea6; }
+.bank-faceid:disabled { opacity: .6; cursor: wait; }
+.bank-notice { margin: 18px 0 0; padding: 10px 12px; border: 1px solid #e9cc8c33; border-radius: 10px; background: #e9cc8c0d; color: #f0dba8; font-size: 12px; line-height: 1.6; text-align: center; }
+.bank-keep { margin: 8px 0 0; color: #a7adb9; font-size: 11px; text-align: center; }
+.bank-form .auth-field { margin: 18px 0 0; }
+.bank-card .pk-status, .bank-card .pk-note { margin-top: 14px; }
+.bank-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 18px; }
+.bank-links form { margin: 0; }
+.bank-links + .auth-help { margin-top: 8px; }
 .auth-link { padding: 6px; border: 0; background: none; color: #c6ccd5; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
-.auth-unlock .auth-card { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
-.auth-unlock .auth-card > * { width: 100%; }
-.auth-unlock .fid-face { width: 84px; }
-.unlock-password summary { color: #c6ccd5; font-size: 13px; text-decoration: underline; cursor: pointer; }
-.unlock-password form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; text-align: left; }
-.unlock-password input { min-height: 44px; padding: 10px 12px; border: 1px solid #ffffff24; border-radius: 9px; background: #0d1015; color: #f2f3f5; font: inherit; }
-/* In-page lock screen for Face ID sessions (bank-app style). */
+.auth-unlock { display: flex; flex-direction: column; align-items: center; flex: 1; padding: 4px 20px 40px; }
+.auth-unlock .auth-version { margin-top: 18px; }
+/* In-page lock screen (every account): covers the page until signed in again. */
 .app-lock { position: fixed; inset: 0; z-index: 20000; overflow: auto; }
 .app-lock[hidden] { display: none; }
 html.app-locked, html.app-locked body { overflow: hidden; }
 @media (max-width: 760px) {
-  /* Face ID screen first on phones, like a banking app. */
-  .auth-page:has(.auth-card.fid-quick-on) .auth-intro { display: none; }
+  /* Greeting first on phones, like a banking app. */
+  .auth-page:has(.bank-card.bank-remembered) .auth-intro { display: none; }
+  .auth-card h1.bank-name { font-size: 24px; }
 }

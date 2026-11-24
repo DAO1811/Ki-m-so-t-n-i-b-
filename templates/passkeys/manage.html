@@ -10,14 +10,14 @@
   <section class="pk-intro" aria-label="Cách dùng Face ID">
     <div class="pk-intro-icon">{% icon 'shield' %}</div>
     <div>
-      <h2>Dùng trên iPhone</h2>
+      <h2>Dùng trên iPhone (giống app ngân hàng)</h2>
       <ol class="pk-steps">
-        <li>Mở phần mềm bằng <strong>Safari</strong> trên chính iPhone đó (không mở từ Zalo, Messenger, Facebook).</li>
-        <li>iPhone cần bật <strong>Cài đặt → [tên bạn] → iCloud → Mật khẩu và Chuỗi khóa</strong>.</li>
-        <li>Bấm <strong>Bật Face ID cho thiết bị này</strong> bên dưới, nhìn vào màn hình để Face ID xác nhận.</li>
-        <li>Lần sau, ở trang đăng nhập bấm <strong>Đăng nhập bằng Face ID</strong>, hoặc chạm ô tên đăng nhập rồi chọn tài khoản hiện phía trên bàn phím.</li>
+        <li>Mở phần mềm bằng <strong>Safari</strong> trên chính iPhone đó (không mở từ Zalo, Messenger, Facebook). Nên bấm <strong>Chia sẻ → Thêm vào MH chính</strong> để có biểu tượng mở như app.</li>
+        <li>Bấm <strong>Bật Face ID cho thiết bị này</strong> bên dưới.</li>
+        <li>iPhone hỏi <strong>"Lưu mã khóa?"</strong> → bấm <strong>Tiếp tục</strong> rồi nhìn vào màn hình. Không cần vào Cài đặt.</li>
+        <li>Lần sau mở phần mềm, màn hình <strong>"Xin chào, {{ user.get_full_name|default:user.username }}"</strong> tự hỏi Face ID. Face ID không được thì nhập mật khẩu ngay bên dưới.</li>
       </ol>
-      <p class="pk-note">Face ID không được thì đăng nhập bằng mật khẩu như bình thường. Quên mật khẩu, liên hệ quản trị viên. Phần mềm không mở camera và không lưu ảnh khuôn mặt; Face ID do iPhone tự xác minh. Tài khoản: <strong>{{ user.username }}</strong>.</p>
+      <p class="pk-note">Chỉ khi iPhone báo chưa bật Chuỗi khóa: Cài đặt → [tên bạn] → iCloud → Mật khẩu &amp; Chuỗi khóa → bật. Công tắc đã màu xanh là đã bật, không cần làm gì thêm. Phần mềm không mở camera và không lưu ảnh khuôn mặt; Face ID do iPhone tự xác minh. Quên mật khẩu, liên hệ quản trị viên. Tài khoản: <strong>{{ user.username }}</strong>.</p>
     </div>
   </section>
   <div class="pk-grid">
@@ -26,14 +26,14 @@
       {% if credentials|length >= max_credentials|default:10 %}
         <p class="pk-notice">Tài khoản đã bật Face ID trên tối đa {{ max_credentials|default:10 }} thiết bị. Tắt một thiết bị cũ trong danh sách bên cạnh trước khi bật thêm.</p>
       {% else %}
-        <form id="passkey-register-form" method="post" action="/account/passkeys/register/options/" class="pk-form" data-pk-account="{{ user.get_full_name|default:user.username }}">
+        <form id="passkey-register-form" method="post" action="/account/passkeys/register/options/" class="pk-form" data-pk-account="{{ user.get_full_name|default:user.username }}" data-pk-username="{{ user.username }}">
           {% csrf_token %}
           {% if password_optional %}
             <input id="passkey-password" name="password" type="hidden" value="">
             <p class="pk-note">Bạn vừa đăng nhập bằng mật khẩu trên thiết bị này nên <strong>không cần nhập lại mật khẩu</strong>.</p>
           {% else %}
             <label for="passkey-password">Mật khẩu hiện tại</label>
-            <input id="passkey-password" name="password" type="password" autocomplete="current-password" required>
+            <input id="passkey-password" name="password" type="password" autocomplete="off" required>
             <p class="pk-note">Nhập mật khẩu để xác nhận. Quên mật khẩu, liên hệ quản trị viên.</p>
           {% endif %}
           <details class="pk-rename">
@@ -61,7 +61,7 @@
                 {% csrf_token %}
                 <p class="pk-note">Thiết bị này sẽ không đăng nhập bằng Face ID được nữa (vẫn đăng nhập bằng mật khẩu). Nhập mật khẩu hiện tại để xác nhận.</p>
                 <label for="passkey-remove-{{ credential.id }}">Mật khẩu hiện tại</label>
-                <input id="passkey-remove-{{ credential.id }}" name="password" type="password" autocomplete="current-password" required>
+                <input id="passkey-remove-{{ credential.id }}" name="password" type="password" autocomplete="off" required>
                 <button type="submit" class="pk-button pk-danger">Tắt Face ID</button>
               </form>
             </details>

@@ -1,0 +1,34 @@
+{% load ui %}{# Bank-app style "sign in again" card: the /unlock/ page and the in-page lock screen. #}
+<div class="auth-card bank-card" data-pk-unlock="{{ mode }}" data-pk-faceid="{% if has_face_id %}1{% else %}0{% endif %}" data-account="{{ request.user.get_username }}"{% if mode == 'inline' %} role="dialog" aria-modal="true" aria-labelledby="app-lock-title"{% endif %}>
+  <div class="bank-hello">
+    <div class="bank-avatar" aria-hidden="true">{{ app_lock_initial }}</div>
+    <p class="bank-hello-text">Xin chào,</p>
+    <h1 class="bank-name" id="{% if mode == 'inline' %}app-lock-title{% else %}unlock-title{% endif %}">{{ app_lock_name }}</h1>
+  </div>
+  <p class="bank-notice" data-lock-reason>Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.</p>
+  {% if mode == 'inline' %}<p class="bank-keep">Nội dung bạn đang làm dở vẫn được giữ nguyên.</p>{% else %}<input type="hidden" name="next" value="{{ next }}">{% csrf_token %}{% endif %}
+  <form class="auth-form bank-form" data-pk-unlock-password autocomplete="off">
+    <div class="auth-field">
+      <label for="{{ mode }}-unlock-password">Mật khẩu</label>
+      <div class="auth-input">
+        {% icon 'lock' %}<input id="{{ mode }}-unlock-password" name="password" type="password" autocomplete="off" placeholder="Nhập mật khẩu" maxlength="1024" required>
+        <button class="auth-password-toggle" type="button" aria-controls="{{ mode }}-unlock-password" aria-label="Hiện mật khẩu" aria-pressed="false" hidden>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="bank-actions">
+      <button type="submit" class="button auth-submit"><span>Đăng nhập</span>{% icon 'arrow' %}</button>
+      <button type="button" class="bank-faceid" data-pk-unlock-button aria-label="Đăng nhập bằng Face ID" title="Đăng nhập bằng Face ID" hidden>{% icon 'faceid' %}<span class="sr-only" data-pk-label>Đăng nhập bằng Face ID</span></button>
+    </div>
+  </form>
+  <p data-pk-status class="pk-status" role="alert" hidden></p>
+  <p data-pk-support class="pk-note" hidden></p>
+  <div class="bank-links">
+    <form method="post" action="{% url 'logout' %}" data-bank-other-form>
+      {% csrf_token %}
+      <button type="submit" class="auth-link">Đăng nhập tài khoản khác</button>
+    </form>
+  </div>
+  <p class="auth-help">Quên mật khẩu? <span>Liên hệ quản trị viên.</span></p>
+</div>

@@ -19,6 +19,10 @@ class GuardedAuthenticationForm(AuthenticationForm):
         # "webauthn" lets iPhone/Android show the saved Face ID / fingerprint
         # sign-in above the keyboard when the username field is tapped.
         self.fields["username"].widget.attrs["autocomplete"] = "username webauthn"
+        # Bank-style: ask browsers not to auto-fill or keep the password.
+        self.fields["password"].widget.attrs.update(
+            autocomplete="off", placeholder="Nhập mật khẩu"
+        )
 
     def _locked(self):
         return ValidationError(LOCK_MESSAGE, code="login_locked")

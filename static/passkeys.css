@@ -44,7 +44,7 @@
 .pk-empty h3 { margin: 0 0 7px; color: var(--ink); font-size: 14px; font-weight: 600; }
 .pk-empty p { margin: 0 auto; max-width: 310px; font-size: 12px; line-height: 1.75; }
 .pk-login { --accent: #e9cc8c; --accent-ink: #f0dba8; --accent-line: #6a5937; --accent-soft: #342d20; --red: #ffb0bc; --red-soft: #3b222b; margin-top: 24px; }
-.fid-quick, .auth-unlock .auth-card { --accent: #e9cc8c; --accent-ink: #f0dba8; --accent-line: #6a5937; --accent-soft: #342d20; --accent-fill: #e9cc8c; --accent-contrast: #302411; --red: #ffb0bc; --red-soft: #3b222b; }
+.bank-card { --accent: #e9cc8c; --accent-ink: #f0dba8; --accent-line: #6a5937; --accent-soft: #342d20; --accent-fill: #e9cc8c; --accent-contrast: #302411; --red: #ffb0bc; --red-soft: #3b222b; }
 .pk-divider { display: flex; align-items: center; gap: 13px; margin-bottom: 19px; color: #949ba8; font-size: 11px; }
 .pk-divider::before, .pk-divider::after { content: ""; flex: 1; height: 1px; background: #ffffff16; }
 .pk-login-button { justify-content: flex-start; width: 100%; padding: 12px 15px; background: #e9cc8c09; color: #e9cc8c; border-color: #e9cc8c55; text-align: left; }

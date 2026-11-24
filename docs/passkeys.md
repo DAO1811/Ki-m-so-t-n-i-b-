@@ -1,15 +1,30 @@
 # Passkey: Face ID / Windows Hello
 
-## Đăng nhập kiểu app ngân hàng (cập nhật 23/11/2026, bản v123)
+## Đăng nhập kiểu app ngân hàng – giống ACB (cập nhật 24/11/2026, bản v124)
 
-Chủ phần mềm yêu cầu đăng nhập bằng Face ID như app ngân hàng; Face ID không được thì dùng mật khẩu; quên mật khẩu thì liên hệ quản trị viên. Giao diện dùng chữ "Face ID" (Windows Hello / vân tay trên máy khác), không bắt người dùng hiểu "passkey".
+Chủ phần mềm yêu cầu (23–24/11/2026): đăng nhập bằng Face ID như app ngân hàng; Face ID không được thì nhập mật khẩu; quên mật khẩu thì liên hệ quản trị viên; **thoát khỏi phần mềm thì phải đăng nhập lại, không cho lưu mật khẩu**, "làm giống ACB". Giao diện dùng chữ "Face ID" (Windows Hello / vân tay trên máy khác), không bắt người dùng hiểu "passkey".
 
-1. **Bật lần đầu:** đăng nhập bằng mật khẩu trên iPhone (Safari) → lời mời "Đăng nhập nhanh bằng Face ID?" → **Bật Face ID** → **Bật Face ID cho thiết bị này** → nhìn vào màn hình. Trong 10 phút sau khi đăng nhập bằng mật khẩu không cần nhập lại mật khẩu (`RECENT_PASSWORD_LOGIN`). Tên thiết bị tự đặt ("iPhone", "Máy tính Windows"…).
-2. **Mở phần mềm lần sau:** thiết bị đã bật Face ID hiện màn hình "Xin chào, <tên>" và tự gọi Face ID; nhận diện xong là vào. Có "Dùng mật khẩu" và "Đăng nhập tài khoản khác". Ô tên đăng nhập có `autocomplete="username webauthn"` nên iPhone còn gợi ý tài khoản ngay trên bàn phím.
-3. **Khóa ứng dụng:** chỉ áp dụng cho phiên đã đăng nhập bằng Face ID. Rời phần mềm (ẩn/đóng app) hoặc không chạm/gõ quá 5 phút (`APP_LOCK_AFTER`) thì hiện màn hình khóa; mở bằng Face ID hoặc mật khẩu. Khóa ngay trong trang (`static/app-lock.js`) giữ nguyên nội dung đang nhập dở. Khi đang khóa, máy chủ trả trang `/unlock/` cho trang thường và mã 423 cho lời gọi dữ liệu (chat, trợ lý tự thử lại sau khi mở khóa). Phiên đăng nhập bằng mật khẩu **không bao giờ** bị khóa kiểu này.
-4. **Cài như app:** Safari → Chia sẻ → **Thêm vào Màn hình chính** (biểu tượng KSNB, `static/manifest.json`, `static/icons/`). Mở từ biểu tượng chạy toàn màn hình như app.
+1. **Màn hình đăng nhập:** thiết bị đã đăng nhập trước đây hiện "Xin chào, <họ tên>" (vòng tròn chữ cái đầu của tên), chỉ còn ô mật khẩu, nút **Đăng nhập** và nút biểu tượng **Face ID** cạnh nhau, "Đăng nhập tài khoản khác", "Quên mật khẩu? Liên hệ quản trị viên." Thiết bị chỉ nhớ tên tài khoản (`localStorage` `dhd-last-user`), **không bao giờ nhớ mật khẩu**. Thiết bị đã bật Face ID cho tài khoản đó thì Face ID tự hiện ngay khi mở. Thiết bị mới hoặc sau "Đăng nhập tài khoản khác" thì hiện đủ ô tên đăng nhập và mật khẩu.
+2. **Bật Face ID:** sau khi đăng nhập (hoặc đăng nhập lại) bằng mật khẩu, lời mời "Đăng nhập nhanh bằng Face ID?" có nút **Bật Face ID** bật ngay tại chỗ (iPhone hỏi "Lưu mã khóa?" → Tiếp tục), không phải nhập lại mật khẩu trong 10 phút (`RECENT_PASSWORD_LOGIN`). Trang Tài khoản → Face ID vẫn dùng được như trước.
+3. **Phiên làm việc (mọi tài khoản, không chỉ Face ID):**
+   - Đóng trình duyệt / đóng app là hết phiên (`SESSION_EXPIRE_AT_BROWSER_CLOSE=True`); máy chủ giữ phiên tối đa 12 giờ (`SESSION_COOKIE_AGE`).
+   - Rời phần mềm (chuyển app khác, khóa màn hình điện thoại, không tab nào của phần mềm đang hiện) quá **60 giây** → quay lại phải đăng nhập lại.
+   - Không chạm / gõ / cuộn quá **5 phút** → "Phiên đăng nhập đã hết hạn do không thao tác trong 5 phút".
+   - Máy chủ không nhận yêu cầu nào quá **120 giây** (app bị đóng, máy tắt) → máy chủ tự khóa phiên.
+   - Màn hình "đăng nhập lại" phủ lên trang hiện tại, nên **nội dung đang nhập dở vẫn giữ**; đăng nhập lại bằng Face ID (nếu thiết bị đã bật) hoặc mật khẩu. Các tab khác của phần mềm khóa/mở theo cùng lúc. Đang trong cuộc gọi nội bộ thì không khóa.
+   - Khi đang khóa, máy chủ trả trang `/unlock/` cho trang thường và mã 423 cho lời gọi dữ liệu (chat, trợ lý tự thử lại sau khi đăng nhập lại).
+   - Sai mật khẩu ở màn hình đăng nhập lại **tính chung luật 5 lần** của trang đăng nhập (`login_guard`): nhân viên sai 5 lần bị khóa tới khi Admin mở; tài khoản Admin tự mở sau 15 phút.
+4. **Không lưu / không tự điền mật khẩu:** mọi ô mật khẩu đăng nhập, đăng nhập lại và trang Face ID đặt `autocomplete="off"`. Giới hạn: Safari/Chrome vẫn có thể tự hỏi "Lưu mật khẩu?" (trình duyệt quyết định, trang web không chặn tuyệt đối được); hãy bấm **"Không bao giờ cho trang web này"**. Dùng Face ID thì không cần gõ mật khẩu.
+5. **Cài như app:** Safari → Chia sẻ → **Thêm vào Màn hình chính** (biểu tượng KSNB, `static/manifest.json`, `static/icons/`). Mở từ biểu tượng chạy toàn màn hình như app.
 
-Face ID do iPhone tự xác minh; phần mềm không mở camera, không lưu ảnh khuôn mặt. Mỗi thiết bị bật riêng. Kiểm thử: `passkeys/tests/test_faceid_flow.py`, `passkeys/tests/test_app_lock.py`; đã chạy trọn vòng bằng Chromium + thiết bị Face ID giả lập (thiết bị mới → bật Face ID → mở lại tự vào → khóa → mở khóa giữ nội dung).
+| Biến môi trường | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| `APP_LOCK_ENABLED` | `1` | `0` tắt hẳn việc khóa phiên (khẩn cấp). Đóng trình duyệt vẫn hết phiên. |
+| `APP_LOCK_AWAY_SECONDS` | `60` | Rời phần mềm bao lâu thì phải đăng nhập lại (tối thiểu 15). |
+| `APP_LOCK_IDLE_SECONDS` | `300` | Không thao tác bao lâu thì hết phiên (tối thiểu 60). |
+| `APP_LOCK_SERVER_GAP_SECONDS` | `120` | Máy chủ không nhận yêu cầu bao lâu thì tự khóa (tối thiểu 90, không nhỏ hơn thời gian rời phần mềm). |
+
+Face ID do iPhone tự xác minh; phần mềm không mở camera, không lưu ảnh khuôn mặt. Mỗi thiết bị bật riêng. Mã: `passkeys/services.py` (`app_lock_applies`, `lock_timing`, `unlock_with_password`), `passkeys/middleware.py` (`AppLockMiddleware`), `static/app-lock.js`, `static/login.js`, `static/passkeys.js`, `templates/passkeys/includes/unlock_card.html`. Kiểm thử: `passkeys/tests/test_app_lock.py`, `passkeys/tests/test_faceid_flow.py`; đã chạy trọn vòng bằng Chromium mô phỏng iPhone 13 có Face ID giả lập (lần đầu → bật Face ID một chạm → rời app 90 giây → đăng nhập lại bằng Face ID, giữ chữ đang gõ → đóng app mở lại hiện "Xin chào" → nhân viên không Face ID để yên 5 phút → sai/đúng mật khẩu).
 
 
 Passkey bổ sung cách đăng nhập cho tài khoản hiện có. Thiết bị/hệ điều hành quyết định dùng khuôn mặt, vân tay hoặc PIN; website không bắt buộc chỉ dùng khuôn mặt, không mở camera và không lưu ảnh khuôn mặt. Máy chủ lưu khóa công khai cùng thông tin quản lý passkey; khóa bí mật do thiết bị hoặc trình quản lý passkey giữ. Chức năng không gọi API AI hay API xác thực trả phí.

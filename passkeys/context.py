@@ -1,4 +1,11 @@
-from .services import APP_LOCK_AFTER, app_lock_applies, available, recent_password_login
+from .services import (
+    app_lock_applies,
+    available,
+    has_face_id,
+    identity,
+    lock_timing,
+    recent_password_login,
+)
 
 
 def passkey_context(request):
@@ -16,10 +23,19 @@ def passkey_context(request):
         data["passkey_offer"] = True
     if (
         user is not None
+        and user.is_authenticated
         and hasattr(request, "session")
-        and data["passkeys_available"]
         and app_lock_applies(request)
     ):
-        data["app_lock_active"] = True
-        data["app_lock_after"] = APP_LOCK_AFTER
+        away, idle, _gap = lock_timing()
+        name, initial = identity(user)
+        data.update(
+            app_lock_active=True,
+            app_lock_away=away,
+            app_lock_idle=idle,
+            app_lock_idle_minutes=max(1, round(idle / 60)),
+            app_lock_name=name,
+            app_lock_initial=initial,
+            has_face_id=has_face_id(user),
+        )
     return data

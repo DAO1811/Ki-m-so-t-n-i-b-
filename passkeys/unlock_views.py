@@ -1,4 +1,4 @@
-"""Unlock screen for Face ID sessions (bank-app style)."""
+"""Bank-app style "sign in again" screen for locked sessions (any account)."""
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
@@ -23,14 +23,17 @@ def unlock(request):
         target = "/"
     if not services.app_lock_applies(request):
         return redirect(target)
-    # Opening this page locks the session, so "back" cannot skip Face ID.
+    # Opening this page locks the session, so "back" cannot skip the sign-in.
     services.lock(request)
+    name, initial = services.identity(request.user)
     return render(
         request,
         "passkeys/unlock.html",
         {
             "next": target,
-            "display_name": request.user.get_full_name() or request.user.get_username(),
+            "app_lock_name": name,
+            "app_lock_initial": initial,
+            "has_face_id": services.has_face_id(request.user),
         },
     )
 
@@ -50,14 +53,14 @@ def unlock_verify(request, data):
 def unlock_password(request, data):
     password = data.get("password", "")
     if not isinstance(password, str) or not 1 <= len(password) <= 1024:
-        raise services.PasskeyError("Nhập mật khẩu để mở khóa.")
+        raise services.PasskeyError("Nhập mật khẩu để đăng nhập lại.")
     services.unlock_with_password(request, password)
     return {"redirect": back(data)}
 
 
 @api(authenticated=True)
 def ping(request, data):
-    """Keep an in-use Face ID session unlocked; report if it is locked."""
+    """Keep an in-use session unlocked; report if it is locked."""
     if not services.app_lock_applies(request):
         return {"ok": True}
     if request.session.get("app_locked") is True:
